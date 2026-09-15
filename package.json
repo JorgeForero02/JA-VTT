@@ -1,11 +1,15 @@
 {
   "name": "just-another-vtt",
   "version": "1.0.0",
-  "description": "Mesa virtual local con iluminación dinámica, tableros compartidos y SQLite",
+  "description": "Mesa virtual para rol: iluminación dinámica, escenas, tiempo real y PostgreSQL",
   "main": "server.js",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test",
+    "test:e2e": "node test/e2e/realtime.mjs"
   },
   "engines": {
     "node": ">=22.5"

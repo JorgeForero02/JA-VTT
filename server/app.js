@@ -1,24 +1,30 @@
 'use strict';
+/* HTTP, API REST y tiempo real. Los tableros abiertos viven en memoria (`live`) y
+   se vuelcan a PostgreSQL cada FLUSH_MS; cada tablero procesa sus mensajes en serie. */
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const { q, tx, now, randCode, newSceneId, loginOrCreate, ensureUser, createBoard, seedSamples, DB_FILE } = require('./db');
+const db = require('./db');
+const { q, tx, randCode, newSceneId, createBoard, seedSamples } = db;
+const { hashPassword, verifyPassword, validPassword, MIN_PASSWORD } = require('./auth');
 const { acceptUpgrade } = require('./ws');
 const R = require('./rules');
 
 const PUBLIC = path.resolve(__dirname, '..', 'public');
 if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) {
   console.error(`\n  No encuentro la interfaz en ${PUBLIC}`);
-  console.error('  Descomprime el zip completo y ejecuta el programa desde la carpeta just-another-vtt.\n');
+  console.error('  Ejecuta el programa desde la carpeta just-another-vtt.\n');
   process.exit(1);
 }
 const MAX_BODY = 22 * 1024 * 1024;
 const MAX_IMAGE = 15 * 1024 * 1024;
 const BOARD_QUOTA = 500 * 1024 * 1024;
-
-seedSamples(path.join(PUBLIC, 'muestras'));
+const FLUSH_MS = 400;
+const SESSION_COOKIE = 'jav_session';
+const SESSION_MAX_AGE = 31536000;
+const IMAGE_CATEGORIES = ['board', 'prop', 'pc', 'npc'];
 
 /* ---------------- utilidades HTTP ---------------- */
 const MIME = {
@@ -47,20 +53,25 @@ function readJson(req) {
 function cookies(req) {
   const out = {};
   for (const part of (req.headers.cookie || '').split(';')) {
-    const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    const i = part.indexOf('='); if (i < 0) continue;
+    out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
   }
   return out;
 }
-const userFrom = (req) => { const t = cookies(req).jav_session; return t ? q.sessionUser.get(t) || null : null; };
+const sessionCookie = (token) => `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE}`;
+const clearedCookie = () => `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+async function userFrom(req) {
+  const token = cookies(req)[SESSION_COOKIE];
+  return token ? q.sessionUser(token) : null;
+}
 const publicUser = (u) => u && { id: u.id, name: u.name, color: u.color };
 function cleanName(v) {
-  const s = typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
+  const s = String(v || '').trim().replace(/\s+/g, ' ');
   if (s.length < 2 || s.length > 24) return null;
   if (!/^[\p{L}\p{N} ._-]+$/u.test(s)) return null;
   return s;
 }
-const memberOf = (boardId, uid) => q.member.get(boardId, uid) || null;
+const memberOf = (boardId, uid) => q.member(boardId, uid);
 
 /* ---------------- tableros en memoria ---------------- */
 const CELL = 50;
@@ -68,57 +79,90 @@ const live = new Map();
 let lastObjId = 0;
 const newObjId = () => { let v = Date.now() * 1000 + Math.floor(Math.random() * 1000); if (v <= lastObjId) v = lastObjId + 1; lastObjId = v; return v; };
 
-function loadScene(row) {
-  const objects = new Map();
-  for (const r of q.sceneObjects.all(row.id)) { try { const o = JSON.parse(r.data); objects.set(o.id, o); } catch {} }
-  let settings = {};
-  try { settings = R.splitSettings(JSON.parse(row.settings || '{}')).scene; } catch {}
+function makeScene(row, objects) {
+  const settings = R.splitSettings(row.settings || {}).scene;
   return { id: row.id, name: row.name, sort: row.sort, settings: Object.assign({}, R.DEFAULT_SCENE, settings), objects, dirty: new Set(), removed: new Set(), settingsDirty: false };
 }
-function openBoard(id) {
-  let b = live.get(id);
-  if (b) return b;
-  const row = q.board.get(id);
+async function loadScene(row) {
+  const objects = new Map();
+  for (const o of await q.sceneObjects(row.id)) objects.set(o.id, o);
+  return makeScene(row, objects);
+}
+async function openBoard(id) {
+  const cached = live.get(id);
+  if (cached) return cached;
+  const row = await q.board(id);
   if (!row) return null;
   const scenes = new Map();
-  for (const sr of q.scenes.all(id)) scenes.set(sr.id, loadScene(sr));
-  let bs = {};
-  try { bs = R.splitSettings(JSON.parse(row.settings || '{}')).board; } catch {}
-  b = {
+  for (const sr of await q.scenes(id)) scenes.set(sr.id, await loadScene(sr));
+  const boardSettings = R.splitSettings(row.settings || {}).board;
+  const b = {
     id, name: row.name, owner_id: row.owner_id, invite_code: row.invite_code,
     active: scenes.has(row.active_scene) ? row.active_scene : [...scenes.keys()][0],
-    settings: Object.assign({}, R.DEFAULT_BOARD, bs), settingsDirty: false,
-    scenes, clients: new Set(),
+    settings: Object.assign({}, R.DEFAULT_BOARD, boardSettings), settingsDirty: false,
+    scenes, clients: new Set(), members: await q.members(id),
+    flushing: false, chain: Promise.resolve(),
   };
+  // otra petición pudo abrirlo mientras esperábamos
+  if (live.has(id)) return live.get(id);
   live.set(id, b);
   return b;
 }
-function flush(b) {
-  const touched = [...b.scenes.values()].some((s) => s.dirty.size || s.removed.size || s.settingsDirty) || b.settingsDirty;
-  if (!touched) return;
-  tx(() => {
-    for (const sc of b.scenes.values()) {
-      for (const id of sc.removed) q.deleteObject.run(b.id, id);
-      for (const id of sc.dirty) { const o = sc.objects.get(id); if (o) q.upsertObject.run(b.id, id, sc.id, o.type, JSON.stringify(o)); }
-      if (sc.settingsDirty) q.setSceneSettings.run(JSON.stringify(sc.settings), sc.id);
-      sc.dirty.clear(); sc.removed.clear(); sc.settingsDirty = false;
-    }
-    if (b.settingsDirty) q.setSettings.run(JSON.stringify(b.settings), now(), b.id);
-    else q.touchBoard.run(now(), b.id);
-    b.settingsDirty = false;
-  });
+/* Serializa el trabajo sobre un tablero: los mensajes de sus clientes no se solapan. */
+function enqueue(b, work) {
+  b.chain = b.chain.then(work).catch((e) => console.error('Error procesando el tablero', b.id, e));
+  return b.chain;
 }
-setInterval(() => {
-  for (const b of live.values()) {
-    try { flush(b); } catch (e) { console.error('No se pudo guardar el tablero', b.id, e.message); }
-    if (!b.clients.size) live.delete(b.id);
+async function refreshMembers(b) { b.members = await q.members(b.id); }
+async function setMemberScene(b, uid, sceneId) {
+  await q.setMemberScene(sceneId, b.id, uid);
+  const m = b.members.find((x) => x.id === uid);
+  if (m) m.scene_id = sceneId;
+}
+
+async function flush(b) {
+  if (b.flushing) return;
+  const pending = [];
+  for (const sc of b.scenes.values()) {
+    if (!sc.dirty.size && !sc.removed.size && !sc.settingsDirty) continue;
+    pending.push({ sc, removed: [...sc.removed], dirty: [...sc.dirty].map((id) => sc.objects.get(id)).filter(Boolean), settings: sc.settingsDirty ? Object.assign({}, sc.settings) : null });
+    sc.dirty.clear(); sc.removed.clear(); sc.settingsDirty = false;
   }
-}, 400);
+  const boardSettings = b.settingsDirty ? Object.assign({}, b.settings) : null;
+  b.settingsDirty = false;
+  if (!pending.length && !boardSettings) return;
+  b.flushing = true;
+  try {
+    await tx(async (t) => {
+      for (const p of pending) {
+        for (const id of p.removed) await t.deleteObject(b.id, id);
+        for (const o of p.dirty) await t.upsertObject(b.id, o.id, p.sc.id, o.type, o);
+        if (p.settings) await t.setSceneSettings(p.settings, p.sc.id);
+      }
+      if (boardSettings) await t.setSettings(boardSettings, b.id);
+      else await t.touchBoard(b.id);
+    });
+  } catch (e) {
+    // se vuelve a marcar todo para reintentarlo en el siguiente ciclo
+    for (const p of pending) { for (const id of p.removed) p.sc.removed.add(id); for (const o of p.dirty) p.sc.dirty.add(o.id); if (p.settings) p.sc.settingsDirty = true; }
+    if (boardSettings) b.settingsDirty = true;
+    throw e;
+  } finally {
+    b.flushing = false;
+  }
+}
+async function flushAll() {
+  for (const b of live.values()) {
+    try { await flush(b); } catch (e) { console.error('No se pudo guardar el tablero', b.id, e.message); }
+    if (!b.clients.size && !b.flushing) live.delete(b.id);
+  }
+}
+const flushTimer = setInterval(flushAll, FLUSH_MS);
 
 const sceneList = (b) => [...b.scenes.values()].sort((x, y) => x.sort - y.sort).map((s) => ({ id: s.id, name: s.name }));
 function memberScenes(b) {
   const where = {};
-  for (const m of q.members.all(b.id)) where[m.id] = b.scenes.has(m.scene_id) ? m.scene_id : b.active;
+  for (const m of b.members) where[m.id] = b.scenes.has(m.scene_id) ? m.scene_id : b.active;
   return where;
 }
 function onlineList(b) {
@@ -133,10 +177,10 @@ function broadcast(b, msg, except, sceneId) {
 function sendScenes(b) { broadcast(b, { t: 'scenes', scenes: sceneList(b), where: memberScenes(b), active: b.active, online: onlineList(b) }); }
 const ownedCount = (b, uid) => { let n = 0; for (const sc of b.scenes.values()) for (const o of sc.objects.values()) if (o.type === 'token' && o.owner === uid) n++; return n; };
 
-function stateFor(b, c) {
+async function stateFor(b, c) {
   const sc = b.scenes.get(c.sceneId);
   const member = { role: c.role, user_id: c.user.id };
-  const fog = c.role === 'gm' ? [] : q.fogFor.all(sc.id, c.user.id).map((r) => ({ cx: r.cx, cy: r.cy, data: 'data:image/png;base64,' + Buffer.from(r.data).toString('base64') }));
+  const fog = c.role === 'gm' ? [] : (await q.fogFor(sc.id, c.user.id)).map((r) => ({ cx: r.cx, cy: r.cy, data: 'data:image/png;base64,' + r.data.toString('base64') }));
   return {
     t: 'state',
     me: publicUser(c.user), role: c.role,
@@ -145,15 +189,17 @@ function stateFor(b, c) {
     scenes: sceneList(b), where: memberScenes(b), active: b.active,
     settings: Object.assign({}, sc.settings, b.settings),
     objects: [...sc.objects.values()].filter((o) => R.visibleTo(o, member, sc.settings)),
-    members: q.members.all(b.id),
+    members: b.members,
     online: onlineList(b),
     fog,
   };
 }
-function sendMembers(boardId) {
+async function sendState(b, c, extra) { c.ws.send(Object.assign(await stateFor(b, c), extra || {})); }
+async function sendMembers(boardId) {
   const b = live.get(boardId);
   if (!b) return;
-  broadcast(b, { t: 'members', members: q.members.all(boardId) });
+  await refreshMembers(b);
+  broadcast(b, { t: 'members', members: b.members });
   sendScenes(b);
 }
 
@@ -187,7 +233,7 @@ function arrivalPoints(sc, portalId, count) {
 }
 
 /* Lleva a un usuario (y sus fichas) a otra escena */
-function moveUser(b, uid, targetId, point) {
+async function moveUser(b, uid, targetId, point) {
   const target = b.scenes.get(targetId);
   if (!target) return;
   for (const sc of b.scenes.values()) {
@@ -212,22 +258,21 @@ function moveUser(b, uid, targetId, point) {
     o.x = point.x; o.y = point.y; target.dirty.add(o.id);
     broadcast(b, { t: 'ops', up: [o], by: uid }, null, targetId);
   }
-  q.setMemberScene.run(targetId, b.id, uid);
-  for (const c of b.clients) if (c.user.id === uid) { c.sceneId = targetId; c.ws.send(stateFor(b, c)); }
+  await setMemberScene(b, uid, targetId);
+  for (const c of b.clients) if (c.user.id === uid) { c.sceneId = targetId; await sendState(b, c); }
 }
-function gather(b, targetId, portalId) {
+async function gather(b, targetId, portalId) {
   const target = b.scenes.get(targetId);
   if (!target) return;
-  const members = q.members.all(b.id);
-  const players = members.filter((m) => m.role !== 'gm');
+  const players = b.members.filter((m) => m.role !== 'gm');
   const pts = arrivalPoints(target, portalId, Math.max(1, players.length));
-  players.forEach((m, i) => moveUser(b, m.id, targetId, ownedCount(b, m.id) ? pts[i] : null));
-  for (const m of members) if (m.role === 'gm') moveUser(b, m.id, targetId, null);
-  b.active = targetId; q.setActiveScene.run(targetId, b.id);
+  for (const [i, m] of players.entries()) await moveUser(b, m.id, targetId, ownedCount(b, m.id) ? pts[i] : null);
+  for (const m of b.members) if (m.role === 'gm') await moveUser(b, m.id, targetId, null);
+  b.active = targetId; await q.setActiveScene(targetId, b.id);
   sendScenes(b);
 }
 
-function handleOps(b, c, d) {
+async function handleOps(b, c, d) {
   if (d.scene && d.scene !== c.sceneId) return; // cambios de una escena que ya no está abierta
   const sc = b.scenes.get(c.sceneId);
   const gm = c.role === 'gm';
@@ -280,7 +325,7 @@ function handleOps(b, c, d) {
       continue;
     }
     const member = { role: other.role, user_id: other.user.id };
-    if (resendPlayers && other.role !== 'gm') { other.ws.send(stateFor(b, other)); continue; }
+    if (resendPlayers && other.role !== 'gm') { await sendState(b, other); continue; }
     const up = [], del = [...removed];
     for (const a of accepted) {
       const vis = R.visibleTo(a.obj, member, sc.settings);
@@ -292,7 +337,7 @@ function handleOps(b, c, d) {
   }
 }
 
-function handleReplace(b, c, d) {
+async function handleReplace(b, c, d) {
   if (c.role !== 'gm' || (d.scene && d.scene !== c.sceneId)) return;
   const sc = b.scenes.get(c.sceneId);
   // las fichas de jugadores que estén en otras escenas no se tocan
@@ -302,90 +347,92 @@ function handleReplace(b, c, d) {
   sc.objects.clear();
   for (const o of objs) sc.objects.set(o.id, o);
   if (d.settings) { const { board, scene } = R.splitSettings(d.settings); Object.assign(sc.settings, scene); Object.assign(b.settings, board); b.settingsDirty = true; }
-  if (typeof d.name === 'string' && d.name.trim()) { sc.name = R.str(d.name, 60).trim(); q.renameScene.run(sc.name, sc.id); }
-  tx(() => {
-    q.clearSceneObjects.run(sc.id);
-    for (const o of objs) q.upsertObject.run(b.id, o.id, sc.id, o.type, JSON.stringify(o));
-    q.setSceneSettings.run(JSON.stringify(sc.settings), sc.id);
+  if (typeof d.name === 'string' && d.name.trim()) { sc.name = R.str(d.name, 60).trim(); await q.renameScene(sc.name, sc.id); }
+  await tx(async (t) => {
+    await t.clearSceneObjects(sc.id);
+    for (const o of objs) await t.upsertObject(b.id, o.id, sc.id, o.type, o);
+    await t.setSceneSettings(sc.settings, sc.id);
   });
   sc.dirty.clear(); sc.removed.clear(); sc.settingsDirty = false;
-  for (const other of b.clients) if (other !== c && other.sceneId === sc.id) other.ws.send(Object.assign(stateFor(b, other), { by: c.user.id, replaced: true }));
+  for (const other of b.clients) if (other !== c && other.sceneId === sc.id) await sendState(b, other, { by: c.user.id, replaced: true });
   sendScenes(b);
 }
 
-function handleScene(b, c, d) {
+const nextSort = (b) => Math.max(0, ...[...b.scenes.values()].map((s) => s.sort)) + 1;
+
+async function handleScene(b, c, d) {
   if (c.role !== 'gm') return;
   switch (d.op) {
     case 'create': {
       const id = newSceneId();
-      const sort = Math.max(0, ...[...b.scenes.values()].map((s) => s.sort)) + 1;
+      const sort = nextSort(b);
       const name = R.str(d.name, 60).trim() || `Escena ${b.scenes.size + 1}`;
-      q.insertScene.run(id, b.id, name, JSON.stringify(R.DEFAULT_SCENE), sort, now());
-      b.scenes.set(id, loadScene({ id, name, sort, settings: '{}' }));
-      if (d.open) { c.sceneId = id; q.setMemberScene.run(id, b.id, c.user.id); c.ws.send(Object.assign(stateFor(b, c), { created: true })); }
+      await q.insertScene(id, b.id, name, R.DEFAULT_SCENE, sort);
+      b.scenes.set(id, makeScene({ id, name, sort, settings: {} }, new Map()));
+      if (d.open) { c.sceneId = id; await setMemberScene(b, c.user.id, id); await sendState(b, c, { created: true }); }
       break;
     }
     case 'rename': {
       const sc = b.scenes.get(d.id); const name = R.str(d.name, 60).trim();
-      if (sc && name) { sc.name = name; q.renameScene.run(name, sc.id); }
+      if (sc && name) { sc.name = name; await q.renameScene(name, sc.id); }
       break;
     }
     case 'duplicate': {
       const src = b.scenes.get(d.id); if (!src) return;
-      flush(b);
+      await flush(b);
       const id = newSceneId();
-      const sort = Math.max(0, ...[...b.scenes.values()].map((s) => s.sort)) + 1;
+      const sort = nextSort(b);
       const name = R.str(`${src.name} (copia)`, 60);
-      const idMap = new Map(), groupMap = new Map();
-      const copy = [];
+      const groupMap = new Map();
+      const copy = new Map();
       for (const o of src.objects.values()) {
         if (o.type === 'token' && o.owner != null) continue; // los personajes no se duplican
-        const n = JSON.parse(JSON.stringify(o)); n.id = newObjId(); idMap.set(o.id, n.id);
+        const n = JSON.parse(JSON.stringify(o)); n.id = newObjId();
         if (n.group != null) { if (!groupMap.has(n.group)) groupMap.set(n.group, newObjId()); n.group = groupMap.get(n.group); }
         if (n.physics) { if (!groupMap.has(n.physics.group)) groupMap.set(n.physics.group, newObjId()); n.physics.group = groupMap.get(n.physics.group); }
-        copy.push(n);
+        copy.set(n.id, n);
       }
-      tx(() => {
-        q.insertScene.run(id, b.id, name, JSON.stringify(src.settings), sort, now());
-        for (const o of copy) q.upsertObject.run(b.id, o.id, id, o.type, JSON.stringify(o));
+      await tx(async (t) => {
+        await t.insertScene(id, b.id, name, src.settings, sort);
+        for (const o of copy.values()) await t.upsertObject(b.id, o.id, id, o.type, o);
       });
-      b.scenes.set(id, loadScene({ id, name, sort, settings: JSON.stringify(src.settings) }));
+      b.scenes.set(id, makeScene({ id, name, sort, settings: src.settings }, copy));
       break;
     }
     case 'delete': {
       const sc = b.scenes.get(d.id);
       if (!sc || b.scenes.size < 2) return c.ws.send({ t: 'error', error: 'Un tablero necesita al menos una escena' });
       const fallback = [...b.scenes.values()].find((s) => s.id !== sc.id);
-      flush(b);
+      await flush(b);
       // quien estaba allí (y su personaje) pasa a otra escena
       const inside = Object.entries(memberScenes(b)).filter(([, sid]) => sid === sc.id).map(([uid]) => Number(uid));
       const pts = arrivalPoints(fallback, null, Math.max(1, inside.length));
-      inside.forEach((uid, i) => moveUser(b, uid, fallback.id, pts[i]));
-      for (const cl of b.clients) if (cl.sceneId === sc.id) { cl.sceneId = fallback.id; cl.ws.send(stateFor(b, cl)); }
+      for (const [i, uid] of inside.entries()) await moveUser(b, uid, fallback.id, pts[i]);
+      for (const cl of b.clients) if (cl.sceneId === sc.id) { cl.sceneId = fallback.id; await sendState(b, cl); }
       b.scenes.delete(sc.id);
-      tx(() => { q.clearSceneObjects.run(sc.id); q.deleteScene.run(sc.id); });
+      await q.deleteScene(sc.id);
       // los portales que llevaban allí se quedan sin destino
       for (const other of b.scenes.values()) {
         const fixed = [];
         for (const o of other.objects.values()) if (o.kind === 'portal' && o.target && o.target.scene === sc.id) { o.target = null; other.dirty.add(o.id); fixed.push(o); }
         if (fixed.length) broadcast(b, { t: 'ops', up: fixed, by: c.user.id }, null, other.id);
       }
-      if (b.active === sc.id) { b.active = fallback.id; q.setActiveScene.run(fallback.id, b.id); }
+      if (b.active === sc.id) { b.active = fallback.id; await q.setActiveScene(fallback.id, b.id); }
       break;
     }
     case 'view': {
       if (!b.scenes.has(d.id)) return;
-      c.sceneId = d.id; q.setMemberScene.run(d.id, b.id, c.user.id);
-      c.ws.send(stateFor(b, c));
+      c.sceneId = d.id; await setMemberScene(b, c.user.id, d.id);
+      await sendState(b, c);
       break;
     }
-    case 'gather': if (b.scenes.has(d.id)) gather(b, d.id, Number.isInteger(d.portal) ? d.portal : null); return;
+    case 'gather': if (b.scenes.has(d.id)) await gather(b, d.id, Number.isInteger(d.portal) ? d.portal : null); return;
     case 'send': {
       const uid = Number(d.user);
-      const m = q.member.get(b.id, uid);
+      const m = b.members.find((x) => x.id === uid);
       const target = b.scenes.get(d.id);
       if (!m || !target) return;
-      moveUser(b, uid, target.id, ownedCount(b, uid) ? arrivalPoints(target, null, 1)[0] : null);
+      await moveUser(b, uid, target.id, ownedCount(b, uid) ? arrivalPoints(target, null, 1)[0] : null);
       break;
     }
     case 'backlink': {
@@ -399,15 +446,16 @@ function handleScene(b, c, d) {
     }
     case 'fogreset': {
       const sc = b.scenes.get(c.sceneId);
-      q.clearFog.run(sc.id);
+      await q.clearFog(sc.id);
       broadcast(b, { t: 'fogreset', scene: sc.id }, null, sc.id);
       return;
     }
+    default: return;
   }
   sendScenes(b);
 }
 
-function handleTravel(b, c, d) {
+async function handleTravel(b, c, d) {
   const sc = b.scenes.get(c.sceneId);
   const portal = sc.objects.get(d.portal);
   if (!portal || portal.type !== 'wall' || portal.kind !== 'portal' || !portal.target || !b.scenes.has(portal.target.scene)) {
@@ -416,8 +464,8 @@ function handleTravel(b, c, d) {
   const target = b.scenes.get(portal.target.scene);
   if (c.role === 'gm') {
     if (d.all) return gather(b, target.id, portal.target.portal);
-    c.sceneId = target.id; q.setMemberScene.run(target.id, b.id, c.user.id);
-    c.ws.send(stateFor(b, c)); sendScenes(b);
+    c.sceneId = target.id; await setMemberScene(b, c.user.id, target.id);
+    await sendState(b, c); sendScenes(b);
     return;
   }
   const mine = [...sc.objects.values()].find((o) => o.type === 'token' && o.owner === c.user.id);
@@ -425,49 +473,57 @@ function handleTravel(b, c, d) {
     const m = { x: (portal.a.x + portal.b.x) / 2, y: (portal.a.y + portal.b.y) / 2 };
     if (Math.hypot(mine.x - m.x, mine.y - m.y) > CELL * 3) return c.ws.send({ t: 'error', error: 'Acércate más al portal para cruzarlo' });
   }
-  moveUser(b, c.user.id, target.id, mine ? arrivalPoints(target, portal.target.portal, 1)[0] : null);
+  await moveUser(b, c.user.id, target.id, mine ? arrivalPoints(target, portal.target.portal, 1)[0] : null);
   sendScenes(b);
 }
 
-function handleFog(b, c, d) {
+async function handleFog(b, c, d) {
   if (c.role === 'gm' || d.scene !== c.sceneId) return;
   if (!Number.isInteger(d.cx) || !Number.isInteger(d.cy) || Math.abs(d.cx) > 1e6 || Math.abs(d.cy) > 1e6) return;
   const m = /^data:image\/png;base64,/.exec(d.data || '');
   if (!m) return;
   const buf = Buffer.from(d.data.slice(m[0].length), 'base64');
   if (buf.length > 400 * 1024) return;
-  q.upsertFog.run(c.sceneId, c.user.id, d.cx, d.cy, buf, now());
+  await q.upsertFog(c.sceneId, c.user.id, d.cx, d.cy, buf);
 }
 
-function onSocket(ws, user, boardId) {
-  const member = memberOf(boardId, user.id);
-  const b = member && openBoard(boardId);
+async function handleRename(b, c, d) {
+  if (c.role !== 'gm') return;
+  const name = R.str(d.name, 60).trim();
+  if (!name) return;
+  b.name = name; await q.renameBoard(name, b.id);
+  broadcast(b, { t: 'board', name }, c);
+}
+
+function handleMessage(b, c, d) {
+  switch (d.t) {
+    case 'ops': return handleOps(b, c, d);
+    case 'replace': return handleReplace(b, c, d);
+    case 'scene': return handleScene(b, c, d);
+    case 'travel': return handleTravel(b, c, d);
+    case 'fog': return handleFog(b, c, d);
+    case 'rename': return handleRename(b, c, d);
+    case 'cursor':
+      if (Number.isFinite(d.x) && Number.isFinite(d.y)) broadcast(b, { t: 'cursor', uid: c.user.id, x: d.x, y: d.y }, c, c.sceneId);
+      else broadcast(b, { t: 'cursor', uid: c.user.id, x: null, y: null }, c);
+      return;
+    case 'ping': c.ws.send({ t: 'pong', at: d.at }); return;
+    default: return;
+  }
+}
+
+async function onSocket(ws, user, boardId) {
+  const member = await memberOf(boardId, user.id);
+  const b = member && await openBoard(boardId);
   if (!b) { ws.send({ t: 'error', error: 'No perteneces a este tablero' }); ws.close(4403); return; }
   const sceneId = b.scenes.has(member.scene_id) ? member.scene_id : b.active;
   const c = { ws, user, role: member.role, board: b, sceneId };
   b.clients.add(c);
-  ws.send(stateFor(b, c));
-  sendScenes(b);
+  await enqueue(b, async () => { await sendState(b, c); sendScenes(b); });
   ws.on('message', (text) => {
     let d; try { d = JSON.parse(text); } catch { return; }
     if (!d || typeof d !== 'object') return;
-    try {
-      switch (d.t) {
-        case 'ops': handleOps(b, c, d); break;
-        case 'replace': handleReplace(b, c, d); break;
-        case 'scene': handleScene(b, c, d); break;
-        case 'travel': handleTravel(b, c, d); break;
-        case 'fog': handleFog(b, c, d); break;
-        case 'cursor':
-          if (Number.isFinite(d.x) && Number.isFinite(d.y)) broadcast(b, { t: 'cursor', uid: user.id, x: d.x, y: d.y }, c, c.sceneId);
-          else broadcast(b, { t: 'cursor', uid: user.id, x: null, y: null }, c);
-          break;
-        case 'ping': ws.send({ t: 'pong', at: d.at }); break;
-        case 'rename':
-          if (c.role === 'gm') { const n = R.str(d.name, 60).trim(); if (n) { b.name = n; q.renameBoard.run(n, now(), b.id); broadcast(b, { t: 'board', name: n }, c); } }
-          break;
-      }
-    } catch (e) { console.error('Mensaje descartado:', e); }
+    enqueue(b, () => handleMessage(b, c, d));
   });
   ws.on('close', () => {
     b.clients.delete(c);
@@ -475,7 +531,7 @@ function onSocket(ws, user, boardId) {
     broadcast(b, { t: 'cursor', uid: user.id, x: null, y: null });
   });
 }
-setInterval(() => {
+const pingTimer = setInterval(() => {
   for (const b of live.values()) for (const c of b.clients) { if (!c.ws.alive) c.ws.close(1001); else c.ws.ping(); }
 }, 25000);
 function kick(boardId, uid) {
@@ -484,168 +540,206 @@ function kick(boardId, uid) {
   for (const c of [...b.clients]) if (c.user.id === uid) { c.ws.send({ t: 'kicked' }); c.ws.close(4403); }
 }
 
-/* ---------------- API ---------------- */
+/* ---------------- API: cuentas ---------------- */
+const INVALID_NAME = 'El nombre debe tener entre 2 y 24 letras, números, espacios, puntos o guiones';
+async function register(req, res) {
+  const body = await readJson(req);
+  const name = cleanName(body.name);
+  if (!name) return fail(res, 400, INVALID_NAME);
+  if (!validPassword(body.password)) return fail(res, 400, `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres`);
+  if (await q.userByName(name)) return fail(res, 409, 'Ese nombre de usuario ya está en uso');
+  let user;
+  try { user = await db.createUser(name, await hashPassword(body.password)); }
+  catch (e) { if (e.code === '23505') return fail(res, 409, 'Ese nombre de usuario ya está en uso'); throw e; }
+  const token = await db.createSession(user.id);
+  return send(res, 201, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+}
+async function login(req, res) {
+  const body = await readJson(req);
+  const name = cleanName(body.name);
+  const user = name ? await q.userByName(name) : null;
+  const ok = user ? await verifyPassword(body.password, user.password_hash) : false;
+  if (!ok) return fail(res, 401, 'Usuario o contraseña incorrectos');
+  const token = await db.createSession(user.id);
+  return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+}
+
+/* ---------------- API: tableros e imágenes ---------------- */
+function parseImageUpload(body, gm) {
+  const category = IMAGE_CATEGORIES.includes(body.category) ? body.category : 'prop';
+  if (!gm && category !== 'pc') return { error: [403, 'Los jugadores solo pueden subir retratos'] };
+  const m = /^data:(image\/(png|jpeg|webp|gif));base64,/.exec(body.data || '');
+  if (!m) return { error: [400, 'Formato de imagen no admitido (PNG, JPG, WebP o GIF)'] };
+  const data = Buffer.from(body.data.slice(m[0].length), 'base64');
+  if (data.length > MAX_IMAGE) return { error: [413, 'La imagen supera 15 MB'] };
+  let thumb = null, thumbMime = null;
+  const tm = /^data:(image\/(png|jpeg|webp));base64,/.exec(body.thumb || '');
+  if (tm) { thumb = Buffer.from(body.thumb.slice(tm[0].length), 'base64'); thumbMime = tm[1]; }
+  return {
+    image: {
+      id: 'img_' + crypto.randomBytes(9).toString('hex'),
+      name: R.str(body.name, 40) || 'imagen', category, mime: m[1],
+      width: Number.isInteger(body.width) ? body.width : 0, height: Number.isInteger(body.height) ? body.height : 0,
+      ppc: Number.isFinite(body.ppc) && body.ppc > 0 ? body.ppc : 0,
+      size: data.length, origin: 'local', data, thumb, thumbMime,
+    },
+  };
+}
+
+async function boardRoutes(req, res, user, parts) {
+  const M = req.method;
+  const id = parts[1];
+  if (!id) {
+    if (M === 'GET') return send(res, 200, { boards: await q.boardsForUser(user.id) });
+    if (M === 'POST') {
+      const body = await readJson(req);
+      const name = R.str(body.name, 60).trim() || 'Tablero sin nombre';
+      const b = await createBoard(name, user.id);
+      return send(res, 201, { board: { id: b.id, name: b.name } });
+    }
+    return fail(res, 404, 'Ruta no encontrada');
+  }
+  const board = await q.board(id);
+  const me = board && await memberOf(id, user.id);
+  if (!board || !me) return fail(res, 404, 'Tablero no encontrado');
+  const gm = me.role === 'gm';
+  const sub = parts[2];
+  if (!sub) {
+    if (M === 'GET') return send(res, 200, { board: { id: board.id, name: board.name, owner_id: board.owner_id, role: me.role, invite_code: gm ? board.invite_code : undefined } });
+    if (M === 'PATCH' && gm) {
+      const body = await readJson(req);
+      const name = R.str(body.name, 60).trim();
+      if (name) { await q.renameBoard(name, id); const b = live.get(id); if (b) { b.name = name; broadcast(b, { t: 'board', name }); } }
+      return send(res, 200, { ok: true });
+    }
+    if (M === 'DELETE') {
+      if (board.owner_id === user.id) {
+        const b = live.get(id);
+        if (b) { for (const c of [...b.clients]) { c.ws.send({ t: 'kicked', deleted: true }); c.ws.close(4403); } live.delete(id); }
+        await q.deleteBoard(id);
+        return send(res, 200, { ok: true });
+      }
+      await q.removeMember(id, user.id); kick(id, user.id); await sendMembers(id);
+      return send(res, 200, { ok: true, left: true });
+    }
+  }
+  if (sub === 'members') {
+    if (M === 'GET') return send(res, 200, { members: await q.members(id) });
+    if (M === 'POST' && gm) {
+      const body = await readJson(req);
+      const name = cleanName(body.name);
+      if (!name) return fail(res, 400, 'Nombre de usuario no válido');
+      const u = await q.userByName(name);
+      if (!u) return fail(res, 404, 'Ese usuario no existe: tiene que registrarse antes');
+      await q.addMember(id, u.id, 'player');
+      await sendMembers(id);
+      return send(res, 200, { members: await q.members(id) });
+    }
+    if (M === 'DELETE' && gm && parts[3]) {
+      const uid = Number(parts[3]);
+      if (uid === board.owner_id) return fail(res, 400, 'El director no puede salir de su propio tablero');
+      await q.removeMember(id, uid); kick(id, uid); await sendMembers(id);
+      return send(res, 200, { members: await q.members(id) });
+    }
+  }
+  if (sub === 'scenes' && parts[3] && parts[4] === 'portals' && M === 'GET') {
+    const b = await openBoard(id);
+    const sc = b && b.scenes.get(parts[3]);
+    if (!sc) return fail(res, 404, 'Escena no encontrada');
+    const portals = [...sc.objects.values()].filter((o) => o.type === 'wall' && o.kind === 'portal').map((o) => ({ id: o.id, name: o.name || '', target: o.target || null }));
+    return send(res, 200, { scene: { id: sc.id, name: sc.name }, portals });
+  }
+  if (sub === 'invite' && M === 'POST' && gm) {
+    let code = randCode(6);
+    while (await q.boardByCode(code)) code = randCode(6);
+    await q.setInvite(code, id);
+    const b = live.get(id); if (b) b.invite_code = code;
+    return send(res, 200, { invite_code: code });
+  }
+  if (sub === 'images') {
+    if (M === 'GET') {
+      const u = await q.boardUsage(id);
+      return send(res, 200, { images: await q.imagesForBoard(id), usage: { count: u.count, bytes: u.bytes, quota: BOARD_QUOTA } });
+    }
+    if (M === 'POST') {
+      const parsed = parseImageUpload(await readJson(req), gm);
+      if (parsed.error) return fail(res, ...parsed.error);
+      const usage = await q.boardUsage(id);
+      if (usage.bytes + parsed.image.size > BOARD_QUOTA) return fail(res, 413, 'El almacén del tablero está lleno');
+      await q.insertImage(Object.assign(parsed.image, { boardId: id, ownerId: user.id }));
+      const b = live.get(id); if (b) broadcast(b, { t: 'images' });
+      return send(res, 201, { image: await q.imageMeta(parsed.image.id) });
+    }
+  }
+  return fail(res, 404, 'Ruta no encontrada');
+}
+
+async function imageRoutes(req, res, user, parts) {
+  const M = req.method;
+  const imgRow = await q.imageMeta(parts[1]);
+  if (!imgRow) return fail(res, 404, 'Imagen no encontrada');
+  const me = imgRow.board_id ? await memberOf(imgRow.board_id, user.id) : { role: 'player' };
+  if (!me) return fail(res, 403, 'Sin acceso a esta imagen');
+  if (M === 'GET') {
+    const cache = { 'Cache-Control': 'private, max-age=86400' };
+    if (parts[2] === 'thumb') {
+      const r = await q.imageThumb(parts[1]);
+      return r.thumb ? send(res, 200, r.thumb, Object.assign({ 'Content-Type': r.thumb_mime }, cache)) : send(res, 200, r.data, Object.assign({ 'Content-Type': r.mime }, cache));
+    }
+    const r = await q.imageData(parts[1]);
+    return send(res, 200, r.data, Object.assign({ 'Content-Type': r.mime }, cache));
+  }
+  if (!imgRow.board_id) return fail(res, 403, 'Las imágenes de muestra no se pueden cambiar');
+  if (me.role !== 'gm') return fail(res, 403, 'Solo el director puede cambiar la biblioteca');
+  if (M === 'PATCH') {
+    const body = await readJson(req);
+    const name = R.str(body.name, 40).trim() || imgRow.name;
+    const category = IMAGE_CATEGORIES.includes(body.category) ? body.category : imgRow.category;
+    const ppc = Number.isFinite(body.ppc) && body.ppc > 0 ? body.ppc : imgRow.ppc;
+    await q.updateImage(name, category, ppc, imgRow.id);
+    const b = live.get(imgRow.board_id); if (b) broadcast(b, { t: 'images' });
+    return send(res, 200, { image: await q.imageMeta(imgRow.id) });
+  }
+  if (M === 'DELETE') {
+    await q.deleteImage(imgRow.id);
+    const b = live.get(imgRow.board_id); if (b) broadcast(b, { t: 'images' });
+    return send(res, 200, { ok: true });
+  }
+  return fail(res, 404, 'Ruta no encontrada');
+}
+
 async function api(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean).slice(1); // sin "api"
   const M = req.method;
-  if (M === 'POST' && parts[0] === 'login') {
-    const body = await readJson(req);
-    const name = cleanName(body.name);
-    if (!name) return fail(res, 400, 'El nombre debe tener entre 2 y 24 letras, números, espacios, puntos o guiones');
-    const { user, token } = loginOrCreate(name);
-    return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': `jav_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000` });
-  }
-  const user = userFrom(req);
+  if (M === 'GET' && parts[0] === 'health') return send(res, 200, { ok: true });
+  if (M === 'POST' && parts[0] === 'register') return register(req, res);
+  if (M === 'POST' && parts[0] === 'login') return login(req, res);
+  const user = await userFrom(req);
   if (!user) return fail(res, 401, 'Inicia sesión');
 
   if (parts[0] === 'logout' && M === 'POST') {
-    q.deleteSession.run(cookies(req).jav_session);
-    return send(res, 200, { ok: true }, { 'Set-Cookie': 'jav_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
+    await q.deleteSession(cookies(req)[SESSION_COOKIE]);
+    return send(res, 200, { ok: true }, { 'Set-Cookie': clearedCookie() });
   }
   if (parts[0] === 'me') {
     if (M === 'GET') return send(res, 200, { user: publicUser(user) });
     if (M === 'PATCH') {
       const body = await readJson(req);
-      if (typeof body.color === 'string' && /^#[0-9a-f]{6}$/i.test(body.color)) q.setColor.run(body.color, user.id);
-      return send(res, 200, { user: publicUser(q.userById.get(user.id)) });
+      if (typeof body.color === 'string' && /^#[0-9a-f]{6}$/i.test(body.color)) await q.setColor(body.color, user.id);
+      return send(res, 200, { user: publicUser(await q.userById(user.id)) });
     }
   }
   if (parts[0] === 'join' && M === 'POST') {
     const body = await readJson(req);
     const code = String(body.code || '').trim().toUpperCase();
-    const b = q.boardByCode.get(code);
+    const b = await q.boardByCode(code);
     if (!b) return fail(res, 404, 'Ese código de invitación no existe');
-    q.addMember.run(b.id, user.id, 'player', now());
-    sendMembers(b.id);
+    await q.addMember(b.id, user.id, 'player');
+    await sendMembers(b.id);
     return send(res, 200, { board: { id: b.id, name: b.name } });
   }
-  if (parts[0] === 'boards') {
-    const id = parts[1];
-    if (!id) {
-      if (M === 'GET') return send(res, 200, { boards: q.boardsForUser.all(user.id) });
-      if (M === 'POST') {
-        const body = await readJson(req);
-        const name = R.str(body.name, 60).trim() || 'Tablero sin nombre';
-        const b = createBoard(name, user.id);
-        return send(res, 201, { board: { id: b.id, name: b.name } });
-      }
-    }
-    const board = q.board.get(id);
-    const me = board && memberOf(id, user.id);
-    if (!board || !me) return fail(res, 404, 'Tablero no encontrado');
-    const gm = me.role === 'gm';
-    const sub = parts[2];
-    if (!sub) {
-      if (M === 'GET') return send(res, 200, { board: { id: board.id, name: board.name, owner_id: board.owner_id, role: me.role, invite_code: gm ? board.invite_code : undefined } });
-      if (M === 'PATCH' && gm) {
-        const body = await readJson(req);
-        const name = R.str(body.name, 60).trim();
-        if (name) { q.renameBoard.run(name, now(), id); const b = live.get(id); if (b) { b.name = name; broadcast(b, { t: 'board', name }); } }
-        return send(res, 200, { ok: true });
-      }
-      if (M === 'DELETE') {
-        if (board.owner_id === user.id) {
-          const b = live.get(id);
-          if (b) { for (const c of [...b.clients]) { c.ws.send({ t: 'kicked', deleted: true }); c.ws.close(4403); } live.delete(id); }
-          q.deleteBoard.run(id);
-          return send(res, 200, { ok: true });
-        }
-        q.removeMember.run(id, user.id); kick(id, user.id); sendMembers(id);
-        return send(res, 200, { ok: true, left: true });
-      }
-    }
-    if (sub === 'members') {
-      if (M === 'GET') return send(res, 200, { members: q.members.all(id) });
-      if (M === 'POST' && gm) {
-        const body = await readJson(req);
-        const name = cleanName(body.name);
-        if (!name) return fail(res, 400, 'Nombre de usuario no válido');
-        const u = ensureUser(name);
-        q.addMember.run(id, u.id, 'player', now());
-        sendMembers(id);
-        return send(res, 200, { members: q.members.all(id) });
-      }
-      if (M === 'DELETE' && gm && parts[3]) {
-        const uid = Number(parts[3]);
-        if (uid === board.owner_id) return fail(res, 400, 'El director no puede salir de su propio tablero');
-        q.removeMember.run(id, uid); kick(id, uid); sendMembers(id);
-        return send(res, 200, { members: q.members.all(id) });
-      }
-    }
-    if (sub === 'scenes' && parts[3] && parts[4] === 'portals' && M === 'GET') {
-      const b = openBoard(id);
-      const sc = b && b.scenes.get(parts[3]);
-      if (!sc) return fail(res, 404, 'Escena no encontrada');
-      const portals = [...sc.objects.values()].filter((o) => o.type === 'wall' && o.kind === 'portal').map((o) => ({ id: o.id, name: o.name || '', target: o.target || null }));
-      if (!b.clients.size) live.delete(id);
-      return send(res, 200, { scene: { id: sc.id, name: sc.name }, portals });
-    }
-    if (sub === 'invite' && M === 'POST' && gm) {
-      let code = randCode(6);
-      while (q.boardByCode.get(code)) code = randCode(6);
-      q.setInvite.run(code, id);
-      const b = live.get(id); if (b) b.invite_code = code;
-      return send(res, 200, { invite_code: code });
-    }
-    if (sub === 'images') {
-      if (M === 'GET') {
-        const u = q.boardUsage.get(id);
-        return send(res, 200, { images: q.imagesForBoard.all(id), usage: { count: u.count, bytes: u.bytes, quota: BOARD_QUOTA } });
-      }
-      if (M === 'POST') {
-        const body = await readJson(req);
-        const category = ['board', 'prop', 'pc', 'npc'].includes(body.category) ? body.category : 'prop';
-        if (!gm && category !== 'pc') return fail(res, 403, 'Los jugadores solo pueden subir retratos');
-        const m = /^data:(image\/(png|jpeg|webp|gif));base64,/.exec(body.data || '');
-        if (!m) return fail(res, 400, 'Formato de imagen no admitido (PNG, JPG, WebP o GIF)');
-        const data = Buffer.from(body.data.slice(m[0].length), 'base64');
-        if (data.length > MAX_IMAGE) return fail(res, 413, 'La imagen supera 15 MB');
-        const usage = q.boardUsage.get(id);
-        if (usage.bytes + data.length > BOARD_QUOTA) return fail(res, 413, 'El almacén del tablero está lleno');
-        let thumb = null, thumbMime = null;
-        const tm = /^data:(image\/(png|jpeg|webp));base64,/.exec(body.thumb || '');
-        if (tm) { thumb = Buffer.from(body.thumb.slice(tm[0].length), 'base64'); thumbMime = tm[1]; }
-        const imgId = 'img_' + crypto.randomBytes(9).toString('hex');
-        const w = Number.isInteger(body.width) ? body.width : 0, h = Number.isInteger(body.height) ? body.height : 0;
-        const ppc = Number.isFinite(body.ppc) && body.ppc > 0 ? body.ppc : 0;
-        q.insertImage.run(imgId, id, user.id, R.str(body.name, 40) || 'imagen', category, m[1], w, h, ppc, data.length, 'local', data, thumb, thumbMime, now());
-        const b = live.get(id); if (b) broadcast(b, { t: 'images' });
-        return send(res, 201, { image: q.imageMeta.get(imgId) });
-      }
-    }
-    return fail(res, 404, 'Ruta no encontrada');
-  }
-  if (parts[0] === 'images' && parts[1]) {
-    const imgRow = q.imageMeta.get(parts[1]);
-    if (!imgRow) return fail(res, 404, 'Imagen no encontrada');
-    const me = imgRow.board_id ? memberOf(imgRow.board_id, user.id) : { role: 'player' };
-    if (!me) return fail(res, 403, 'Sin acceso a esta imagen');
-    if (M === 'GET') {
-      const cache = { 'Cache-Control': 'private, max-age=86400' };
-      if (parts[2] === 'thumb') {
-        const r = q.imageThumb.get(parts[1]);
-        return r.thumb ? send(res, 200, Buffer.from(r.thumb), Object.assign({ 'Content-Type': r.thumb_mime }, cache)) : send(res, 200, Buffer.from(r.data), Object.assign({ 'Content-Type': r.mime }, cache));
-      }
-      const r = q.imageData.get(parts[1]);
-      return send(res, 200, Buffer.from(r.data), Object.assign({ 'Content-Type': r.mime }, cache));
-    }
-    if (!imgRow.board_id) return fail(res, 403, 'Las imágenes de muestra no se pueden cambiar');
-    if (me.role !== 'gm') return fail(res, 403, 'Solo el director puede cambiar la biblioteca');
-    if (M === 'PATCH') {
-      const body = await readJson(req);
-      const name = R.str(body.name, 40).trim() || imgRow.name;
-      const category = ['board', 'prop', 'pc', 'npc'].includes(body.category) ? body.category : imgRow.category;
-      const ppc = Number.isFinite(body.ppc) && body.ppc > 0 ? body.ppc : imgRow.ppc;
-      q.updateImage.run(name, category, ppc, imgRow.id);
-      const b = live.get(imgRow.board_id); if (b) broadcast(b, { t: 'images' });
-      return send(res, 200, { image: q.imageMeta.get(imgRow.id) });
-    }
-    if (M === 'DELETE') {
-      q.deleteImage.run(imgRow.id);
-      const b = live.get(imgRow.board_id); if (b) broadcast(b, { t: 'images' });
-      return send(res, 200, { ok: true });
-    }
-  }
+  if (parts[0] === 'boards') return boardRoutes(req, res, user, parts);
+  if (parts[0] === 'images' && parts[1]) return imageRoutes(req, res, user, parts);
   return fail(res, 404, 'Ruta no encontrada');
 }
 
@@ -658,7 +752,6 @@ function serveStatic(req, res, url) {
   fs.readFile(file, (err, data) => {
     if (err) {
       if (!path.extname(p)) return serveStatic(req, res, new URL('/index.html', url));
-      console.warn(`  404: ${url.pathname} (buscado en ${file})`);
       return send(res, 404, `Just Another VTT: no existe ${url.pathname}`);
     }
     send(res, 200, data, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -672,16 +765,21 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(req, res, url);
   } catch (e) {
     if (!res.headersSent) fail(res, e.status || 500, e.status ? e.message : 'Error interno del servidor');
-    if (!e.status) console.error(e);
+    if (!e.status) console.error(`Error en ${req.method} ${url.pathname}:`, e);
   }
 });
-server.on('upgrade', (req, sock) => {
+server.on('upgrade', async (req, sock) => {
   const url = new URL(req.url, 'http://local');
   if (url.pathname !== '/ws') return sock.destroy();
-  const user = userFrom(req);
-  if (!user) { sock.end('HTTP/1.1 401 Unauthorized\r\n\r\n'); return; }
-  const ws = acceptUpgrade(req, sock);
-  if (ws) onSocket(ws, user, url.searchParams.get('board') || '');
+  try {
+    const user = await userFrom(req);
+    if (!user) { sock.end('HTTP/1.1 401 Unauthorized\r\n\r\n'); return; }
+    const ws = acceptUpgrade(req, sock);
+    if (ws) await onSocket(ws, user, url.searchParams.get('board') || '');
+  } catch (e) {
+    console.error('Error aceptando WebSocket:', e);
+    sock.destroy();
+  }
 });
 
 function lanAddresses() {
@@ -689,35 +787,47 @@ function lanAddresses() {
   for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) if (a.family === 'IPv4' && !a.internal) out.push(a.address);
   return out;
 }
-function openBrowser(url) {
-  const { spawn } = require('node:child_process');
-  const cmd = process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]]
-    : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
-  try {
-    const p = spawn(cmd[0], cmd[1], { stdio: 'ignore', detached: true, windowsHide: true });
-    p.on('error', () => console.log(`  Abre tú el navegador en ${url}`));
-    p.unref();
-  } catch { console.log(`  Abre tú el navegador en ${url}`); }
-}
-function start(port, tries = 10, openIt = false) {
-  server.once('error', (e) => {
-    if (e.code === 'EADDRINUSE' && tries > 0) { console.log(`  El puerto ${port} está ocupado por otro programa, probando ${port + 1}…`); start(port + 1, tries - 1, openIt); }
-    else { console.error(e); process.exit(1); }
-  });
-  server.listen(port, '0.0.0.0', () => {
-    console.log('\n  Just Another VTT está en marcha\n');
-    console.log(`  En este equipo:      http://localhost:${port}`);
-    for (const ip of lanAddresses()) console.log(`  En tu red local:     http://${ip}:${port}`);
-    console.log(`\n  Base de datos: ${DB_FILE}`);
-    console.log('  Para detenerlo pulsa Ctrl+C.\n');
-    if (openIt) openBrowser(`http://localhost:${port}`);
-  });
-}
-function shutdown() {
-  for (const b of live.values()) { try { flush(b); } catch {} }
-  process.exit(0);
-}
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
 
-module.exports = { start, server };
+async function prepare() {
+  const applied = await db.migrate();
+  if (applied.length) console.log(`  Migraciones aplicadas: ${applied.join(', ')}`);
+  await seedSamples(path.join(PUBLIC, 'muestras'));
+}
+
+function listen(port) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '0.0.0.0', () => resolve(server.address().port));
+  });
+}
+
+async function start(port) {
+  await prepare();
+  const bound = await listen(port);
+  console.log('\n  Just Another VTT está en marcha\n');
+  console.log(`  En este equipo:      http://localhost:${bound}`);
+  for (const ip of lanAddresses()) console.log(`  En tu red local:     http://${ip}:${bound}`);
+  console.log('  Para detenerlo pulsa Ctrl+C.\n');
+  return bound;
+}
+
+let stopping = false;
+async function stop() {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(flushTimer); clearInterval(pingTimer);
+  for (const b of live.values()) for (const c of [...b.clients]) c.ws.close(1001);
+  await flushAll();
+  live.clear();
+  await new Promise((resolve) => server.close(resolve));
+  await db.close();
+}
+async function shutdown(signal) {
+  console.log(`\n  Recibido ${signal}: guardando y cerrando…`);
+  try { await stop(); process.exit(0); }
+  catch (e) { console.error('Error al cerrar:', e); process.exit(1); }
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+module.exports = { start, stop, prepare, listen, server, live, flushAll };
