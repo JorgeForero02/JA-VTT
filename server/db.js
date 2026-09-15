@@ -1,110 +1,52 @@
 'use strict';
-/* Todo se guarda en un único archivo SQLite: usuarios, sesiones, tableros,
-   miembros, objetos de cada escena e imágenes (como BLOB). */
+/* Acceso a PostgreSQL: pool, migraciones y todas las consultas del servidor.
+   Nada fuera de este archivo escribe SQL. Las funciones de `q` devuelven filas ya
+   convertidas: enteros como Number, JSONB como objetos, BYTEA como Buffer. */
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
+const { Pool, types } = require('pg');
 
-const DATA_DIR = process.env.VTT_DATA || path.join(__dirname, '..', 'data');
-fs.mkdirSync(DATA_DIR, { recursive: true });
-const DB_FILE = path.join(DATA_DIR, 'minivtt.sqlite');
-const db = new DatabaseSync(DB_FILE);
+// BIGINT (oid 20) llega como texto; todos nuestros valores caben en Number sin pérdida.
+types.setTypeParser(20, (v) => Number(v));
 
-db.exec(`
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  color TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sessions (
-  token TEXT PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS boards (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  invite_code TEXT NOT NULL UNIQUE,
-  settings TEXT NOT NULL DEFAULT '{}',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS board_members (
-  board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('gm','player')),
-  joined_at INTEGER NOT NULL,
-  PRIMARY KEY (board_id, user_id)
-);
-CREATE TABLE IF NOT EXISTS objects (
-  board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-  id INTEGER NOT NULL,
-  type TEXT NOT NULL,
-  data TEXT NOT NULL,
-  PRIMARY KEY (board_id, id)
-);
-CREATE TABLE IF NOT EXISTS images (
-  id TEXT PRIMARY KEY,
-  board_id TEXT REFERENCES boards(id) ON DELETE CASCADE,
-  owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  category TEXT NOT NULL,
-  mime TEXT NOT NULL,
-  width INTEGER NOT NULL,
-  height INTEGER NOT NULL,
-  ppc REAL NOT NULL DEFAULT 0,
-  size INTEGER NOT NULL,
-  origin TEXT NOT NULL DEFAULT 'local',
-  data BLOB NOT NULL,
-  thumb BLOB,
-  thumb_mime TEXT,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS images_board ON images(board_id);
-CREATE TABLE IF NOT EXISTS scenes (
-  id TEXT PRIMARY KEY,
-  board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  settings TEXT NOT NULL DEFAULT '{}',
-  sort INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS scenes_board ON scenes(board_id);
-CREATE TABLE IF NOT EXISTS fog (
-  scene_id TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  cx INTEGER NOT NULL,
-  cy INTEGER NOT NULL,
-  data BLOB NOT NULL,
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (scene_id, user_id, cx, cy)
-);
-`);
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('\n  Falta la variable de entorno DATABASE_URL (postgres://usuario:clave@host:5432/base).\n');
+  process.exit(1);
+}
+const pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+pool.on('error', (e) => console.error('Error en la conexión con PostgreSQL:', e.message));
 
-/* Migración desde la versión con una sola escena por tablero */
-const columns = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
-if (!columns('objects').includes('scene_id')) db.exec('ALTER TABLE objects ADD COLUMN scene_id TEXT');
-if (!columns('boards').includes('active_scene')) db.exec('ALTER TABLE boards ADD COLUMN active_scene TEXT');
-if (!columns('board_members').includes('scene_id')) db.exec('ALTER TABLE board_members ADD COLUMN scene_id TEXT');
-db.exec('CREATE INDEX IF NOT EXISTS objects_scene ON objects(scene_id)');
-const newSceneId = () => 's_' + crypto.randomBytes(6).toString('hex');
-{
-  const orphan = db.prepare('SELECT b.id, b.settings FROM boards b WHERE NOT EXISTS (SELECT 1 FROM scenes s WHERE s.board_id = b.id)').all();
-  for (const b of orphan) {
-    const sid = newSceneId();
-    db.exec('BEGIN');
-    try {
-      db.prepare('INSERT INTO scenes (id, board_id, name, settings, sort, created_at) VALUES (?, ?, ?, ?, 0, ?)').run(sid, b.id, 'Escena 1', b.settings || '{}', Date.now());
-      db.prepare('UPDATE objects SET scene_id = ? WHERE board_id = ? AND scene_id IS NULL').run(sid, b.id);
-      db.prepare('UPDATE boards SET active_scene = ? WHERE id = ?').run(sid, b.id);
-      db.prepare('UPDATE board_members SET scene_id = ? WHERE board_id = ?').run(sid, b.id);
-      db.exec('COMMIT');
-    } catch (e) { db.exec('ROLLBACK'); throw e; }
+const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
+const MIGRATION_LOCK = 7318204;
+
+async function migrate() {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK]);
+    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at BIGINT NOT NULL)');
+    const applied = new Set((await client.query('SELECT version FROM schema_migrations')).rows.map((r) => r.version));
+    const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => /^\d{3}-.*\.sql$/.test(f)).sort();
+    const appliedNow = [];
+    for (const file of files) {
+      const version = Number(file.slice(0, 3));
+      if (applied.has(version)) continue;
+      await client.query('BEGIN');
+      try {
+        await client.query(fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8'));
+        await client.query('INSERT INTO schema_migrations (version, name, applied_at) VALUES ($1, $2, $3)', [version, file, Date.now()]);
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw new Error(`La migración ${file} falló: ${e.message}`);
+      }
+      appliedNow.push(file);
+    }
+    return appliedNow;
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK]).catch(() => {});
+    client.release();
   }
 }
 
@@ -115,110 +57,122 @@ const randCode = (n) => {
   for (const b of crypto.randomBytes(n)) s += abc[b % abc.length];
   return s;
 };
+const newSceneId = () => 's_' + crypto.randomBytes(6).toString('hex');
 const COLORS = ['#F0B35A', '#6FB8A8', '#D9705F', '#8EC5E8', '#B79BD8', '#9ED3A6', '#E8A0BF', '#C9A26B'];
+const randomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 
-const q = {
-  userByName: db.prepare('SELECT * FROM users WHERE name = ?'),
-  userById: db.prepare('SELECT * FROM users WHERE id = ?'),
-  insertUser: db.prepare('INSERT INTO users (name, color, created_at) VALUES (?, ?, ?)'),
-  setColor: db.prepare('UPDATE users SET color = ? WHERE id = ?'),
-  insertSession: db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)'),
-  sessionUser: db.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'),
-  deleteSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
+const USER_COLS = 'id, name, color, password_hash, created_at';
+const IMAGE_META = 'id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, created_at';
 
-  boardsForUser: db.prepare(`
-    SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at, m.role,
-      u.name AS owner_name,
-      (SELECT COUNT(*) FROM board_members x WHERE x.board_id = b.id) AS members,
-      (SELECT COUNT(*) FROM scenes z WHERE z.board_id = b.id) AS scenes
-    FROM board_members m JOIN boards b ON b.id = m.board_id JOIN users u ON u.id = b.owner_id
-    WHERE m.user_id = ? ORDER BY b.updated_at DESC`),
-  board: db.prepare('SELECT * FROM boards WHERE id = ?'),
-  boardByCode: db.prepare('SELECT * FROM boards WHERE invite_code = ?'),
-  insertBoard: db.prepare('INSERT INTO boards (id, name, owner_id, invite_code, settings, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
-  renameBoard: db.prepare('UPDATE boards SET name = ?, updated_at = ? WHERE id = ?'),
-  touchBoard: db.prepare('UPDATE boards SET updated_at = ? WHERE id = ?'),
-  setSettings: db.prepare('UPDATE boards SET settings = ?, updated_at = ? WHERE id = ?'),
-  setInvite: db.prepare('UPDATE boards SET invite_code = ? WHERE id = ?'),
-  deleteBoard: db.prepare('DELETE FROM boards WHERE id = ?'),
+/* `exec` es el pool o un cliente dentro de una transacción; las consultas son las mismas. */
+function makeQueries(exec) {
+  const one = async (sql, params) => (await exec.query(sql, params)).rows[0] || null;
+  const all = async (sql, params) => (await exec.query(sql, params)).rows;
+  const run = async (sql, params) => (await exec.query(sql, params)).rowCount;
+  return {
+    userByName: (name) => one(`SELECT ${USER_COLS} FROM users WHERE lower(name) = lower($1)`, [name]),
+    userById: (id) => one(`SELECT ${USER_COLS} FROM users WHERE id = $1`, [id]),
+    insertUser: (name, color, passwordHash) => one(`INSERT INTO users (name, color, password_hash, created_at) VALUES ($1, $2, $3, $4) RETURNING ${USER_COLS}`, [name, color, passwordHash, now()]),
+    setColor: (color, id) => run('UPDATE users SET color = $1 WHERE id = $2', [color, id]),
+    insertSession: (token, userId) => run('INSERT INTO sessions (token, user_id, created_at) VALUES ($1, $2, $3)', [token, userId, now()]),
+    sessionUser: (token) => one('SELECT u.id, u.name, u.color, u.created_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = $1', [token]),
+    deleteSession: (token) => run('DELETE FROM sessions WHERE token = $1', [token]),
 
-  member: db.prepare('SELECT * FROM board_members WHERE board_id = ? AND user_id = ?'),
-  members: db.prepare(`SELECT u.id, u.name, u.color, m.role, m.joined_at, m.scene_id FROM board_members m
-    JOIN users u ON u.id = m.user_id WHERE m.board_id = ? ORDER BY m.role DESC, u.name`),
-  addMember: db.prepare('INSERT OR IGNORE INTO board_members (board_id, user_id, role, joined_at, scene_id) VALUES (?, ?, ?, ?, (SELECT active_scene FROM boards WHERE id = ?1))'),
-  setMemberScene: db.prepare('UPDATE board_members SET scene_id = ? WHERE board_id = ? AND user_id = ?'),
-  setActiveScene: db.prepare('UPDATE boards SET active_scene = ? WHERE id = ?'),
-  scenes: db.prepare('SELECT id, name, settings, sort, created_at FROM scenes WHERE board_id = ? ORDER BY sort, created_at'),
-  insertScene: db.prepare('INSERT INTO scenes (id, board_id, name, settings, sort, created_at) VALUES (?, ?, ?, ?, ?, ?)'),
-  renameScene: db.prepare('UPDATE scenes SET name = ? WHERE id = ?'),
-  setSceneSettings: db.prepare('UPDATE scenes SET settings = ? WHERE id = ?'),
-  deleteScene: db.prepare('DELETE FROM scenes WHERE id = ?'),
-  sceneObjects: db.prepare('SELECT data FROM objects WHERE scene_id = ?'),
-  clearSceneObjects: db.prepare('DELETE FROM objects WHERE scene_id = ?'),
-  fogFor: db.prepare('SELECT cx, cy, data FROM fog WHERE scene_id = ? AND user_id = ?'),
-  upsertFog: db.prepare(`INSERT INTO fog (scene_id, user_id, cx, cy, data, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(scene_id, user_id, cx, cy) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`),
-  clearFog: db.prepare('DELETE FROM fog WHERE scene_id = ?'),
-  removeMember: db.prepare('DELETE FROM board_members WHERE board_id = ? AND user_id = ?'),
+    boardsForUser: (userId) => all(`
+      SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at, m.role, u.name AS owner_name,
+        (SELECT COUNT(*) FROM board_members x WHERE x.board_id = b.id) AS members,
+        (SELECT COUNT(*) FROM scenes z WHERE z.board_id = b.id) AS scenes
+      FROM board_members m JOIN boards b ON b.id = m.board_id JOIN users u ON u.id = b.owner_id
+      WHERE m.user_id = $1 ORDER BY b.updated_at DESC`, [userId]),
+    board: (id) => one('SELECT id, name, owner_id, invite_code, settings, active_scene, created_at, updated_at FROM boards WHERE id = $1', [id]),
+    boardByCode: (code) => one('SELECT id, name, owner_id, invite_code, active_scene FROM boards WHERE invite_code = $1', [code]),
+    insertBoard: (id, name, ownerId, code, settings) => run('INSERT INTO boards (id, name, owner_id, invite_code, settings, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)', [id, name, ownerId, code, JSON.stringify(settings), now()]),
+    renameBoard: (name, id) => run('UPDATE boards SET name = $1, updated_at = $2 WHERE id = $3', [name, now(), id]),
+    touchBoard: (id) => run('UPDATE boards SET updated_at = $1 WHERE id = $2', [now(), id]),
+    setSettings: (settings, id) => run('UPDATE boards SET settings = $1, updated_at = $2 WHERE id = $3', [JSON.stringify(settings), now(), id]),
+    setInvite: (code, id) => run('UPDATE boards SET invite_code = $1 WHERE id = $2', [code, id]),
+    setActiveScene: (sceneId, boardId) => run('UPDATE boards SET active_scene = $1 WHERE id = $2', [sceneId, boardId]),
+    deleteBoard: (id) => run('DELETE FROM boards WHERE id = $1', [id]),
 
-  objects: db.prepare('SELECT data FROM objects WHERE board_id = ?'),
-  upsertObject: db.prepare(`INSERT INTO objects (board_id, id, scene_id, type, data) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(board_id, id) DO UPDATE SET scene_id = excluded.scene_id, type = excluded.type, data = excluded.data`),
-  deleteObject: db.prepare('DELETE FROM objects WHERE board_id = ? AND id = ?'),
-  clearObjects: db.prepare('DELETE FROM objects WHERE board_id = ?'),
+    member: (boardId, userId) => one('SELECT board_id, user_id, role, joined_at, scene_id FROM board_members WHERE board_id = $1 AND user_id = $2', [boardId, userId]),
+    members: (boardId) => all(`SELECT u.id, u.name, u.color, m.role, m.joined_at, m.scene_id FROM board_members m
+      JOIN users u ON u.id = m.user_id WHERE m.board_id = $1 ORDER BY m.role DESC, u.name`, [boardId]),
+    addMember: (boardId, userId, role) => run(`INSERT INTO board_members (board_id, user_id, role, joined_at, scene_id)
+      VALUES ($1, $2, $3, $4, (SELECT active_scene FROM boards WHERE id = $1)) ON CONFLICT DO NOTHING`, [boardId, userId, role, now()]),
+    setMemberScene: (sceneId, boardId, userId) => run('UPDATE board_members SET scene_id = $1 WHERE board_id = $2 AND user_id = $3', [sceneId, boardId, userId]),
+    removeMember: (boardId, userId) => run('DELETE FROM board_members WHERE board_id = $1 AND user_id = $2', [boardId, userId]),
 
-  imagesForBoard: db.prepare(`SELECT id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, created_at
-    FROM images WHERE board_id = ? OR board_id IS NULL ORDER BY created_at DESC`),
-  imageMeta: db.prepare('SELECT id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, created_at FROM images WHERE id = ?'),
-  imageData: db.prepare('SELECT mime, data, board_id FROM images WHERE id = ?'),
-  imageThumb: db.prepare('SELECT thumb_mime, thumb, mime, data, board_id FROM images WHERE id = ?'),
-  insertImage: db.prepare(`INSERT INTO images (id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, data, thumb, thumb_mime, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
-  updateImage: db.prepare('UPDATE images SET name = ?, category = ?, ppc = ? WHERE id = ?'),
-  deleteImage: db.prepare('DELETE FROM images WHERE id = ?'),
-  boardUsage: db.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(size), 0) AS bytes FROM images WHERE board_id = ?'),
-  imageExists: db.prepare('SELECT 1 FROM images WHERE id = ?'),
-};
+    scenes: (boardId) => all('SELECT id, name, settings, sort, created_at FROM scenes WHERE board_id = $1 ORDER BY sort, created_at', [boardId]),
+    insertScene: (id, boardId, name, settings, sort) => run('INSERT INTO scenes (id, board_id, name, settings, sort, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [id, boardId, name, JSON.stringify(settings), sort, now()]),
+    renameScene: (name, id) => run('UPDATE scenes SET name = $1 WHERE id = $2', [name, id]),
+    setSceneSettings: (settings, id) => run('UPDATE scenes SET settings = $1 WHERE id = $2', [JSON.stringify(settings), id]),
+    deleteScene: (id) => run('DELETE FROM scenes WHERE id = $1', [id]),
 
-function tx(fn) {
-  db.exec('BEGIN');
-  try { const r = fn(); db.exec('COMMIT'); return r; }
-  catch (e) { db.exec('ROLLBACK'); throw e; }
+    sceneObjects: async (sceneId) => (await all('SELECT data FROM objects WHERE scene_id = $1', [sceneId])).map((r) => r.data),
+    clearSceneObjects: (sceneId) => run('DELETE FROM objects WHERE scene_id = $1', [sceneId]),
+    upsertObject: (boardId, id, sceneId, type, object) => run(`INSERT INTO objects (board_id, id, scene_id, type, data) VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (board_id, id) DO UPDATE SET scene_id = EXCLUDED.scene_id, type = EXCLUDED.type, data = EXCLUDED.data`, [boardId, id, sceneId, type, JSON.stringify(object)]),
+    deleteObject: (boardId, id) => run('DELETE FROM objects WHERE board_id = $1 AND id = $2', [boardId, id]),
+
+    fogFor: (sceneId, userId) => all('SELECT cx, cy, data FROM fog WHERE scene_id = $1 AND user_id = $2', [sceneId, userId]),
+    upsertFog: (sceneId, userId, cx, cy, data) => run(`INSERT INTO fog (scene_id, user_id, cx, cy, data, updated_at) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (scene_id, user_id, cx, cy) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`, [sceneId, userId, cx, cy, data, now()]),
+    clearFog: (sceneId) => run('DELETE FROM fog WHERE scene_id = $1', [sceneId]),
+
+    imagesForBoard: (boardId) => all(`SELECT ${IMAGE_META} FROM images WHERE board_id = $1 OR board_id IS NULL ORDER BY created_at DESC`, [boardId]),
+    imageMeta: (id) => one(`SELECT ${IMAGE_META} FROM images WHERE id = $1`, [id]),
+    imageData: (id) => one('SELECT mime, data, board_id FROM images WHERE id = $1', [id]),
+    imageThumb: (id) => one('SELECT thumb_mime, thumb, mime, data, board_id FROM images WHERE id = $1', [id]),
+    insertImage: (img) => run(`INSERT INTO images (id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, data, thumb, thumb_mime, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [img.id, img.boardId, img.ownerId, img.name, img.category, img.mime, img.width, img.height, img.ppc, img.size, img.origin, img.data, img.thumb, img.thumbMime, now()]),
+    updateImage: (name, category, ppc, id) => run('UPDATE images SET name = $1, category = $2, ppc = $3 WHERE id = $4', [name, category, ppc, id]),
+    deleteImage: (id) => run('DELETE FROM images WHERE id = $1', [id]),
+    boardUsage: (boardId) => one('SELECT COUNT(*)::int AS count, COALESCE(SUM(size), 0)::bigint AS bytes FROM images WHERE board_id = $1', [boardId]),
+    imageExists: async (id) => !!(await one('SELECT 1 AS ok FROM images WHERE id = $1', [id])),
+  };
 }
 
-function loginOrCreate(name) {
-  let u = q.userByName.get(name);
-  if (!u) {
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const r = q.insertUser.run(name, color, now());
-    u = q.userById.get(Number(r.lastInsertRowid));
+const q = makeQueries(pool);
+
+/* Ejecuta `fn(t)` en una transacción; `t` tiene las mismas consultas que `q`. */
+async function tx(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(makeQueries(client));
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
   }
+}
+
+async function createSession(userId) {
   const token = crypto.randomBytes(24).toString('hex');
-  q.insertSession.run(token, u.id, now());
-  return { user: u, token };
+  await q.insertSession(token, userId);
+  return token;
 }
 
-function ensureUser(name) {
-  let u = q.userByName.get(name);
-  if (!u) {
-    const r = q.insertUser.run(name, COLORS[Math.floor(Math.random() * COLORS.length)], now());
-    u = q.userById.get(Number(r.lastInsertRowid));
-  }
-  return u;
+function createUser(name, passwordHash) {
+  return q.insertUser(name, randomColor(), passwordHash);
 }
 
-function createBoard(name, ownerId) {
+async function createBoard(name, ownerId) {
   const id = randCode(8).toLowerCase();
   let code = randCode(6);
-  while (q.boardByCode.get(code)) code = randCode(6);
-  const sid = newSceneId();
-  tx(() => {
-    q.insertBoard.run(id, name, ownerId, code, JSON.stringify({}), now(), now());
-    q.insertScene.run(sid, id, 'Escena 1', '{}', 0, now());
-    q.setActiveScene.run(sid, id);
-    q.addMember.run(id, ownerId, 'gm', now());
+  while (await q.boardByCode(code)) code = randCode(6);
+  const sceneId = newSceneId();
+  await tx(async (t) => {
+    await t.insertBoard(id, name, ownerId, code, {});
+    await t.insertScene(sceneId, id, 'Escena 1', {}, 0);
+    await t.setActiveScene(sceneId, id);
+    await t.addMember(id, ownerId, 'gm');
   });
-  return q.board.get(id);
+  return q.board(id);
 }
 
 /* Imágenes de las plantillas: se cargan una vez desde public/muestras */
@@ -238,15 +192,20 @@ function webpSize(buf) {
   if (fmt === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3fff, h: buf.readUInt16LE(28) & 0x3fff };
   return { w: 0, h: 0 };
 }
-function seedSamples(dir) {
+async function seedSamples(dir) {
+  let seeded = 0;
   for (const s of SAMPLES) {
-    if (q.imageExists.get(s.id)) continue;
+    if (await q.imageExists(s.id)) continue;
     const file = path.join(dir, s.file);
     if (!fs.existsSync(file)) continue;
     const data = fs.readFileSync(file);
     const { w, h } = webpSize(data);
-    q.insertImage.run(s.id, null, null, s.name, s.category, 'image/webp', w, h, s.ppc, data.length, 'muestra', data, null, null, now());
+    await q.insertImage({ id: s.id, boardId: null, ownerId: null, name: s.name, category: s.category, mime: 'image/webp', width: w, height: h, ppc: s.ppc, size: data.length, origin: 'muestra', data, thumb: null, thumbMime: null });
+    seeded++;
   }
+  return seeded;
 }
 
-module.exports = { db, q, tx, now, randCode, newSceneId, loginOrCreate, ensureUser, createBoard, seedSamples, DB_FILE };
+const close = () => pool.end();
+
+module.exports = { pool, q, tx, migrate, now, randCode, newSceneId, createUser, createSession, createBoard, seedSamples, close, DATABASE_URL };
