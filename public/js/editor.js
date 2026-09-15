@@ -573,14 +573,14 @@ $('#edClose').onclick=closePops;
 $('#exportBtn').onclick=async()=>{
   toast('Preparando la exportación…');
   const images={};for(const id of usedImageIds()){const d=await Store.dataUrl(id);const m=Store.meta(id);if(d)images[id]={name:m?m.name:'imagen',category:m?m.category:guessCat(id),data:d}}
-  const data=JSON.stringify({app:'mini-vtt',version:3,state:S,images});
+  const data=JSON.stringify({app:'just-another-vtt',version:3,state:S,images});
   const filename=(S.name||'escena').replace(/[^\w\-áéíóúñ ]+/gi,'').trim().replace(/\s+/g,'-')+'.json';
   let dl=null;
   try{if(window.claude&&window.claude.use)dl=await window.claude.use('downloads')}catch(e){dl=null}
   if(dl){try{await dl.save({filename,data});toast('Escena exportada')}catch(err){if(err&&err.code!=='declined')toast('No se pudo exportar la escena')}return}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 };
-$('#importFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const rd=new FileReader();rd.onload=async()=>{try{const o=JSON.parse(rd.result);if(!o.state||!Array.isArray(o.state.walls))throw 0;if(UI.realRole!=='gm')return;toast('Importando imágenes…');const remap=await importImages(o.images);for(const x of[...(o.state.assets||[]),...(o.state.tokens||[])])if(x.img)x.img=remap[x.img]||x.img;const prev=snapshot();const nm=S.name;loadState(Object.assign(o.state,{name:nm}));Net.replaceAll();pushUndo(prev);changed(true);refreshAll();centerView();toast('Escena importada')}catch(err){toast('Ese archivo no es una escena de Mini VTT')}};rd.readAsText(f)};
+$('#importFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const rd=new FileReader();rd.onload=async()=>{try{const o=JSON.parse(rd.result);if(!o.state||!Array.isArray(o.state.walls))throw 0;if(UI.realRole!=='gm')return;toast('Importando imágenes…');const remap=await importImages(o.images);for(const x of[...(o.state.assets||[]),...(o.state.tokens||[])])if(x.img)x.img=remap[x.img]||x.img;const prev=snapshot();const nm=S.name;loadState(Object.assign(o.state,{name:nm}));Net.replaceAll();pushUndo(prev);changed(true);refreshAll();centerView();toast('Escena importada')}catch(err){toast('Ese archivo no es una escena de Just Another VTT')}};rd.readAsText(f)};
 
 /* ---------- Paneles ---------- */
 function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',ms||1600)}
@@ -618,7 +618,7 @@ $('#selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(
   if(a==='del')deleteSel();else if(a==='dup')duplicateSel();else if(a==='edit'){const o=selObjs()[0];if(o){const r=$('#selbar').getBoundingClientRect(),sr=stage.getBoundingClientRect();openEditor(o,{x:r.left-sr.left,y:r.top-sr.top-330})}}});
 let renameTimer=0;
 $('#sceneName').oninput=e=>{if(UI.realRole!=='gm')return;S.name=e.target.value;clearTimeout(renameTimer);renameTimer=setTimeout(()=>{const n=e.target.value.trim();if(n){UI.board.name=n;Net.rename(n)}},500)};
-function syncBoardName(){if(document.activeElement!==$('#sceneName'))$('#sceneName').value=UI.board?UI.board.name:'';document.title=(UI.board?UI.board.name+', ':'')+'Mini VTT'}
+function syncBoardName(){if(document.activeElement!==$('#sceneName'))$('#sceneName').value=UI.board?UI.board.name:'';document.title=(UI.board?UI.board.name+', ':'')+'Just Another VTT'}
 
 function renderEnv(){
   const g=$('#envGrid');g.innerHTML='';
@@ -1075,9 +1075,9 @@ $('#sceneCreate').onsubmit=e=>{
 
 /* Secciones plegables del panel: se recuerda cuáles dejaste abiertas */
 (function(){
-  let folds={};try{folds=JSON.parse(localStorage.getItem('minivtt.paneles')||'{}')}catch(e){}
+  let folds={};try{folds=JSON.parse(localStorage.getItem('jav.paneles')||'{}')}catch(e){}
   document.querySelectorAll('details.fold').forEach(d=>{
     const k=d.dataset.fold;if(k&&k in folds)d.open=!!folds[k];
-    d.addEventListener('toggle',()=>{if(!k)return;folds[k]=d.open;try{localStorage.setItem('minivtt.paneles',JSON.stringify(folds))}catch(e){}});
+    d.addEventListener('toggle',()=>{if(!k)return;folds[k]=d.open;try{localStorage.setItem('jav.paneles',JSON.stringify(folds))}catch(e){}});
   });
 })();

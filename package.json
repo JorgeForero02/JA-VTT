@@ -1,5 +1,5 @@
 {
-  "name": "mini-vtt",
+  "name": "just-another-vtt",
   "version": "1.0.0",
   "description": "Mesa virtual local con iluminación dinámica, tableros compartidos y SQLite",
   "main": "server.js",

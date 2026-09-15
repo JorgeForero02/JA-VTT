@@ -4,7 +4,7 @@
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/alegreya-sans-latin-400-normal.woff2) format('woff2')}
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:500;font-display:swap;src:url(../fonts/alegreya-sans-latin-500-normal.woff2) format('woff2')}
 @font-face{font-family:'Alegreya Sans';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/alegreya-sans-latin-700-normal.woff2) format('woff2')}
-/* Mini VTT: estilos */
+/* Just Another VTT: estilos */
 :root{
   --ink:#E9E4D8;--ink-deep:#DCD5C6;--panel:#F6F2E9;--raise:#ECE6DA;--line:#CDC4B2;
   --bone:#232B30;--fog:#5C6869;--amber:#B5731A;--amber-ink:#FFF7EA;--amber-soft:rgba(181,115,26,.14);

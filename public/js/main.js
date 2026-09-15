@@ -50,7 +50,7 @@ function route(){
 window.addEventListener('hashchange',route);
 
 async function showDashboard(){
-  show('dash');document.title='Mini VTT';
+  show('dash');document.title='Just Another VTT';
   try{const d=await apiJson('/api/boards');App.boards=d.boards;renderDash()}
   catch(err){if(err.status===401){App.user=null;showLogin()}else toast(err.message)}
 }
@@ -149,4 +149,4 @@ $('#backBtn').onclick=()=>{location.hash='#/'};
   try{const d=await apiJson('/api/me');App.user=d.user;await afterLogin()}
   catch(e){showLogin()}
 })();
-window.MiniVTT={S,UI,Store,Net,los,lightAt,canSee,viewers,visibleToPlayers,setRole,setTool,toWorld,toScreen,applyTemplate};
+window.JustAnotherVTT={S,UI,Store,Net,los,lightAt,canSee,viewers,visibleToPlayers,setRole,setTool,toWorld,toScreen,applyTemplate};

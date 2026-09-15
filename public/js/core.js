@@ -77,8 +77,8 @@ const PLAYER_TOOLS=['select','pan','ruler','plan'];
    El interruptor general de la escena manda sobre todos; Alt lo ignora al vuelo. */
 const SNAP_DEFAULTS={tokens:true,walls:true,moveWalls:false,lights:false,props:false,zones:false};
 const SNAP_LABELS={tokens:'Fichas',walls:'Puntos al dibujar muros',moveWalls:'Al mover muros y barreras',lights:'Luces',props:'Objetos',zones:'Zonas interiores'};
-const PREFS=(()=>{let saved={};try{saved=JSON.parse(localStorage.getItem('minivtt.cuadricula')||'{}')}catch(e){}return Object.assign({},SNAP_DEFAULTS,saved)})();
-function savePrefs(){try{localStorage.setItem('minivtt.cuadricula',JSON.stringify(PREFS))}catch(e){}}
+const PREFS=(()=>{let saved={};try{saved=JSON.parse(localStorage.getItem('jav.cuadricula')||'{}')}catch(e){}return Object.assign({},SNAP_DEFAULTS,saved)})();
+function savePrefs(){try{localStorage.setItem('jav.cuadricula',JSON.stringify(PREFS))}catch(e){}}
 const snapOn=(kind,e)=>!!(S.snap&&PREFS[kind]&&!(e&&e.altKey));
 const r1=v=>Math.round(v*10)/10;
 const fine=p=>({x:r1(p.x),y:r1(p.y)});

@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process');
 
 const [major, minor] = process.versions.node.split('.').map(Number);
 if (major < 22 || (major === 22 && minor < 5)) {
-  console.error(`\nMini VTT necesita Node.js 22.5 o superior (tienes ${process.versions.node}).`);
+  console.error(`\nJust Another VTT necesita Node.js 22.5 o superior (tienes ${process.versions.node}).`);
   console.error('Descárgalo desde https://nodejs.org (versión LTS) y vuelve a intentarlo.\n');
   process.exit(1);
 }

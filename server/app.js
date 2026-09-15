@@ -11,7 +11,7 @@ const R = require('./rules');
 const PUBLIC = path.resolve(__dirname, '..', 'public');
 if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) {
   console.error(`\n  No encuentro la interfaz en ${PUBLIC}`);
-  console.error('  Descomprime el zip completo y ejecuta el programa desde la carpeta mini-vtt.\n');
+  console.error('  Descomprime el zip completo y ejecuta el programa desde la carpeta just-another-vtt.\n');
   process.exit(1);
 }
 const MAX_BODY = 22 * 1024 * 1024;
@@ -52,7 +52,7 @@ function cookies(req) {
   }
   return out;
 }
-const userFrom = (req) => { const t = cookies(req).vtt_session; return t ? q.sessionUser.get(t) || null : null; };
+const userFrom = (req) => { const t = cookies(req).jav_session; return t ? q.sessionUser.get(t) || null : null; };
 const publicUser = (u) => u && { id: u.id, name: u.name, color: u.color };
 function cleanName(v) {
   const s = typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
@@ -493,14 +493,14 @@ async function api(req, res, url) {
     const name = cleanName(body.name);
     if (!name) return fail(res, 400, 'El nombre debe tener entre 2 y 24 letras, números, espacios, puntos o guiones');
     const { user, token } = loginOrCreate(name);
-    return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': `vtt_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000` });
+    return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': `jav_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000` });
   }
   const user = userFrom(req);
   if (!user) return fail(res, 401, 'Inicia sesión');
 
   if (parts[0] === 'logout' && M === 'POST') {
-    q.deleteSession.run(cookies(req).vtt_session);
-    return send(res, 200, { ok: true }, { 'Set-Cookie': 'vtt_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
+    q.deleteSession.run(cookies(req).jav_session);
+    return send(res, 200, { ok: true }, { 'Set-Cookie': 'jav_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
   }
   if (parts[0] === 'me') {
     if (M === 'GET') return send(res, 200, { user: publicUser(user) });
@@ -659,7 +659,7 @@ function serveStatic(req, res, url) {
     if (err) {
       if (!path.extname(p)) return serveStatic(req, res, new URL('/index.html', url));
       console.warn(`  404: ${url.pathname} (buscado en ${file})`);
-      return send(res, 404, `Mini VTT: no existe ${url.pathname}`);
+      return send(res, 404, `Just Another VTT: no existe ${url.pathname}`);
     }
     send(res, 200, data, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   });
@@ -705,7 +705,7 @@ function start(port, tries = 10, openIt = false) {
     else { console.error(e); process.exit(1); }
   });
   server.listen(port, '0.0.0.0', () => {
-    console.log('\n  Mini VTT está en marcha\n');
+    console.log('\n  Just Another VTT está en marcha\n');
     console.log(`  En este equipo:      http://localhost:${port}`);
     for (const ip of lanAddresses()) console.log(`  En tu red local:     http://${ip}:${port}`);
     console.log(`\n  Base de datos: ${DB_FILE}`);

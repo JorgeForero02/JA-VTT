@@ -1,4 +1,4 @@
-# Mini VTT
+# Just Another VTT
 
 Mesa virtual para jugar rol en tu equipo o en tu red local: iluminación dinámica,
 muros de cualquier forma, niebla de guerra, varias escenas por tablero unidas por
@@ -115,7 +115,7 @@ con su misma forma.
 
 ## Datos
 
-Todo se guarda en `data/minivtt.sqlite`: usuarios, tableros, escenas, miembros
+Todo se guarda en `data/jav.sqlite`: usuarios, tableros, escenas, miembros
 (y la escena en la que está cada uno), objetos, imágenes y la niebla de guerra
 explorada por cada jugador en cada escena.
 
