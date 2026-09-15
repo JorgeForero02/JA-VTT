@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini VTT</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<section id="loginView" class="gate" hidden>
+  <form id="loginForm" class="gateCard">
+    <h1 class="gateTitle">Mini VTT</h1>
+    <p class="gateSub">Mesa virtual con luz dinámica para jugar en tu red.</p>
+    <p id="loginInvite" class="gateInvite" hidden>Te han invitado a un tablero. Entra con tu nombre para unirte.</p>
+    <label class="gateField"><span>Nombre de usuario</span><input id="loginName" autocomplete="username" maxlength="24" required></label>
+    <button class="btn primary gateBtn" type="submit">Entrar</button>
+    <p class="gateNote">Si el nombre no existe, se crea al momento. No hay contraseña: úsalo solo en una red de confianza.</p>
+    <p id="loginError" class="gateError" role="alert"></p>
+  </form>
+</section>
+
+<section id="dashView" hidden>
+  <header class="dashHead">
+    <span class="brand">Mini VTT</span>
+    <span class="grow"></span>
+    <label class="userChip" title="Tu color en las mesas"><input id="userColor" type="color"><span id="userName"></span></label>
+    <button id="logoutBtn" class="btn ghost" data-ic="log-out">Salir</button>
+  </header>
+  <div class="dashBody">
+    <h1 class="dashTitle">Tus tableros</h1>
+    <div class="dashForms">
+      <form id="newBoardForm" class="dashCard">
+        <h2>Nuevo tablero</h2>
+        <label class="gateField"><span>Nombre</span><input id="newBoardName" maxlength="60" placeholder="La cripta del lunes" required></label>
+        <label class="gateField"><span>Empezar con</span>
+          <select id="newBoardTpl"><option value="empty">Lienzo vacío</option><option value="farm">Plantilla: Granja (exterior al atardecer)</option><option value="herb">Plantilla: Herbolario (interior irregular)</option></select></label>
+        <button class="btn primary" type="submit" data-ic="plus">Crear y abrir</button>
+      </form>
+      <form id="joinForm" class="dashCard">
+        <h2>Unirme con un código</h2>
+        <p class="muted small">El director te lo pasa desde la pestaña Mesa de su tablero.</p>
+        <label class="gateField"><span>Código de invitación</span><input id="joinCode" maxlength="12" placeholder="K7Q2MX" required autocapitalize="characters"></label>
+        <button class="btn" type="submit" data-ic="user-plus">Unirme</button>
+      </form>
+    </div>
+    <h2 class="dashSection">Diriges</h2>
+    <div id="gmBoards" class="boardGrid"></div>
+    <h2 class="dashSection">Juegas en</h2>
+    <div id="playerBoards" class="boardGrid"></div>
+  </div>
+</section>
+
+<div id="scenePop" class="scenePop" hidden role="dialog" aria-label="Escenas">
+  <h2>Escenas</h2>
+  <div id="sceneList"></div>
+  <form id="sceneCreate" class="sceneCreate">
+    <input id="newSceneName" maxlength="60" placeholder="Nombre de la escena nueva" aria-label="Nombre de la escena nueva">
+    <select id="newSceneTpl" aria-label="Contenido inicial"><option value="empty">Vacía</option><option value="farm">Plantilla Granja</option><option value="herb">Plantilla Herbolario</option></select>
+    <button class="btn primary" type="submit">Crear y abrir</button>
+  </form>
+  <p id="scenePopNote" class="small muted"></p>
+</div>
+
+<div id="app" hidden>
+<header>
+  <button id="backBtn" class="btn sq ghost" data-ic="arrow-left" title="Volver a tus tableros" aria-label="Volver a tus tableros"></button>
+  <span class="brand hideSm">Mini VTT</span>
+  <input id="sceneName" aria-label="Nombre del tablero" value="">
+  <button id="sceneBtn" class="sceneBtn" title="Escenas del tablero" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /> <path d="M15 5.764v15" /> <path d="M9 3.236v15" /></svg><span id="sceneBtnName"></span><svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+  <button id="liveBadge" title="Participantes"><i></i><span></span></button>
+  <span class="grow"></span>
+  <span id="roleBadge" class="roleBadge" style="display:none">Jugador</span>
+  <div class="seg" id="roleSeg" role="group" aria-label="Vista">
+    <button id="roleGm" aria-pressed="true" data-ic="crosshair"><span class="hideSm">Director</span></button>
+    <button id="rolePlayer" aria-pressed="false" data-ic="users" title="Mira la escena como la verán tus jugadores"><span class="hideSm">Vista de jugador</span></button>
+  </div>
+  <label id="viewAsWrap"><span class="muted small hideSm">Ver como</span><select id="viewAs"></select></label>
+  <button id="previewBtn" class="btn on" data-ic="eye" title="Ver la iluminación como la verán los jugadores (sin línea de visión)"><span class="hideSm">Luz</span></button>
+  <span class="hsep hideSm"></span>
+  <button id="undoBtn" class="btn sq ghost" data-ic="undo-2" title="Deshacer (Ctrl+Z)" aria-label="Deshacer"></button>
+  <button id="redoBtn" class="btn sq ghost" data-ic="redo-2" title="Rehacer (Ctrl+Y)" aria-label="Rehacer"></button>
+  <button id="exportBtn" class="btn sq ghost" data-ic="download" title="Exportar escena (.json)" aria-label="Exportar escena"></button>
+  <label id="importBtn" class="btn sq ghost fileBtn" title="Importar escena (.json)" aria-label="Importar escena" data-ic="folder-open"><input id="importFile" type="file" accept=".json,application/json"></label>
+  <button id="panelToggle" class="btn sq" data-ic="panel-right" aria-label="Mostrar panel"></button>
+</header>
+<main>
+  <nav id="rail" aria-label="Herramientas">
+    <button class="tool" data-tool="select" data-ic="mouse-pointer-2" title="Seleccionar y mover (V)"><kbd>V</kbd></button>
+    <button class="tool" data-tool="pan" data-ic="hand-grab" title="Desplazar la vista (H, o mantén Espacio)"><kbd>H</kbd></button>
+    <button class="tool" data-tool="ruler" data-ic="ruler" title="Regla (R)"><kbd>R</kbd></button>
+    <div class="railsep gmOnly"></div>
+    <button class="tool gmOnly" data-tool="wall" data-ic="brick-wall" title="Muros: tramos, salas, círculos y curvas (W)"><kbd>W</kbd></button>
+    <button class="tool gmOnly" data-tool="zone" data-ic="house" title="Zona interior: aquí no llega la luz ambiental (Z)"><kbd>Z</kbd></button>
+    <div class="railsep gmOnly"></div>
+    <button class="tool gmOnly" data-tool="light" data-ic="lightbulb" title="Fuente de luz (L)"><kbd>L</kbd></button>
+    <button class="tool gmOnly" data-tool="player" data-ic="circle-user-round" title="Ficha de personaje (P)"><kbd>P</kbd></button>
+    <button class="tool gmOnly" data-tool="enemy" data-ic="skull" title="Ficha de enemigo (E)"><kbd>E</kbd></button>
+    <div class="railsep"></div>
+    <button class="tool" data-tool="plan" data-ic="pencil-ruler" title="Planos tácticos (M)"><kbd>M</kbd></button>
+  </nav>
+  <div id="stageWrap">
+    <div id="stage">
+      <canvas id="cScene"></canvas><canvas id="cGlow"></canvas><canvas id="cDark"></canvas><canvas id="cOver"></canvas>
+    </div>
+    <div id="subbar"></div>
+    <div id="blindNote"><div>Ningún personaje puede ver ahora mismo. Crea tu personaje en la pestaña Fichas o pide al director que te asigne uno.</div></div>
+    <div id="selbar"><span class="count"></span>
+      <button class="btn sq ghost" data-act="edit" data-ic="settings-2" title="Editar" aria-label="Editar"></button>
+      <button class="btn sq ghost" data-act="dup" data-ic="copy" title="Duplicar (Ctrl+D)" aria-label="Duplicar"></button>
+      <button class="btn sq ghost danger" data-act="del" data-ic="trash-2" title="Eliminar (Supr)" aria-label="Eliminar"></button>
+    </div>
+    <div id="status"></div>
+    <div id="toast" role="status"></div>
+    <div id="ctx" class="pop" role="menu"></div>
+    <div id="editor" class="pop" role="dialog" aria-label="Propiedades">
+      <div class="edHead"><h3 id="edTitle">Propiedades</h3><button id="edClose" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
+      <div id="edBody" class="edBody"></div>
+    </div>
+  </div>
+  <aside id="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="scene" aria-selected="true" data-ic="sun">Escena</button>
+      <button role="tab" data-tab="lights" aria-selected="false" data-ic="lightbulb">Luces</button>
+      <button role="tab" data-tab="library" aria-selected="false" data-ic="image">Imágenes</button>
+      <button role="tab" data-tab="tokens" aria-selected="false" data-ic="users">Fichas</button>
+      <button role="tab" data-tab="live" aria-selected="false" data-ic="radio">Mesa</button>
+      <button role="tab" data-tab="layers" aria-selected="false" data-ic="settings-2">Ajustes</button>
+    </div>
+    <section class="tabpane active" id="tab-scene">
+      <details class="fold" data-fold="luz" open>
+        <summary><span class="foldTitle">Iluminación</span></summary>
+        <div class="foldBody">
+          <p>Cuánta luz llega sin fuentes. Los muros tapan la vista en cualquier caso.</p>
+          <div class="envGrid" id="envGrid"></div>
+          <div class="rangeRow"><span>Luz ambiental</span><input id="ambient" type="range" min="0" max="100" step="1"><output id="ambientOut"></output></div>
+          <label class="check"><input type="checkbox" id="animToggle"> Animar llamas y pulsos</label>
+        </div>
+      </details>
+      <details class="fold" data-fold="zonas" open>
+        <summary><span class="foldTitle">Zonas interiores</span></summary>
+        <div class="foldBody">
+          <p>En un exterior con edificios o cuevas, dentro de una zona no llega la luz ambiental.</p>
+          <div class="row"><button class="btn" id="zoneToolBtn" data-ic="house">Dibujar zona</button></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="niebla" open>
+        <summary><span class="foldTitle">Niebla de guerra</span></summary>
+        <div class="foldBody">
+          <p>Lo que explora cada jugador se guarda por escena.</p>
+          <label class="check"><input type="checkbox" id="fogToggle"> Recordar lo ya explorado</label>
+          <div class="row"><button class="btn" id="fogReset" data-ic="rotate-ccw">Reiniciar exploración</button></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="contenido" open>
+        <summary><span class="foldTitle">Contenido</span></summary>
+        <div class="foldBody">
+          <p>El tablero de fondo se elige en Imágenes. Una plantilla sustituye todo lo de esta escena; puedes deshacerlo.</p>
+          <div class="row"><button class="btn" id="pickBoard" data-ic="image">Elegir tablero de fondo</button></div>
+          <div class="row"><button class="btn" id="seedFarm" data-ic="sunset">Plantilla Granja</button><button class="btn" id="seedHerb" data-ic="flame">Plantilla Herbolario</button></div>
+          <div class="row"><button class="btn danger" id="clearBtn" data-ic="trash-2">Vaciar escena</button></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="tab-lights">
+      <details class="fold" data-fold="lamparas" open>
+        <summary><span class="foldTitle">Biblioteca de luces</span></summary>
+        <div class="foldBody">
+          <p>Elige una fuente y haz clic en el mapa, o arrástrala hasta su sitio.</p>
+          <div class="lampGrid" id="lampGrid"></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="luces" open>
+        <summary><span class="foldTitle">En esta escena</span><span class="count" id="lightCount"></span></summary>
+        <div class="foldBody">
+          <div class="row"><button class="btn" id="allOn" data-ic="lightbulb" title="Encender todas las luces">Encender todas</button><button class="btn" id="allOff" data-ic="lightbulb-off" title="Apagar todas las luces">Apagar todas</button></div>
+          <div class="list" id="lightList"></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="tab-library">
+      <details class="fold" data-fold="subir" open>
+        <summary><span class="foldTitle">Subir imágenes</span></summary>
+        <div class="foldBody">
+          <p>Primero elige qué vas a subir.</p>
+          <div class="segCat" id="upCat" role="group" aria-label="Categoría de la subida"></div>
+          <label class="drop" id="dropZone">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21" /> <path d="m14 19.5 3-3 3 3" /> <path d="M17 22v-5.5" /> <circle cx="9" cy="9" r="2" /></svg>
+          <b>Arrastra imágenes o haz clic</b>
+          <span class="small muted" id="dropHint"></span>
+          <input id="libFile" type="file" accept="image/*" multiple>
+        </label>
+          <div id="uploads"></div>
+          <div class="meter"><div class="bar"><i id="usageBar"></i></div><span id="usageText"></span></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="biblioteca" open>
+        <summary><span class="foldTitle">Biblioteca</span></summary>
+        <div class="foldBody">
+          <p>Clic para colocar en el centro de la vista, o arrastra al mapa.</p>
+          <div class="chipRow" id="libFilter"></div>
+          <div class="thumbGrid" id="thumbGrid"></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="tab-tokens">
+      <details class="fold playerOnly" data-fold="mio" open>
+        <summary><span class="foldTitle">Mi personaje</span></summary>
+        <div class="foldBody">
+          <p>Puedes moverlo y cambiar su nombre, color, retrato y luz.</p>
+          <div class="list" id="myCharList"></div>
+          <div class="row"><button class="btn primary" id="createChar" data-ic="plus">Crear mi personaje</button></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="crear" open>
+        <summary><span class="foldTitle">Crear ficha</span></summary>
+        <div class="foldBody">
+          <p>Elige el tipo y haz clic en el mapa. Las fichas con retrato se crean desde Imágenes.</p>
+          <div class="row"><button class="btn" data-pick="player" data-ic="circle-user-round">Personaje</button><button class="btn" data-pick="enemy" data-ic="skull">Enemigo</button></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="pjs" open>
+        <summary><span class="foldTitle">Personajes</span><span class="count" id="pcCount"></span></summary>
+        <div class="foldBody">
+          <div class="list" id="pcList"></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="enemigos" open>
+        <summary><span class="foldTitle">Enemigos</span><span class="count" id="npcCount"></span></summary>
+        <div class="foldBody">
+          <div class="list" id="npcList"></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="tab-live">
+      <details class="fold" data-fold="gente" open>
+        <summary><span class="foldTitle">Participantes</span><span class="count" id="onlineCount"></span></summary>
+        <div class="foldBody">
+          <p>El punto verde indica quién está conectado. Junto a cada nombre ves en qué escena está.</p>
+          <div class="list" id="peerList"></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="invitar" open>
+        <summary><span class="foldTitle">Invitar</span></summary>
+        <div class="foldBody">
+          <p>Quien entre con el código o el enlace se une como jugador.</p>
+          <div class="invite"><code id="inviteCode"></code><button id="copyInvite" class="btn" data-ic="link">Copiar enlace</button><button id="newInvite" class="btn sq ghost" data-ic="refresh-cw" title="Generar otro código" aria-label="Generar otro código"></button></div>
+          <input id="inviteLinkField" class="urlField" readonly style="display:none" aria-label="Enlace de invitación">
+          <label class="gateField" style="margin-top:12px"><span>O añade a alguien por su nombre de usuario</span><input id="addMemberName" maxlength="24" placeholder="Lucía"></label>
+          <div class="row"><button id="addMemberBtn" class="btn" data-ic="user-plus">Añadir al tablero</button></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="reglas" open>
+        <summary><span class="foldTitle">Reglas para jugadores</span></summary>
+        <div class="foldBody">
+          <label class="check"><input type="checkbox" id="sharedVision"> Visión compartida: cada jugador ve lo que ve el grupo</label>
+          <label class="check"><input type="checkbox" id="playersDoors"> Pueden abrir y cerrar puertas</label>
+        </div>
+      </details>
+      <details class="fold" data-fold="conexion">
+        <summary><span class="foldTitle">Conexión</span></summary>
+        <div class="foldBody">
+          <p class="small" id="liveStatus"></p>
+          <div class="row"><button class="btn" id="pingBtn" data-ic="radio">Probar conexión</button></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="tab-layers">
+      <details class="fold" data-fold="vista" open>
+        <summary><span class="foldTitle">Vista</span></summary>
+        <div class="foldBody">
+          <div class="row"><button class="btn" id="centerBtn" data-ic="crosshair">Centrar la vista en la escena</button></div>
+          <label class="check"><input type="checkbox" id="showCursors" checked> Ver los cursores de los demás</label>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="cuadricula" open>
+        <summary><span class="foldTitle">Cuadrícula</span></summary>
+        <div class="foldBody">
+          <p>Cada casilla mide 5 pies y la cuadrícula no tiene bordes.</p>
+          <label class="check"><input type="checkbox" id="gridToggle"> Mostrar cuadrícula</label>
+          <label class="check"><input type="checkbox" id="snapToggle"> Ajustar a la cuadrícula (Alt lo ignora al vuelo)</label>
+          <div id="snapPrefs" class="snapPrefs" aria-label="Qué se ajusta a la cuadrícula"></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="capas" open>
+        <summary><span class="foldTitle">Capas</span></summary>
+        <div class="foldBody">
+          <p>Una capa bloqueada no se puede seleccionar: así trabajas encima del mapa sin moverlo.</p>
+          <div class="list" id="layerList"></div>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="leyenda">
+        <summary><span class="foldTitle">Tipos de muro</span></summary>
+        <div class="foldBody">
+          <div class="legend" id="wallLegend"></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="atajos">
+        <summary><span class="foldTitle">Atajos de teclado</span></summary>
+        <div class="foldBody">
+          <div class="keys">
+          <kbd>Rueda</kbd><span>Zoom hacia el cursor</span>
+          <kbd>Espacio</kbd><span>Mantén y arrastra para desplazar</span>
+          <kbd>W</kbd><span>Muros por tramos; doble clic, Esc o clic derecho para terminar</span>
+          <kbd>Q / C</kbd><span>Sala rectangular / muro circular</span>
+          <kbd>Z</kbd><span>Zona interior: clic en cada vértice, Intro o doble clic para cerrar</span>
+          <kbd>Alt+clic</kbd><span>Elegir un solo tramo de una figura</span>
+          <kbd>Mayús</kbd><span>Añadir a la selección</span>
+          <kbd>Alt</kbd><span>Colocar sin ajuste a la cuadrícula</span>
+          <kbd>Flechas</kbd><span>Fichas: una casilla. Muros, luces y objetos: 5 px (Mayús: una casilla, Alt: 1 px)</span>
+          <kbd>Supr</kbd><span>Eliminar la selección</span>
+          <kbd>Ctrl+D</kbd><span>Duplicar</span>
+          <kbd>Ctrl+Z</kbd><span>Deshacer</span>
+          <kbd>Clic en puerta</kbd><span>Abrir o cerrar</span>
+          <kbd>Clic en portal</kbd><span>Cruzar a otra escena</span>
+        </div>
+          <p class="small muted" style="margin-top:10px">Como Director mueves fichas a través de muros; como Jugador los muros, ventanas y barreras frenan el movimiento.</p>
+        </div>
+      </details>
+    </section>
+  </aside>
+</main>
+</div>
+<script src="js/vendor/visibility-polygon.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/core.js"></script>
+<script src="js/render.js"></script>
+<script src="js/store.js"></script>
+<script src="js/net.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "mini-vtt",
+  "version": "1.0.0",
+  "description": "Mesa virtual local con iluminación dinámica, tableros compartidos y SQLite",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "license": "MIT"
+}
