@@ -1,36 +1,44 @@
 # Just Another VTT
 
-Mesa virtual para jugar rol en tu equipo o en tu red local: iluminación dinámica,
-muros de cualquier forma, niebla de guerra, varias escenas por tablero unidas por
-portales, tableros compartidos en tiempo real y todo guardado en una base de datos SQLite.
+Mesa virtual para jugar rol: iluminación dinámica, muros de cualquier forma, niebla de
+guerra, varias escenas por tablero unidas por portales, tableros compartidos en tiempo real y
+todo guardado en PostgreSQL. Pensada para un grupo pequeño en un servidor propio.
 
-## Requisitos
+## Arrancar con Docker (recomendado)
 
-- **Node.js 22.5 o superior** (recomendado: la versión LTS más reciente de https://nodejs.org).
-- No hace falta `npm install`: el programa no usa paquetes externos.
+Necesitas Docker con Compose.
 
-## Arrancar
+```bash
+cp .env.example .env        # pon una contraseña en POSTGRES_PASSWORD
+docker compose up -d --build
+```
 
-- **Windows:** doble clic en `iniciar.bat`. Se abre el navegador solo.
-- **macOS / Linux:** `./iniciar.sh` (o `node server.js`).
-- **Con npm:** `npm start`.
+Abre http://localhost:3000. Otro puerto: `APP_PORT=4000` en `.env`. Para parar:
+`docker compose down` (los datos quedan en el volumen `pgdata`; `down -v` los borra).
 
-Luego abre http://localhost:3000. Para usar otro puerto: `node server.js 4000`
-o la variable de entorno `PORT`.
+Para desplegarlo en un servidor con Coolify u otro proxy, ver `docs/03-despliegue.md`.
 
-Al arrancar, la consola muestra también la dirección para tu red local
-(por ejemplo `http://192.168.1.20:3000`). Compártela con quienes jueguen en la
-misma red. En Windows, la primera vez el cortafuegos pedirá permiso para Node.js:
-acéptalo para **redes privadas**.
+## Arrancar sin Docker
+
+Node.js 22.5 o superior y un PostgreSQL accesible:
+
+```bash
+npm ci
+DATABASE_URL=postgres://usuario:clave@host:5432/base PORT=3000 node server.js
+```
+
+Las tablas se crean solas al arrancar (migraciones en `server/migrations/`).
 
 ## Cómo se usa
 
-1. **Entrar:** escribe un nombre de usuario. Si no existe, se crea. No hay contraseña,
-   así que úsalo solo en una red de confianza.
+1. **Entrar:** crea una cuenta con nombre y contraseña (pestaña «Crear cuenta»); después
+   entra con ellas. Cualquiera con la dirección puede registrarse; no hay recuperación de
+   contraseña por correo.
 2. **Panel:** crea un tablero vacío o a partir de una plantilla (Granja o Herbolario),
    o únete a uno con un código de invitación.
 3. **Invitar:** dentro del tablero, pestaña **Mesa**. Comparte el código o el enlace,
-   o añade a alguien por su nombre de usuario. Desde ahí también puedes quitar miembros.
+   o añade a alguien que ya tenga cuenta por su nombre de usuario. Desde ahí también puedes
+   quitar miembros.
 4. **Escenas:** el botón con el nombre de la escena (arriba) abre el menú de escenas.
    Desde ahí el director crea escenas (vacías o con plantilla), las renombra, duplica o
    elimina, y cambia de escena.
@@ -115,29 +123,27 @@ con su misma forma.
 
 ## Datos
 
-Todo se guarda en `data/jav.sqlite`: usuarios, tableros, escenas, miembros
-(y la escena en la que está cada uno), objetos, imágenes y la niebla de guerra
-explorada por cada jugador en cada escena.
+Todo vive en PostgreSQL: usuarios, tableros, escenas, miembros (y la escena en la que está
+cada uno), objetos, imágenes (como bytes) y la niebla explorada por cada jugador.
 
-- **Copia de seguridad:** detén el servidor y copia la carpeta `data`.
-- **Empezar de cero:** detén el servidor y borra la carpeta `data`.
-- **Otra ubicación:** variable de entorno `VTT_DATA=/ruta/a/carpeta`.
+- **Copia de seguridad:** `docker compose exec -T db pg_dump -U jav -d jav --format=custom > copia.dump`.
+- **Empezar de cero:** `docker compose down -v`.
 
 La niebla se guarda cada pocos segundos y al cruzar un portal. El director puede
 borrarla para todos desde **Escena → Niebla de guerra → Reiniciar exploración**.
 
-Si vienes de la versión anterior, al arrancar se convierte cada tablero en un
-tablero con una escena («Escena 1») sin perder nada. Aun así, haz antes una copia
-de la carpeta `data`.
-
 ## Estructura
 
 ```
-server.js              Punto de entrada
+server.js              Punto de entrada (DATABASE_URL, PORT)
 server/app.js          HTTP, API y tiempo real
-server/db.js           Esquema y consultas SQLite
+server/db.js           Pool de PostgreSQL, migraciones y consultas
+server/migrations/     Esquema, un fichero SQL por versión
+server/auth.js         Contraseñas (scrypt)
 server/rules.js        Validación y permisos
 server/ws.js           WebSocket mínimo sin dependencias
+test/                  Tests (node:test) y prueba e2e contra docker compose
+docs/                  Documentación técnica y operativa
 public/index.html      Interfaz
 public/css/app.css     Estilos
 public/js/             Cliente (núcleo, dibujo, editor, red, plantillas)
@@ -150,5 +156,6 @@ public/fonts/          Tipografías Alegreya (licencia SIL OFL)
 - Iconos: Lucide (licencia ISC).
 - Cálculo de visibilidad: visibility-polygon.js de Byron Knoll (dominio público).
 - Tipografías: Alegreya y Alegreya Sans de Huerta Tipográfica (SIL Open Font License).
-- El mapa del Herbolario de la plantilla es el que aportaste; revisa su licencia
+- El mapa del Herbolario de la plantilla es aportado por el autor; revisa su licencia
   antes de compartir el programa con terceros.
+- Nació como «Mini VTT»; el historial del cambio está en `docs/07-historial.md`.
