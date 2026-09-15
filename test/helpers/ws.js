@@ -12,7 +12,7 @@ function connect(base, boardId, cookie) {
     if (i >= 0) { const [w] = waiters.splice(i, 1); w.resolve(msg); return; }
     queue.push(msg);
   };
-  const next = (match, timeoutMs = 2000) => new Promise((resolve, reject) => {
+  const next = (match, timeoutMs = 5000) => new Promise((resolve, reject) => {
     const i = queue.findIndex(match);
     if (i >= 0) return resolve(queue.splice(i, 1)[0]);
     const timer = setTimeout(() => { waiters.splice(waiters.findIndex((w) => w.resolve === resolve), 1); reject(new Error('Sin mensaje a tiempo')); }, timeoutMs);

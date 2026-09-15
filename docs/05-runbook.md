@@ -41,3 +41,6 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 - La extensión Claude in Chrome no estaba conectada el 2026-09-15: la comprobación visual del
   login quedó para el usuario (los tests de contrato del frontend sí corren).
 - `pg` devuelve `COUNT(*)` como texto salvo cast: `db.js` ya castea o parsea BIGINT a Number.
+- `npm test` dio 2 fallos intermitentes en `realtime.test.js` el 2026-09-15 mientras Docker
+  construía la imagen (CPU saturada); 9 corridas posteriores limpias. La espera por mensaje
+  WS en tests es de 5 s (`test/helpers/ws.js`). No correr la suite mientras se construye.

@@ -22,3 +22,11 @@ funcional con SQLite. No hay migración de datos entre ambos (la base pg nace va
 
 **Evidencia** — `npm run check` 32/32 · `npm run test:e2e` 11/11 con `docker compose restart app`
 · `down`+`up` conserva 2 usuarios, 1 tablero, 1 objeto.
+
+## 2026-09-15 — Botón en la cabecera para ocultar el panel derecho
+
+**Qué** — `#panelToggle` pasa a verse siempre. En pantallas anchas pliega la columna del
+panel (`#app.noPanel`) y guarda la preferencia en `localStorage` (`jav.panel`); en
+estrechas sigue abriendo el panel como capa. Iconos Lucide `panel-right-open/close`.
+**Por qué** — pedido del usuario: más espacio de mapa en escritorio.
+**Revertir** — `git revert` del commit `feat(ui): botón para ocultar el panel lateral`.

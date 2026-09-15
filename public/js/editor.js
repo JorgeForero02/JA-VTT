@@ -610,7 +610,12 @@ $('#rolePlayer').onclick=()=>setRole('player');
 $('#viewAs').onchange=e=>{UI.viewAs=e.target.value==='party'?'party':+e.target.value;requestRender()};
 $('#previewBtn').onclick=()=>{UI.preview=!UI.preview;$('#previewBtn').classList.toggle('on',UI.preview);requestRender()};
 $('#undoBtn').onclick=undo;$('#redoBtn').onclick=redo;
-$('#panelToggle').onclick=()=>$('#panel').classList.toggle('open');
+/* Panel lateral: en pantallas anchas se pliega la columna (y se recuerda); en estrechas se abre como capa */
+const narrow=()=>window.matchMedia('(max-width:980px)').matches;
+function syncPanelToggle(){const hidden=$('#app').classList.contains('noPanel');const b=$('#panelToggle');b.setAttribute('aria-pressed',String(hidden));b.title=b.ariaLabel=hidden?'Mostrar panel':'Ocultar panel';b.dataset.ic=hidden?'panel-right-open':'panel-right-close';const old=b.querySelector('svg');if(old)old.remove();delete b.dataset.icDone;hydrate(b.parentElement)}
+function setPanelHidden(hidden){$('#app').classList.toggle('noPanel',hidden);try{localStorage.setItem('jav.panel',hidden?'oculto':'visible')}catch(e){}syncPanelToggle()}
+$('#panelToggle').onclick=()=>{if(narrow())$('#panel').classList.toggle('open');else setPanelHidden(!$('#app').classList.contains('noPanel'))};
+setPanelHidden((()=>{try{return localStorage.getItem('jav.panel')==='oculto'}catch(e){return false}})());
 $$('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='library')renderLibraryGrid();if(name==='live')renderLive()}
 $$('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));

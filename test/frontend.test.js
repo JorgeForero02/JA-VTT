@@ -30,3 +30,18 @@ test('todos los scripts del cliente compilan', () => {
     assert.doesNotThrow(() => new Function(read('js/' + f)), f);
   }
 });
+
+test('cabecera: botón para ocultar el panel lateral, con estado y preferencia guardada', () => {
+  const html = read('index.html');
+  assert.match(html, /<header>[\s\S]*<button id="panelToggle"[^>]*aria-pressed="false"[^>]*>[\s\S]*<\/header>/);
+  const css = read('css/app.css');
+  assert.doesNotMatch(css, /#panelToggle\{display:none\}/, 'el botón ya no se oculta en escritorio');
+  assert.match(css, /#app\.noPanel main\{grid-template-columns:58px 1fr\}/);
+  assert.match(css, /#app\.noPanel #panel\{display:none\}/);
+  const js = read('js/editor.js');
+  assert.match(js, /localStorage\.setItem\('jav\.panel'/);
+  assert.match(js, /classList\.toggle\('noPanel',hidden\)/);
+  const icons = read('js/icons.js');
+  assert.match(icons, /"panel-right-open"/);
+  assert.match(icons, /"panel-right-close"/);
+});
