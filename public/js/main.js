@@ -13,12 +13,23 @@ function showLogin(){
   $('#loginInvite').hidden=!sessionStorage.getItem('invitar');
   setTimeout(()=>$('#loginName').focus(),50);
 }
+function setLoginMode(mode){
+  const form=$('#loginForm');form.dataset.mode=mode;
+  for(const t of form.querySelectorAll('.gateTab'))t.setAttribute('aria-selected',String(t.dataset.mode===mode));
+  for(const n of form.querySelectorAll('.gateNote'))n.hidden=n.dataset.for!==mode;
+  $('#loginSubmit').textContent=mode==='register'?'Crear cuenta y entrar':'Entrar';
+  $('#loginPassword').autocomplete=mode==='register'?'new-password':'current-password';
+  $('#loginError').textContent='';
+}
+for(const t of document.querySelectorAll('#loginForm .gateTab'))t.onclick=()=>setLoginMode(t.dataset.mode);
 $('#loginForm').onsubmit=async e=>{
   e.preventDefault();
-  const name=$('#loginName').value.trim();
+  const name=$('#loginName').value.trim(),password=$('#loginPassword').value;
+  const mode=$('#loginForm').dataset.mode;
   $('#loginError').textContent='';
   try{
-    const d=await apiJson('/api/login',{method:'POST',body:JSON.stringify({name})});
+    const d=await apiJson(mode==='register'?'/api/register':'/api/login',{method:'POST',body:JSON.stringify({name,password})});
+    $('#loginPassword').value='';
     App.user=d.user;await afterLogin();
   }catch(err){$('#loginError').textContent=err.message}
 };

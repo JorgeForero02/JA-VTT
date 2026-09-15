@@ -1,0 +1,42 @@
+# Pila de Just Another VTT: la aplicación y su PostgreSQL.
+#
+# Sirve igual en este PC y en Coolify (vps1new):
+#   - Local: `docker compose up -d --build` fusiona automáticamente
+#     docker-compose.override.yml, que publica el puerto APP_PORT (3000).
+#   - Coolify: lee sólo este fichero, pone Traefik delante de `app` con el dominio que se
+#     configure en su UI y NO publica puertos. Las variables se definen en la UI de Coolify.
+#
+# El único dato irreemplazable es el volumen `pgdata`: contiene usuarios, tableros, escenas,
+# imágenes y niebla. Respaldar con `pg_dump` (ver docs/05-runbook.md).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jav}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-jav}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-jav}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-jav}
+    expose:
+      - "3000"
+
+volumes:
+  pgdata:

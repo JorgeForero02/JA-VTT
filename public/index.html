@@ -9,13 +9,19 @@
 </head>
 <body>
 <section id="loginView" class="gate" hidden>
-  <form id="loginForm" class="gateCard">
+  <form id="loginForm" class="gateCard" data-mode="login">
     <h1 class="gateTitle">Just Another VTT</h1>
-    <p class="gateSub">Mesa virtual con luz dinámica para jugar en tu red.</p>
-    <p id="loginInvite" class="gateInvite" hidden>Te han invitado a un tablero. Entra con tu nombre para unirte.</p>
+    <p class="gateSub">Mesa virtual con luz dinámica, escenas y tiempo real.</p>
+    <p id="loginInvite" class="gateInvite" hidden>Te han invitado a un tablero. Entra o crea tu cuenta para unirte.</p>
+    <div class="gateTabs" role="tablist">
+      <button type="button" class="gateTab" data-mode="login" role="tab" aria-selected="true">Entrar</button>
+      <button type="button" class="gateTab" data-mode="register" role="tab" aria-selected="false">Crear cuenta</button>
+    </div>
     <label class="gateField"><span>Nombre de usuario</span><input id="loginName" autocomplete="username" maxlength="24" required></label>
-    <button class="btn primary gateBtn" type="submit">Entrar</button>
-    <p class="gateNote">Si el nombre no existe, se crea al momento. No hay contraseña: úsalo solo en una red de confianza.</p>
+    <label class="gateField"><span>Contraseña</span><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" maxlength="200" required></label>
+    <button id="loginSubmit" class="btn primary gateBtn" type="submit">Entrar</button>
+    <p class="gateNote" data-for="login">¿Sin cuenta? Pulsa «Crear cuenta»: solo hace falta un nombre y una contraseña.</p>
+    <p class="gateNote" data-for="register" hidden>La contraseña necesita al menos 6 caracteres. No hay recuperación por correo: apúntala.</p>
     <p id="loginError" class="gateError" role="alert"></p>
   </form>
 </section>
@@ -246,7 +252,7 @@
           <p>Quien entre con el código o el enlace se une como jugador.</p>
           <div class="invite"><code id="inviteCode"></code><button id="copyInvite" class="btn" data-ic="link">Copiar enlace</button><button id="newInvite" class="btn sq ghost" data-ic="refresh-cw" title="Generar otro código" aria-label="Generar otro código"></button></div>
           <input id="inviteLinkField" class="urlField" readonly style="display:none" aria-label="Enlace de invitación">
-          <label class="gateField" style="margin-top:12px"><span>O añade a alguien por su nombre de usuario</span><input id="addMemberName" maxlength="24" placeholder="Lucía"></label>
+          <label class="gateField" style="margin-top:12px"><span>O añade a alguien que ya tenga cuenta, por su nombre de usuario</span><input id="addMemberName" maxlength="24" placeholder="Lucía"></label>
           <div class="row"><button id="addMemberBtn" class="btn" data-ic="user-plus">Añadir al tablero</button></div>
         </div>
       </details>

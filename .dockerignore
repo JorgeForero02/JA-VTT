@@ -1,0 +1,8 @@
+node_modules
+data
+docs
+test
+.git
+.env
+*.md
+eslint.config.mjs

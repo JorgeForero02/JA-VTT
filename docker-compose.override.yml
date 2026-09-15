@@ -1,0 +1,10 @@
+# Sólo para desarrollo local: docker compose lo fusiona solo con docker-compose.yml.
+# Publica la aplicación en http://localhost:${APP_PORT:-3000}. Coolify no lo lee.
+services:
+  app:
+    build:
+      args:
+        # Norton intercepta el TLS en este PC y npm no puede verificar el registro.
+        NPM_STRICT_SSL: ${NPM_STRICT_SSL:-true}
+    ports:
+      - "${APP_PORT:-3000}:3000"
