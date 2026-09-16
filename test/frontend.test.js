@@ -42,7 +42,7 @@ test('todos los scripts del cliente compilan', () => {
 test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   const eng = read('js/d3/engine.js');
   assert.match(eng, /^import \* as THREE from '\.\.\/vendor\/three\.module\.min\.js';$/m);
-  assert.match(eng, /import \{ PACK_MAP \} from '\.\/packmap\.js'/);
+  assert.match(eng, /import \{ mkCanvas, rng, pick, AC, PROP_KINDS, CHAR_INFO, OBJ_KINDS, MATS, slotOf, loadPacks, loadStyle, toTex, disposeTex, ART \} from '\.\/art\.js'/);
   assert.match(eng, /export function createEngine\(stage,opts\)/);
   for (const bad of ['WebGLMultisampleRenderTarget', "getElementById('view')", "getElementById('hint')", 'localStorage', 'PACK_SRC', 'renderPanel(', 'window.innerWidth']) assert.ok(!eng.includes(bad), 'no debe quedar: ' + bad);
   assert.match(eng, /samples:4/);
@@ -61,6 +61,8 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(eng, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(false\);/);
   assert.match(eng, /function stop\(\)\{stopped=true;/);
   assert.match(eng, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
+  assert.match(read('js/d3/art.js'), /^export function loadStyle\(key\)/m);
+  assert.doesNotMatch(eng, /function pixelAtlas\(|function drawnAtlas\(/);
   const idx = read('js/d3/index.js');
   assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
   const dice = read('js/dice3d.js');
