@@ -156,12 +156,14 @@ function lightSources(){
   return frame.sources=out;
 }
 function animFactor(src,t){
-  if(!S.animate||!src.anim||src.anim==='none')return{r:1,i:1};
+  // r: radio · i: intensidad de la máscara de oscuridad · g: intensidad del tinte de color
+  if(!S.animate||!src.anim||src.anim==='none')return{r:1,i:1,g:1};
   const s=src.seed*1.713;
   if(src.anim==='flicker'){const n=Math.sin(t*5.1+s)*.55+Math.sin(t*9.7+s*2)*.3+Math.sin(t*17.3+s*3)*.15;return{r:1+n*.018,i:1+n*.08}}
   if(src.anim==='soft'){const n=Math.sin(t*2.7+s)*.6+Math.sin(t*5.3+s)*.4;return{r:1+n*.008,i:1+n*.04}}
-  if(src.anim==='pulse'){const n=Math.sin(t*1.4+s);return{r:1+n*.03,i:.9+n*.1}}
-  return{r:1,i:1};
+  // pulso: respira en radio y en color, no en la máscara (un cambio lento y global de alfa se ve a escalones de 1/255)
+  if(src.anim==='pulse'){const n=Math.sin(t*1.4+s);return{r:1+n*.045,i:1,g:.82+n*.18}}
+  return{r:1,i:1,g:1};
 }
 const hasAnimated=()=>S.animate&&lightSources().some(s=>s.anim&&s.anim!=='none');
 function inZone(p){return S.zones.some(z=>zoneContains(z,p))}

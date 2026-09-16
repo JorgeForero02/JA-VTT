@@ -152,7 +152,8 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
 test('luces: transición brillante→tenue ancha y pulso contenido', () => {
   const render = read('js/render.js');
   assert.match(render, /g\.addColorStop\(Math\.max\(0,b-\.1\),`rgba\(255,255,255,\$\{top\}\)`\);g\.addColorStop\(Math\.min\(\.97,b\+\.14\)/);
-  assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.4\+s\);return\{r:1\+n\*\.03,i:\.9\+n\*\.1\}\}/);
+  assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.4\+s\);return\{r:1\+n\*\.045,i:1,g:\.82\+n\*\.18\}\}/, 'el pulso no toca la intensidad de la máscara');
+  assert.match(render, /mode==='mask'\?f\.i:\(f\.g\?\?f\.i\)/);
 });
 
 test('render: capas de luz a escala 1 y exploración desenfocada cacheada entre fotogramas', () => {

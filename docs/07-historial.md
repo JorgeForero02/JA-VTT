@@ -193,3 +193,10 @@ Medido en Edge headless a 1920×1080 con escala 2: 58 ms por fotograma animado (
 amplía (son degradados, no se nota); la niebla explorada desenfocada se compone sólo en los
 fotogramas completos y los de animación reutilizan la imagen. Mapa, fichas y controles siguen a
 la escala nativa. Guion de medida: ver `05-runbook` (perfilado).
+
+## 2026-09-16 — Pulso sin escalones
+
+El pulso variaba la intensidad de la máscara de oscuridad (alfa) despacio y para todo el disco a
+la vez: con alfa de 8 bits eso se ve como escalones de 1/255 sincronizados. Ahora el pulso respira
+en radio (±4,5 %) y en el tinte de color del brillo (82–100 %), y deja la máscara quieta. El
+parpadeo no lo sufría por ser rápido y ruidoso.

@@ -148,7 +148,7 @@ function lightShape(c,src,t,mode){
   const poly=los(src,'light');if(poly.length<3)return;
   const f=animFactor(src,t);
   const rD=ftPx(src.bright+src.dim)*f.r,rB=ftPx(src.bright)*f.r;if(rD<=0)return;
-  const I=clamp(src.intensity*f.i,0,1.2);
+  const I=clamp(src.intensity*(mode==='mask'?f.i:(f.g??f.i)),0,1.2);
   c.save();setWorld(c);
   tracePoly(c,poly);c.clip();
   if(src.angle<360){const a0=((src.rot||0)-src.angle/2)*Math.PI/180,a1=((src.rot||0)+src.angle/2)*Math.PI/180;c.beginPath();c.moveTo(src.x,src.y);c.arc(src.x,src.y,rD*1.05,a0,a1);c.closePath();c.clip()}
