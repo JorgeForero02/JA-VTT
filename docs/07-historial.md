@@ -221,3 +221,11 @@ durante 12 fotogramas, baja las capas de luz a 0,5× y la animación a la mitad 
 de pantalla (cadencia regular). Si sobra margen durante 4 s, vuelve a 1×. Mesa → Conexión muestra
 «Render de luz: N ms por fotograma (pantalla X Hz), capas de luz a S×» para diagnosticar en el
 navegador del usuario.
+
+## 2026-09-16 — Fix: la animación de luz iba a ~9 fps (realimentación de la cadencia)
+
+La cadencia adaptativa medía el intervalo entre fotogramas *animados* y lo usaba como umbral
+para animar el siguiente: se realimentaba y bajaba hasta ~110 ms (el usuario midió «pantalla 9
+Hz», render 0,2 ms). Ahora la frecuencia de pantalla se mide con todos los fotogramas del bucle
+y la animación va cada frame (o uno de cada dos, contado, en calidad reducida). Medido en Edge:
+59,5 fotogramas animados/s con intervalo 16,7 ms constante.

@@ -142,7 +142,7 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
   const core = read('js/core.js');
   assert.match(core, /const P=displayPos\(t\);return\{x:P\.x,y:P\.y,bright:L\.bright/);
   assert.match(core, /const P=displayPos\(l\);out\.push\(\{x:P\.x,y:P\.y/);
-  assert.match(read('js/render.js'), /else if\(anim&&ts-lastAnim>animInterval\(\)\)\{lastAnim=ts;frame\.sources=null;const t0=performance\.now\(\);drawAll\(ts\/1000,true\)/, 'los frames de animación sólo redibujan las luces');
+  assert.match(read('js/render.js'), /else if\(anim&&animateThisFrame\(\)\)\{lastAnim=ts;frame\.sources=null;const t0=performance\.now\(\);drawAll\(ts\/1000,true\)/, 'los frames de animación sólo redibujan las luces');
   assert.match(read('js/render.js'), /ts-lastNet>40/);
   assert.match(read('js/net.js'), /const SMOOTH_TAU=70;/);
   assert.match(read('js/net.js'), /function chase\(state,tx,ty\)/);
@@ -175,7 +175,9 @@ test('render adaptativo: mide el fotograma de luz y baja escala/cadencia si no c
   const render = read('js/render.js');
   assert.match(render, /const PERF=\{scale:1,ms:0,frameMs:16\.7/);
   assert.match(render, /if\(ms>budget\)\{PERF\.fast=0;if\(\+\+PERF\.slow>12&&PERF\.scale>\.5\)\{PERF\.scale=\.5;PERF\.slow=0;resize\(\)\}\}/);
-  assert.match(render, /const animInterval=\(\)=>PERF\.scale<1\?PERF\.frameMs\*2-2:PERF\.frameMs-2;/);
+  assert.match(render, /function animateThisFrame\(\)\{if\(PERF\.scale>=1\)return true;PERF\.skip\^=1;return PERF\.skip===0\}/, 'cadencia por conteo de frames, no por tiempo (evita la realimentación)');
+  assert.equal((render.match(/^requestAnimationFrame\(loop\);$/gm) || []).length, 0, 'el bucle lo arranca main.js una sola vez');
+  assert.match(render, /function noteFrame\(ts\)/);
   assert.match(render, /ldpr=Math\.min\(dpr,PERF\.scale\);/);
   assert.match(read('js/editor.js'), /Render de luz: \$\{PERF\.ms\.toFixed\(1\)\} ms/);
 });

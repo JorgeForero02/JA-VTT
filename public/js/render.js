@@ -52,30 +52,33 @@ function requestRender(){dirty=true}
 /* Rendimiento medido en este navegador. Si un fotograma de luz no cabe en un frame de pantalla,
    se baja la resolución de las capas de luz (1 → .5) y la animación pasa a 30 fps regulares:
    un movimiento lento a ritmo constante se ve fluido; a 60 fps irregulares se ve a saltos. */
-const PERF={scale:1,ms:0,frameMs:16.7,slow:0,fast:0,fps:0,frames:0,fpsAt:0,lastTs:0};
-function notePerf(ms,ts){
-  PERF.ms=PERF.ms?PERF.ms*.9+ms*.1:ms;
-  if(PERF.lastTs){const gap=ts-PERF.lastTs;if(gap<200)PERF.frameMs=PERF.frameMs*.9+gap*.1}PERF.lastTs=ts;
+const PERF={scale:1,ms:0,frameMs:16.7,slow:0,fast:0,fps:0,frames:0,fpsAt:0,lastTs:0,skip:0};
+/* Frecuencia de la pantalla: intervalo entre TODOS los fotogramas del bucle, no sólo los animados */
+function noteFrame(ts){
+  if(PERF.lastTs){const gap=ts-PERF.lastTs;if(gap>1&&gap<100)PERF.frameMs=PERF.frameMs*.95+gap*.05}
+  PERF.lastTs=ts;
   PERF.frames++;if(ts-PERF.fpsAt>1000){PERF.fps=Math.round(PERF.frames*1000/(ts-PERF.fpsAt));PERF.frames=0;PERF.fpsAt=ts}
+}
+function notePerf(ms){
+  PERF.ms=PERF.ms?PERF.ms*.9+ms*.1:ms;
   const budget=PERF.frameMs*.75;
   if(ms>budget){PERF.fast=0;if(++PERF.slow>12&&PERF.scale>.5){PERF.scale=.5;PERF.slow=0;resize()}}
   else if(ms<budget*.3){PERF.slow=0;if(++PERF.fast>240&&PERF.scale<1){PERF.scale=1;PERF.fast=0;resize()}}
   else{PERF.slow=0;PERF.fast=0}
 }
-const animInterval=()=>PERF.scale<1?PERF.frameMs*2-2:PERF.frameMs-2;
+/* Con calidad reducida se anima uno de cada dos fotogramas de pantalla: cadencia regular */
+function animateThisFrame(){if(PERF.scale>=1)return true;PERF.skip^=1;return PERF.skip===0}
 function loop(ts){
   let anim=false;try{anim=hasAnimated()}catch(e){}
   requestAnimationFrame(loop);
+  noteFrame(ts);
   try{
     if(dirty){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000,false)}
-    else if(anim&&ts-lastAnim>animInterval()){lastAnim=ts;frame.sources=null;const t0=performance.now();drawAll(ts/1000,true);notePerf(performance.now()-t0,ts)}
+    else if(anim&&animateThisFrame()){lastAnim=ts;frame.sources=null;const t0=performance.now();drawAll(ts/1000,true);notePerf(performance.now()-t0)}
     if(ts-lastNet>40){lastNet=ts;Net.tick()}
   }catch(err){console.error(err)}
 }
 
-function hexA(hex,a){let h=(hex||'#ffffff').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16)||0;return`rgba(${n>>16&255},${n>>8&255},${n&255},${clamp(a,0,1)})`}
-
-/* lightsOnly: fotograma de animación de luces; el mapa, la visión y los controles no han cambiado */
 function drawAll(t,lightsOnly){
   const player=!isGM();
   const vs=player?viewers():[];
