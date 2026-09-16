@@ -171,3 +171,9 @@ persecución exponencial continua (`chase`, τ = 70 ms) para fichas, luces y cur
 de cambios pasan de 80 a 40 ms y los de cursor de 50 a 33 ms; la animación se redibuja a 60 fps
 mientras haya algo moviéndose. Más CPU en el cliente sólo durante el movimiento; el servidor no
 cambia (reenvía lo que llega).
+
+## 2026-09-16 — Animación de luces: sólo se redibujan las capas de luz
+
+Los fotogramas de animación (parpadeo, pulso) ya no repintan mapa, cuadrícula, fichas, línea de
+visión ni controles: sólo máscara de luz, brillo y oscuridad. Elimina los tiempos irregulares por
+frame que se veían como tirones en la luz de pulso.

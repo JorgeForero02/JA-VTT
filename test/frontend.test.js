@@ -142,7 +142,7 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
   const core = read('js/core.js');
   assert.match(core, /const P=displayPos\(t\);return\{x:P\.x,y:P\.y,bright:L\.bright/);
   assert.match(core, /const P=displayPos\(l\);out\.push\(\{x:P\.x,y:P\.y/);
-  assert.match(read('js/render.js'), /anim&&ts-lastAnim>16/);
+  assert.match(read('js/render.js'), /else if\(anim&&ts-lastAnim>16\)\{lastAnim=ts;frame\.sources=null;drawAll\(ts\/1000,true\)\}/, 'los frames de animación sólo redibujan las luces');
   assert.match(read('js/render.js'), /ts-lastNet>40/);
   assert.match(read('js/net.js'), /const SMOOTH_TAU=70;/);
   assert.match(read('js/net.js'), /function chase\(state,tx,ty\)/);

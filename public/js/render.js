@@ -47,21 +47,23 @@ function loop(ts){
   let anim=false;try{anim=hasAnimated()}catch(e){}
   requestAnimationFrame(loop);
   try{
-    if(dirty||(anim&&ts-lastAnim>16)){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000)}
+    if(dirty){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000,false)}
+    else if(anim&&ts-lastAnim>16){lastAnim=ts;frame.sources=null;drawAll(ts/1000,true)}
     if(ts-lastNet>40){lastNet=ts;Net.tick()}
   }catch(err){console.error(err)}
 }
 
 function hexA(hex,a){let h=(hex||'#ffffff').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16)||0;return`rgba(${n>>16&255},${n>>8&255},${n&255},${clamp(a,0,1)})`}
 
-function drawAll(t){
+/* lightsOnly: fotograma de animación de luces; el mapa, la visión y los controles no han cambiado */
+function drawAll(t,lightsOnly){
   const player=!isGM();
   const vs=player?viewers():[];
-  drawScene(player);
-  if(player)buildLosMask(vs);
+  if(!lightsOnly){drawScene(player);if(player)buildLosMask(vs)}
   buildLightMask(t,player,vs);
   drawGlow(t,player);
   drawDarkness(player,vs);
+  if(lightsOnly)return;
   drawOverlay(player);
   $('#blindNote').style.display=player&&!vs.length?'grid':'none';
   $('#status').textContent=`Zoom ${Math.round(UI.cam.zoom*100)} %`+(UI.hover?`, cursor en ${Math.round(pxFt(UI.hover.x))}, ${Math.round(pxFt(UI.hover.y))} ft`:'');
