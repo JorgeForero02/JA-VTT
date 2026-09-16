@@ -1,7 +1,7 @@
 # 00 — Índice maestro · Just Another VTT
 
 **Leer PRIMERO en cada sesión, junto con [06-pendientes](06-pendientes.md).**
-Última actualización: 2026-09-16.
+Última actualización: 2026-09-17.
 
 ## Resumen en 30 segundos
 
@@ -13,12 +13,17 @@ abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
 
-Tamaño real (2026-09-15): servidor ~1366 líneas (5 archivos) · cliente ~2269 líneas
-(scripts clásicos sin framework) · 1 dependencia de producción (`pg`).
+Tamaño real (2026-09-16): servidor ~1500 líneas (6 archivos + migraciones) · cliente ~2900 líneas
++ `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
-Estado de calidad verificado el 2026-09-15: `npm run lint` limpio · `npm test` →
-**32 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → **11/11** contra la pila
-de compose, incluido reinicio del contenedor.
+Estado de calidad verificado el 2026-09-16: `npm run lint` limpio · `npm test` →
+**60 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge) → **17/17** con capturas.
+
+Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
+portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
+jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
+interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
 Trabajo en curso: nada bloqueante — ver [06-pendientes.md](06-pendientes.md).
 

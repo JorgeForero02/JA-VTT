@@ -24,7 +24,8 @@ Reglas globales del PC: `~/.claude/dev-rules.md` · `~/.claude/docs-protocol.md`
 ## Comandos mínimos
 
 ```bash
-npm run check            # lint + 32 tests (necesita el Postgres jav-test-pg, ver runbook)
+npm run check            # lint + 60 tests (necesita el Postgres jav-test-pg, ver runbook)
+npm run test:ui          # prueba visual con Playwright + Edge: OBLIGATORIA antes de desplegar cambios de cliente
 docker compose up -d --build && npm run test:e2e
 ```
 
@@ -32,7 +33,9 @@ docker compose up -d --build && npm run test:e2e
 
 - **Todo el SQL en `server/db.js`**; esquema sólo por migraciones nuevas en `server/migrations/`.
 - **Reglas de negocio en `server/rules.js` / `server/auth.js`**, nunca en rutas ni cliente.
-- Una dependencia de producción (`pg`). Añadir otra es decisión explícita.
+- Una dependencia de producción (`pg`); three.js y cannon-es vendorizados en `public/js/vendor`. Añadir otra es decisión explícita.
+- **Cambios de cliente: `npm run test:ui` verde antes de desplegar.** Un despliegue del 2026-09-16 salió con `hexA` borrada por saltarse esto.
+- **El proxy de Coolify se reinicia sólo desde Coolify**, nunca con `docker compose` a mano (incidente 2026-09-16).
 - Test primero; cada test roto una vez a propósito. `npm run check` verde antes de commitear.
 - Refactor = sin cambio de comportamiento. Divergencia → parar y consultar.
 - Secretos sólo por entorno; `.env` no se commitea.
