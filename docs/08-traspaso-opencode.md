@@ -66,6 +66,11 @@ Flujo por tarea (**es el que garantiza la calidad; no acortarlo**):
 4. Registrar en un ledger: `Task N: complete (commits a..b, review clean)` y cada *ruling*.
 5. Al acabar todas las tareas: revisión de toda la rama, una ola de correcciones, `finishing`: merge a `main`, despliegue, docs.
 
+**Variante de bajo presupuesto (la elegida el 2026-09-16):** OpenCode sólo hace el paso 1 con un
+modelo barato y **no commitea**; la revisión (paso 2), las correcciones y el commit los hace Claude
+Code en este PC sobre el árbol de trabajo (`git diff`), una tarea por vez. Por eso `/tarea` exige
+árbol limpio al empezar: si hay cambios sin revisar, primero se revisan.
+
 En OpenCode esto se hace con **agentes primarios y subagentes** (`.opencode/agent/*.md`) y **comandos**
 (`.opencode/command/*.md`). Ya están creados en este repo:
 
@@ -75,7 +80,7 @@ En OpenCode esto se hace con **agentes primarios y subagentes** (`.opencode/agen
 | `.opencode/agent/implementador.md` | Subagente que ejecuta **una** tarea de un plan con TDD y commit |
 | `.opencode/agent/revisor.md` | Subagente de sólo lectura que revisa un diff contra un brief |
 | `.opencode/command/arranque.md` | `/arranque` — lee 00, 06, 04 y este 08, y resume el estado |
-| `.opencode/command/tarea.md` | `/tarea <plan> <N>` — extrae el brief y lanza implementador → revisor → correcciones |
+| `.opencode/command/tarea.md` | `/tarea <plan> <N>` — extrae el brief, lanza el implementador y **para sin commitear** (revisión externa) |
 | `.opencode/command/cierre.md` | `/cierre` — docs 01–07, `check`, `test:ui`, entrada en 07 |
 
 ## 5. Qué hace falta instalado para trabajar con OpenCode en este PC
@@ -84,7 +89,7 @@ En OpenCode esto se hace con **agentes primarios y subagentes** (`.opencode/agen
 |---|---|
 | **Node ≥ 22.5** | Hay Node 24.11.1 ✔ |
 | **OpenCode** | `npm i -g opencode-ai@latest` (o `winget install OpenCode.OpenCode` / `scoop install opencode` / `choco install opencode`). Comprobar: `opencode --version` |
-| **Proveedor de modelo** | `opencode auth login` → Anthropic (clave API) u otro. Modelo recomendado para implementar: el más capaz disponible de Anthropic; para revisar, el mismo; para tareas mecánicas (2–3, 6), uno más barato. Se cambia con `/models` |
+| **Proveedor de modelo** | `opencode auth login`. Presupuesto corto: modelo barato (Kimi) para las tareas 6, 7 y 12; si la revisión externa devuelve roturas en el troceo (8–11), subir a uno más capaz sólo para esas. Se cambia con `/models` |
 | **Docker Desktop** | Para `jav-test-pg` (`docker start jav-test-pg`) y la pila local. Ya está |
 | **Edge o Chrome** | Playwright usa el instalado (`channel:'msedge'`). Ya está. Flags para WebGL en headless: `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` |
 | **git** | Ya está. Rama `modo-25d-fase-a` |

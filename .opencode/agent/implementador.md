@@ -13,13 +13,14 @@ Reglas:
   esperada; implementa lo mínimo; vuelve a ejecutar hasta verde. Guarda ambas salidas para el informe.
 - `npm run check` (lint + tests; necesita `docker start jav-test-pg`) verde una vez antes de commitear.
 - Cambios de cliente: `npm run test:ui` si el brief lo pide.
-- Commit con el mensaje que dicta el brief. No hagas push.
+- **NO commitees ni hagas `git add`**: deja los cambios en el árbol de trabajo. La revisión y el
+  commit los hace otra persona después. Tampoco hagas `git stash`, `checkout` ni `reset`.
 - No toques ficheros fuera de la lista del brief salvo que sea imprescindible; si lo es, dilo.
 - No lances subagentes ni revisores: la revisión la hace otro agente después.
 - Si el brief contradice el código o te falta contexto, para y responde NEEDS_CONTEXT con la duda
   concreta. Si no puedes, BLOCKED con lo intentado.
 
-Al terminar escribe el informe completo en la ruta indicada (qué hiciste, tests con comandos y
+Al terminar, `git status --short` y `git diff --stat` van al informe. Escribe el informe completo en la ruta indicada (qué hiciste, tests con comandos y
 salida RED/GREEN, ficheros tocados, autorrevisión, dudas) y responde en menos de 15 líneas:
-Status (DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT), commits, resumen de tests, dudas,
+Status (DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT), ficheros tocados, resumen de tests, dudas,
 ruta del informe.
