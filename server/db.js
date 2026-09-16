@@ -61,7 +61,7 @@ const newSceneId = () => 's_' + crypto.randomBytes(6).toString('hex');
 const COLORS = ['#F0B35A', '#6FB8A8', '#D9705F', '#8EC5E8', '#B79BD8', '#9ED3A6', '#E8A0BF', '#C9A26B'];
 const randomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 
-const USER_COLS = 'id, name, color, password_hash, created_at';
+const USER_COLS = 'id, name, color, password_hash, recovery_code, created_at';
 const IMAGE_META = 'id, board_id, owner_id, name, category, mime, width, height, ppc, size, origin, created_at';
 
 /* `exec` es el pool o un cliente dentro de una transacción; las consultas son las mismas. */
@@ -77,6 +77,14 @@ function makeQueries(exec) {
     insertSession: (token, userId) => run('INSERT INTO sessions (token, user_id, created_at) VALUES ($1, $2, $3)', [token, userId, now()]),
     sessionUser: (token) => one('SELECT u.id, u.name, u.color, u.created_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = $1', [token]),
     deleteSession: (token) => run('DELETE FROM sessions WHERE token = $1', [token]),
+    deleteUserSessions: (userId) => run('DELETE FROM sessions WHERE user_id = $1', [userId]),
+    setPassword: (passwordHash, id) => run('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, id]),
+    setRecoveryCode: (code, id) => run('UPDATE users SET recovery_code = $1 WHERE id = $2', [code, id]),
+
+    insertChat: (boardId, userId, kind, body) => one('INSERT INTO chat_messages (board_id, user_id, kind, body, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at', [boardId, userId, kind, JSON.stringify(body), now()]),
+    recentChat: (boardId, limit) => all(`SELECT m.id, m.user_id, u.name AS user_name, u.color AS user_color, m.kind, m.body, m.created_at
+      FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.board_id = $1 ORDER BY m.id DESC LIMIT $2`, [boardId, limit]),
+    trimChat: (boardId, keep) => run('DELETE FROM chat_messages WHERE board_id = $1 AND id < (SELECT COALESCE(MIN(id), 0) FROM (SELECT id FROM chat_messages WHERE board_id = $1 ORDER BY id DESC LIMIT $2) k)', [boardId, keep]),
 
     boardsForUser: (userId) => all(`
       SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at, m.role, u.name AS owner_name,
@@ -151,14 +159,19 @@ async function tx(fn) {
   }
 }
 
+const newRecoveryCode = () => randCode(12).replace(/(.{4})(?=.)/g, '$1-');
+
 async function createSession(userId) {
   const token = crypto.randomBytes(24).toString('hex');
   await q.insertSession(token, userId);
   return token;
 }
 
-function createUser(name, passwordHash) {
-  return q.insertUser(name, randomColor(), passwordHash);
+async function createUser(name, passwordHash) {
+  const user = await q.insertUser(name, randomColor(), passwordHash);
+  user.recovery_code = newRecoveryCode();
+  await q.setRecoveryCode(user.recovery_code, user.id);
+  return user;
 }
 
 async function createBoard(name, ownerId) {
@@ -208,4 +221,4 @@ async function seedSamples(dir) {
 
 const close = () => pool.end();
 
-module.exports = { pool, q, tx, migrate, now, randCode, newSceneId, createUser, createSession, createBoard, seedSamples, close, DATABASE_URL };
+module.exports = { pool, q, tx, migrate, now, randCode, newSceneId, newRecoveryCode, createUser, createSession, createBoard, seedSamples, close, DATABASE_URL };

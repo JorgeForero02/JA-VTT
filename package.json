@@ -20,6 +20,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "eslint": "^9.39.5"
+    "cannon-es": "^0.20.0",
+    "eslint": "^9.39.5",
+    "three": "^0.170.0"
   }
 }

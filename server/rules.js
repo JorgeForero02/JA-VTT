@@ -96,14 +96,15 @@ function sanitize(o) {
   return null;
 }
 
-const BOARD_KEYS = ['sharedVision', 'playersDoors'];
+const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'initiativeShown', 'initiative'];
 function cleanSettings(sc) {
   const o = {};
   if (!sc || typeof sc !== 'object') return o;
   if (ENVS.includes(sc.env)) o.env = sc.env;
   if (fin(sc.ambient)) o.ambient = clamp(sc.ambient, 0, 1);
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
-  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
+  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
+  if (sc.initiative !== undefined) o.initiative = cleanInitiative(sc.initiative);
   if (sc.layers && typeof sc.layers === 'object') {
     o.layers = {};
     for (const id of LAYER_IDS) {
@@ -115,11 +116,36 @@ function cleanSettings(sc) {
 }
 
 const DEFAULT_SCENE = { env: 'interior', ambient: 0, darkColor: '#0B0E11', fog: true, grid: true, snap: true, animate: true, plansReleased: false };
-const DEFAULT_BOARD = { sharedVision: true, playersDoors: true };
+const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, initiativeShown: false, initiative: { entries: [], turn: 0, round: 1 } };
 function splitSettings(sc) {
   const all = cleanSettings(sc), board = {}, scene = {};
   for (const [k, v] of Object.entries(all)) (BOARD_KEYS.includes(k) ? board : scene)[k] = v;
   return { board, scene };
+}
+
+/* Iniciativa: lista ordenada por el director. `tokenId` enlaza con una ficha (para ocultar a los
+   jugadores las de fichas ocultas); las entradas sueltas no lo llevan. */
+const MAX_INITIATIVE = 60;
+function cleanInitiative(v) {
+  const src = v && typeof v === 'object' ? v : {};
+  const entries = (Array.isArray(src.entries) ? src.entries : []).slice(0, MAX_INITIATIVE).map((e) => {
+    if (!e || typeof e !== 'object') return null;
+    const out = { id: fin(e.id) ? Math.round(e.id) : Date.now(), name: str(e.name, 40).trim() || 'Sin nombre', value: fin(e.value) ? clamp(Math.round(e.value * 100) / 100, -99, 999) : 0 };
+    if (fin(e.tokenId)) out.tokenId = e.tokenId;
+    if (typeof e.hidden === 'boolean') out.hidden = e.hidden;
+    return out;
+  }).filter(Boolean);
+  const turn = fin(src.turn) ? clamp(Math.round(src.turn), 0, Math.max(0, entries.length - 1)) : 0;
+  const round = fin(src.round) ? clamp(Math.round(src.round), 1, 9999) : 1;
+  return { entries, turn, round };
+}
+/* Lo que un jugador puede ver de la iniciativa: nada si está oculta; sin las fichas ocultas si no */
+function initiativeFor(board, member, objects) {
+  if (member.role === 'gm') return board.initiative;
+  if (!board.initiativeShown) return null;
+  const hiddenTokens = new Set([...objects].filter((o) => o.type === 'token' && o.hidden).map((o) => o.id));
+  const entries = board.initiative.entries.filter((e) => !e.hidden && !(e.tokenId != null && hiddenTokens.has(e.tokenId)));
+  return { entries, turn: board.initiative.turn, round: board.initiative.round };
 }
 
 /* Decide qué versión de un objeto se acepta de un jugador. Devuelve el
@@ -162,4 +188,4 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, playerUpsert, visibleTo, str, stableJson, sameObject };
+module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };

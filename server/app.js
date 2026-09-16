@@ -11,6 +11,7 @@ const { q, tx, randCode, newSceneId, createBoard, seedSamples } = db;
 const { hashPassword, verifyPassword, validPassword, MIN_PASSWORD } = require('./auth');
 const { acceptUpgrade } = require('./ws');
 const R = require('./rules');
+const dice = require('./dice');
 
 const PUBLIC = path.resolve(__dirname, '..', 'public');
 if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) {
@@ -25,6 +26,9 @@ const FLUSH_MS = 400;
 const SESSION_COOKIE = 'jav_session';
 const SESSION_MAX_AGE = 31536000;
 const IMAGE_CATEGORIES = ['board', 'prop', 'pc', 'npc'];
+const CHAT_HISTORY = 100;
+const CHAT_KEEP = 200;
+const CHAT_MAX_TEXT = 500;
 
 /* ---------------- utilidades HTTP ---------------- */
 const MIME = {
@@ -65,6 +69,8 @@ async function userFrom(req) {
   return token ? q.sessionUser(token) : null;
 }
 const publicUser = (u) => u && { id: u.id, name: u.name, color: u.color };
+const normCode = (v) => (typeof v === 'string' ? v.replace(/[\s-]/g, '').toUpperCase() : null);
+const sameCode = (a, b) => normCode(a) !== null && normCode(a) === normCode(b);
 function cleanName(v) {
   const s = String(v || '').trim().replace(/\s+/g, ' ');
   if (s.length < 2 || s.length > 24) return null;
@@ -177,6 +183,16 @@ function broadcast(b, msg, except, sceneId) {
 function sendScenes(b) { broadcast(b, { t: 'scenes', scenes: sceneList(b), where: memberScenes(b), active: b.active, online: onlineList(b) }); }
 const ownedCount = (b, uid) => { let n = 0; for (const sc of b.scenes.values()) for (const o of sc.objects.values()) if (o.type === 'token' && o.owner === uid) n++; return n; };
 
+/* Ajustes que ve un cliente: la iniciativa nunca viaja dentro de settings a un jugador (va aparte, filtrada) */
+function settingsFor(b, sc, role) {
+  const all = Object.assign({}, sc.settings, b.settings);
+  if (role !== 'gm') delete all.initiative;
+  return all;
+}
+const initiativeFor = (b, c) => R.initiativeFor(b.settings, { role: c.role }, b.scenes.get(c.sceneId).objects.values());
+function sendInitiative(b) { for (const c of b.clients) c.ws.send({ t: 'initiative', initiative: initiativeFor(b, c) }); }
+async function chatHistory(b) { return (await q.recentChat(b.id, CHAT_HISTORY)).reverse(); }
+
 async function stateFor(b, c) {
   const sc = b.scenes.get(c.sceneId);
   const member = { role: c.role, user_id: c.user.id };
@@ -187,11 +203,13 @@ async function stateFor(b, c) {
     board: { id: b.id, name: b.name, owner_id: b.owner_id, invite_code: c.role === 'gm' ? b.invite_code : undefined },
     scene: { id: sc.id, name: sc.name },
     scenes: sceneList(b), where: memberScenes(b), active: b.active,
-    settings: Object.assign({}, sc.settings, b.settings),
+    settings: settingsFor(b, sc, c.role),
     objects: [...sc.objects.values()].filter((o) => R.visibleTo(o, member, sc.settings)),
     members: b.members,
     online: onlineList(b),
     fog,
+    chat: await chatHistory(b),
+    initiative: initiativeFor(b, c),
   };
 }
 async function sendState(b, c, extra) { c.ws.send(Object.assign(await stateFor(b, c), extra || {})); }
@@ -316,12 +334,12 @@ async function handleOps(b, c, d) {
   const back = corrections.filter(Boolean);
   for (const a of accepted) if (a.changed) back.push(a.obj);
   if (back.length || dels.length || (d.settings && !gm)) {
-    c.ws.send({ t: 'ops', up: back, del: dels, settings: d.settings && !gm ? Object.assign({}, sc.settings, b.settings) : undefined, fix: true });
+    c.ws.send({ t: 'ops', up: back, del: dels, settings: d.settings && !gm ? settingsFor(b, sc, c.role) : undefined, fix: true });
   }
   for (const other of b.clients) {
     if (other === c) continue;
     if (other.sceneId !== c.sceneId) {
-      if (boardChanged) other.ws.send({ t: 'ops', settings: Object.assign({}, b.settings) });
+      if (boardChanged) other.ws.send({ t: 'ops', settings: settingsFor(b, b.scenes.get(other.sceneId), other.role) });
       continue;
     }
     const member = { role: other.role, user_id: other.user.id };
@@ -332,9 +350,38 @@ async function handleOps(b, c, d) {
       if (vis) up.push(a.obj);
       else if (!a.old || R.visibleTo(a.old, member, sc.settings)) del.push(a.obj.id);
     }
-    const settings = d.settings && gm ? Object.assign({}, sc.settings, b.settings) : undefined;
+    const settings = d.settings && gm ? settingsFor(b, sc, other.role) : undefined;
     if (up.length || del.length || settings) other.ws.send({ t: 'ops', up, del, settings, by: c.user.id });
   }
+  if (boardChanged) sendInitiative(b); // mostrar u ocultar la iniciativa cambia lo que ve cada jugador
+}
+
+/* ---------------- chat, dados e iniciativa ---------------- */
+async function postChat(b, c, kind, body) {
+  const row = await q.insertChat(b.id, c.user.id, kind, body);
+  const msg = { id: row.id, user_id: c.user.id, user_name: c.user.name, user_color: c.user.color, kind, body, created_at: row.created_at };
+  broadcast(b, { t: 'chat', msg });
+  if (row.id % 50 === 0) await q.trimChat(b.id, CHAT_KEEP);
+}
+const chatAllowed = (b, c) => c.role === 'gm' || b.settings.chatEnabled !== false;
+async function handleChat(b, c, d) {
+  if (!chatAllowed(b, c)) return c.ws.send({ t: 'error', error: 'El director ha desactivado el chat' });
+  const text = R.str(d.text, CHAT_MAX_TEXT).trim();
+  if (!text) return;
+  await postChat(b, c, 'text', { text });
+}
+async function handleRoll(b, c, d) {
+  if (!chatAllowed(b, c)) return c.ws.send({ t: 'error', error: 'El director ha desactivado los dados' });
+  let result;
+  try { result = dice.roll(d.formula); } catch (e) { return c.ws.send({ t: 'error', error: e.message }); }
+  const label = R.str(d.label, 60).trim();
+  await postChat(b, c, 'roll', Object.assign(result, label ? { label } : {}));
+}
+async function handleInitiative(b, c, d) {
+  if (c.role !== 'gm') return;
+  b.settings.initiative = R.cleanInitiative(d.initiative);
+  b.settingsDirty = true;
+  sendInitiative(b);
 }
 
 async function handleReplace(b, c, d) {
@@ -503,6 +550,9 @@ function handleMessage(b, c, d) {
     case 'travel': return handleTravel(b, c, d);
     case 'fog': return handleFog(b, c, d);
     case 'rename': return handleRename(b, c, d);
+    case 'chat': return handleChat(b, c, d);
+    case 'roll': return handleRoll(b, c, d);
+    case 'initiative': return handleInitiative(b, c, d);
     case 'cursor':
       if (Number.isFinite(d.x) && Number.isFinite(d.y)) broadcast(b, { t: 'cursor', uid: c.user.id, x: d.x, y: d.y }, c, c.sceneId);
       else broadcast(b, { t: 'cursor', uid: c.user.id, x: null, y: null }, c);
@@ -552,7 +602,42 @@ async function register(req, res) {
   try { user = await db.createUser(name, await hashPassword(body.password)); }
   catch (e) { if (e.code === '23505') return fail(res, 409, 'Ese nombre de usuario ya está en uso'); throw e; }
   const token = await db.createSession(user.id);
-  return send(res, 201, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+  return send(res, 201, { user: publicUser(user), recovery_code: user.recovery_code }, { 'Set-Cookie': sessionCookie(token) });
+}
+/* Contraseña nueva con nombre + código de recuperación. Cierra las demás sesiones. */
+async function recover(req, res) {
+  const body = await readJson(req);
+  const name = cleanName(body.name);
+  if (!validPassword(body.password)) return fail(res, 400, `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres`);
+  const user = name ? await q.userByName(name) : null;
+  if (!user || !user.recovery_code || !sameCode(body.code, user.recovery_code)) return fail(res, 401, 'Usuario o código de recuperación incorrectos');
+  await q.setPassword(await hashPassword(body.password), user.id);
+  await q.deleteUserSessions(user.id);
+  const token = await db.createSession(user.id);
+  return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+}
+async function meRoutes(req, res, user, parts) {
+  const M = req.method;
+  if (parts[1] === 'recovery') {
+    if (M === 'GET') return send(res, 200, { recovery_code: (await q.userById(user.id)).recovery_code });
+    if (M === 'POST') { const code = db.newRecoveryCode(); await q.setRecoveryCode(code, user.id); return send(res, 200, { recovery_code: code }); }
+  }
+  if (parts[1] === 'password' && M === 'POST') {
+    const body = await readJson(req);
+    const full = await q.userById(user.id);
+    if (!(await verifyPassword(body.current, full.password_hash))) return fail(res, 401, 'La contraseña actual no es correcta');
+    if (!validPassword(body.password)) return fail(res, 400, `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres`);
+    await q.setPassword(await hashPassword(body.password), user.id);
+    return send(res, 200, { ok: true });
+  }
+  if (parts[1]) return fail(res, 404, 'Ruta no encontrada');
+  if (M === 'GET') return send(res, 200, { user: publicUser(user) });
+  if (M === 'PATCH') {
+    const body = await readJson(req);
+    if (typeof body.color === 'string' && /^#[0-9a-f]{6}$/i.test(body.color)) await q.setColor(body.color, user.id);
+    return send(res, 200, { user: publicUser(await q.userById(user.id)) });
+  }
+  return fail(res, 404, 'Ruta no encontrada');
 }
 async function login(req, res) {
   const body = await readJson(req);
@@ -714,6 +799,7 @@ async function api(req, res, url) {
   if (M === 'GET' && parts[0] === 'health') return send(res, 200, { ok: true });
   if (M === 'POST' && parts[0] === 'register') return register(req, res);
   if (M === 'POST' && parts[0] === 'login') return login(req, res);
+  if (M === 'POST' && parts[0] === 'recover') return recover(req, res);
   const user = await userFrom(req);
   if (!user) return fail(res, 401, 'Inicia sesión');
 
@@ -721,14 +807,7 @@ async function api(req, res, url) {
     await q.deleteSession(cookies(req)[SESSION_COOKIE]);
     return send(res, 200, { ok: true }, { 'Set-Cookie': clearedCookie() });
   }
-  if (parts[0] === 'me') {
-    if (M === 'GET') return send(res, 200, { user: publicUser(user) });
-    if (M === 'PATCH') {
-      const body = await readJson(req);
-      if (typeof body.color === 'string' && /^#[0-9a-f]{6}$/i.test(body.color)) await q.setColor(body.color, user.id);
-      return send(res, 200, { user: publicUser(await q.userById(user.id)) });
-    }
-  }
+  if (parts[0] === 'me') return meRoutes(req, res, user, parts);
   if (parts[0] === 'join' && M === 'POST') {
     const body = await readJson(req);
     const code = String(body.code || '').trim().toUpperCase();

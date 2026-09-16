@@ -11,7 +11,7 @@ test('migrate es idempotente: segunda pasada no aplica nada', async () => {
   const again = await db.migrate();
   assert.deepEqual(again, []);
   const { rows } = await db.pool.query('SELECT version FROM schema_migrations ORDER BY version');
-  assert.deepEqual(rows.map((r) => r.version), [1]);
+  assert.deepEqual(rows.map((r) => r.version), [1, 2]);
 });
 
 test('usuarios: crear, buscar sin distinguir mayúsculas, nombre duplicado falla', async () => {
