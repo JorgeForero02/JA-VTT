@@ -1,0 +1,24 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const R = require('../server/rules');
+
+test('sameObject ignora el orden de las claves, también anidadas', () => {
+  assert.equal(R.sameObject({ a: 1, b: { x: 1, y: 2 } }, { b: { y: 2, x: 1 }, a: 1 }), true);
+  assert.equal(R.sameObject({ a: 1 }, { a: 2 }), false);
+  assert.equal(R.sameObject({ a: [1, { k: 1, j: 2 }] }, { a: [1, { j: 2, k: 1 }] }), true);
+  assert.equal(R.sameObject({ a: [1, 2] }, { a: [2, 1] }), false);
+});
+
+test('playerUpsert: girar la luz propia devuelve un objeto igual al enviado (sin corrección)', () => {
+  const uid = 7;
+  const old = R.sanitize({ id: 1, type: 'token', kind: 'player', owner: uid, x: 100, y: 100, name: 'A', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, light: { on: true, preset: 'bullseye', bright: 60, dim: 60, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 0 } });
+  // jsonb devuelve las claves en otro orden al recargar de la base: se emula aquí
+  const fromDb = JSON.parse(R.stableJson(old));
+  const neu = R.sanitize(Object.assign({}, old, { light: Object.assign({}, old.light, { rot: 37 }) }));
+  const result = R.playerUpsert(uid, fromDb, neu, { settings: {} }, 1, 0);
+  assert.ok(result);
+  assert.equal(result.light.rot, 37);
+  assert.notEqual(JSON.stringify(result), JSON.stringify(neu), 'el orden de claves difiere tras pasar por jsonb');
+  assert.equal(R.sameObject(result, neu), true, 'pero el contenido es el mismo: no hay que corregir al cliente');
+});

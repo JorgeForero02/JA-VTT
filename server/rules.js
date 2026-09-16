@@ -146,6 +146,14 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
   return null;
 }
 
+/* JSON con las claves ordenadas: para comparar objetos sin que importe el orden */
+function stableJson(v) {
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+const sameObject = (a, b) => stableJson(a) === stableJson(b);
+
 /* Qué ve un jugador: sin fichas ocultas (salvo las suyas) ni planos sin publicar */
 function visibleTo(o, member, settings) {
   if (member.role === 'gm') return true;
@@ -154,4 +162,4 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, playerUpsert, visibleTo, str };
+module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, playerUpsert, visibleTo, str, stableJson, sameObject };

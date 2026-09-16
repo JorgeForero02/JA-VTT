@@ -100,6 +100,9 @@ const Net=(()=>{
     for(const c of d.up||[]){
       if(!c||!COLL[c.type])continue;
       const coll=S[COLL[c.type]];const old=coll.find(x=>x.id===c.id);
+      // una corrección sobre lo que estoy arrastrando llega tarde: me quedo con lo mío y lo reenvío
+      const held=old&&UI.act&&(UI.act.o===old||(UI.act.items&&UI.act.items.some(it=>it.o===old)));
+      if(d.fix&&held){shadow.set(c.id,JSON.stringify(c));any=true;continue}
       if(old&&c.type==='token'&&(old.x!==c.x||old.y!==c.y)){
         const busy=UI.act&&UI.act.kind==='move'&&UI.act.items.some(it=>it.o===old);
         if(!busy){const cur=displayPos(old);smoothMoves.set(c.id,{fx:cur.x,fy:cur.y,t0:performance.now()})}

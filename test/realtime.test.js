@@ -114,3 +114,22 @@ test('el estado sobrevive a expulsar el tablero de memoria: reconectar lo recupe
   assert.equal(state.objects.find((o) => o.id === 1001).x, 125);
   await player.close();
 });
+
+test('un jugador que gira su propia luz no recibe corrección (las claves vienen reordenadas de jsonb)', async () => {
+  const uid = (await db.q.userByName('Jugador')).id;
+  const token = { id: 1003, type: 'token', kind: 'player', owner: uid, x: 225, y: 225, name: 'Linterna', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, light: { on: true, preset: 'bullseye', bright: 60, dim: 60, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 0 } };
+  await db.q.upsertObject(boardId, token.id, sceneId, 'token', token);
+  await app.flushAll();
+  assert.equal(app.live.has(boardId), false, 'el tablero se recarga de la base, con el orden de claves de jsonb');
+  const player = connect(base, boardId, playerCookie);
+  await player.opened;
+  const state = await player.next(isState);
+  const mine = state.objects.find((o) => o.id === 1003);
+  assert.ok(mine);
+  player.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, mine, { light: Object.assign({}, mine.light, { rot: 45 }) })], del: [] });
+  assert.ok(await player.silence((m) => m.t === 'ops' && m.fix, 500), 'sin mensaje fix');
+  await app.flushAll();
+  const stored = (await db.q.sceneObjects(sceneId)).find((o) => o.id === 1003);
+  assert.equal(stored.light.rot, 45);
+  await player.close();
+});

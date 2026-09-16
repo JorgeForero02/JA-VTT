@@ -85,3 +85,14 @@ cono. Antes sólo el director podía cambiar la dirección, y sólo a mano desde
 
 Giro de 1° por defecto (Alt = pasos de 15°) y tres puntos de agarre sobre la línea del cono
 (junto a la ficha, a media luz, en el extremo) para no tener que alejar el zoom.
+
+## 2026-09-16 — Fix: la ficha «saltaba atrás» al arrastrar o girar la luz (jsonb reordena claves)
+
+**Qué** — `jsonb` devuelve los objetos con las claves en otro orden. El servidor comparaba el
+resultado del cambio del jugador con lo recibido por `JSON.stringify` textual → siempre
+«distinto» → mandaba una corrección (`fix`) en cada envío con datos de 80 ms antes → la ficha o
+la linterna retrocedían un instante. Ahora compara con claves ordenadas (`rules.sameObject`), y
+el cliente ignora correcciones sobre el objeto que está arrastrando (reenvía lo suyo).
+**Regresión de la migración a PostgreSQL** (con SQLite el texto conservaba el orden). Tests:
+`test/rules.test.js` y caso en `test/realtime.test.js` que recarga el tablero de la base.
+**Revertir** — `git revert` del commit.

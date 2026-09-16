@@ -287,7 +287,7 @@ async function handleOps(b, c, d) {
     const result = gm ? neu : R.playerUpsert(c.user.id, old, neu, b, ownedCount(b, c.user.id), plans);
     if (!result) { if (old) corrections.push(old); else dels.push(neu.id); continue; }
     sc.objects.set(result.id, result); sc.dirty.add(result.id); sc.removed.delete(result.id);
-    accepted.push({ old, obj: result, changed: JSON.stringify(result) !== JSON.stringify(neu) });
+    accepted.push({ old, obj: result, changed: !R.sameObject(result, neu) });
   }
   const removed = [];
   if (gm && Array.isArray(d.del)) {
