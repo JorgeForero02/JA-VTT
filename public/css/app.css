@@ -397,3 +397,9 @@ code.secret{letter-spacing:.08em}
 .diceBar .secretToggle[aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
 .chatMsg.roll.secret{border-style:dashed;border-color:var(--amber)}
 .chatMsg.roll.secret .formula::before{content:'privada · ';color:var(--amber)}
+.diceTray{position:relative;display:flex;align-items:center;gap:8px;margin:0 10px;padding:8px 10px;border:1px solid var(--amber);border-radius:10px;background:var(--amber-soft);overflow:hidden}
+.diceTray .trayBar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:transparent}
+.diceTray .trayBar i{display:block;height:100%;width:100%;background:var(--amber);transform-origin:left;animation:trayCount 2.5s linear forwards}
+@keyframes trayCount{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.diceTray #trayFormula{flex:1;font:700 16px var(--serif);color:var(--bone);letter-spacing:.02em}
+.chatHint{padding:6px 12px 10px}

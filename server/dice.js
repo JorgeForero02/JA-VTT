@@ -9,7 +9,8 @@ const MAX_DICE = 20;
 const MAX_MOD = 1000;
 
 function parse(formula) {
-  const text = String(formula || '').toLowerCase().replace(/\s+/g, '');
+  // "2d8 1d4" y "2d6 + 3" valen: los espacios entre términos suman
+  const text = String(formula || '').toLowerCase().trim().replace(/\s*([+-])\s*/g, '$1').replace(/\s+/g, '+');
   if (!text || text.length > 60) throw new Error('Fórmula vacía o demasiado larga');
   const parts = text.match(/[+-]?[^+-]+/g);
   if (!parts || parts.join('') !== text) throw new Error('Fórmula no válida');

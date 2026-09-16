@@ -7,6 +7,8 @@ test('parse: fórmulas válidas', () => {
   assert.deepEqual(D.parse('2d6+3'), { terms: [{ n: 2, sides: 6, sign: 1 }], mod: 3 });
   assert.deepEqual(D.parse('D20'), { terms: [{ n: 1, sides: 20, sign: 1 }], mod: 0 });
   assert.deepEqual(D.parse(' 4d6 + 2d8 - 1 '), { terms: [{ n: 4, sides: 6, sign: 1 }, { n: 2, sides: 8, sign: 1 }], mod: -1 });
+  assert.deepEqual(D.parse('2d8 1d4'), { terms: [{ n: 2, sides: 8, sign: 1 }, { n: 1, sides: 4, sign: 1 }], mod: 0 }, 'espacio = suma');
+  assert.deepEqual(D.parse('4d6 + 2 1d20'), { terms: [{ n: 4, sides: 6, sign: 1 }, { n: 1, sides: 20, sign: 1 }], mod: 2 });
   assert.deepEqual(D.parse('1d100-1d4'), { terms: [{ n: 1, sides: 100, sign: 1 }, { n: 1, sides: 4, sign: -1 }], mod: 0 });
 });
 

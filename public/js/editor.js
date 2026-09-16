@@ -1156,7 +1156,24 @@ const Chat=(()=>{
 $('#chatForm').onsubmit=e=>{e.preventDefault();Chat.submit()};
 const secretMode=()=>UI.realRole==='gm'&&$('#secretRoll').getAttribute('aria-pressed')==='true';
 $('#secretRoll').onclick=()=>{const b=$('#secretRoll');const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));toast(on?'Tiradas privadas: sólo las ves tú':'Tiradas públicas',1400)};
-for(const b of $$('#diceBar .die[data-d]'))b.onclick=e=>{const n=e.ctrlKey?3:e.shiftKey?2:1;Net.roll(`${n}d${b.dataset.d}`,'',secretMode())};
+/* Bandeja: cada clic añade un dado; se tira con «Tirar», Enter, o sola a los 2,5 s */
+const Tray=(()=>{
+  const pool=new Map();let timer=0;
+  const formula=()=>[...pool.entries()].sort((a,b)=>b[0]-a[0]).map(([d,n])=>`${n}d${d}`).join(' + ');
+  function render(){
+    const tray=$('#diceTray');const has=pool.size>0;tray.hidden=!has;
+    if(!has)return;
+    $('#trayFormula').textContent=formula();
+    const bar=$('#trayProgress');bar.style.animation='none';void bar.offsetWidth;bar.style.animation='';
+  }
+  function add(d,n){pool.set(d,Math.min(20,(pool.get(d)||0)+n));render();clearTimeout(timer);timer=setTimeout(roll,2500)}
+  function clear(){pool.clear();clearTimeout(timer);render()}
+  function roll(){clearTimeout(timer);if(!pool.size)return;const f=formula();pool.clear();render();Net.roll(f,'',secretMode())}
+  return{add,clear,roll,get size(){return pool.size}};
+})();
+for(const b of $$('#diceBar .die[data-d]'))b.onclick=e=>{const n=e.ctrlKey?3:e.shiftKey?2:1;Tray.add(Number(b.dataset.d),n)};
+$('#trayRoll').onclick=()=>Tray.roll();$('#trayClear').onclick=()=>Tray.clear();
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&Tray.size&&UI.tab==='chat'&&document.activeElement!==$('#chatInput')){e.preventDefault();Tray.roll()}});
 $('[data-tab="chat"]').addEventListener('click',()=>$('[data-tab="chat"]').classList.remove('unread'));
 
 /* ---------- Iniciativa ---------- */

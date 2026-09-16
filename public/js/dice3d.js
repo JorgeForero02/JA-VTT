@@ -150,7 +150,7 @@ function buildMesh(solid, labels, color, sides) {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.32, metalness: 0.18, transparent: true });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.06, transparent: true });
   return new THREE.Mesh(geo, mat);
 }
 
@@ -204,7 +204,7 @@ function ensure(container) {
   camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   scene.add(new THREE.HemisphereLight(0xfff4e0, 0x223044, 1.0));
   const fill = new THREE.DirectionalLight(0xffd9a0, 0.5); fill.position.set(-8, 6, -6); scene.add(fill);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.7); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.15); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ opacity: 0.35 }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   resize();

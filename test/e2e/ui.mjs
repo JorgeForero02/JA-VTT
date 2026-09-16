@@ -95,6 +95,15 @@ try {
   await pl.press('#chatInput', 'Enter');
   await gm.waitForFunction(() => document.querySelectorAll('.chatMsg.roll').length === 2, null, { timeout: 5000 });
   step('dados: /r 2d6+3 con etiqueta', (await gm.textContent('.chatMsg.roll:last-child')).includes('Daño'));
+  // bandeja: 4×d6 + 2×d8 y Tirar
+  for (let i = 0; i < 4; i++) await pl.click('#diceBar .die[data-d="6"]');
+  await pl.click('#diceBar .die[data-d="8"]'); await pl.click('#diceBar .die[data-d="8"]');
+  const trayText = await pl.textContent('#trayFormula');
+  await pl.click('#trayRoll');
+  await gm.waitForFunction(() => document.querySelectorAll('.chatMsg.roll').length === 3, null, { timeout: 5000 });
+  step('bandeja: varios dados a la vez (4d6 + 2d8)', trayText.trim() === '2d8 + 4d6' && (await gm.textContent('.chatMsg.roll:last-child')).includes('2d8+4d6'), trayText.trim());
+  await pl.waitForTimeout(1500);
+  await shot(pl, '04b-bandeja');
   await pl.waitForTimeout(1200);
   await shot(pl, '04-dados-2d6');
 
@@ -122,7 +131,7 @@ try {
   await gm.click('#diceBar .die[data-d="20"]');
   await gm.waitForSelector('.chatMsg.roll.secret', { timeout: 5000 });
   await pl.waitForTimeout(600);
-  step('tirada privada: el director la ve marcada, el jugador no la recibe', (await pl.locator('.chatMsg.roll').count()) === 2 && (await gm.locator('.chatMsg.roll').count()) === 3);
+  step('tirada privada: el director la ve marcada, el jugador no la recibe', (await pl.locator('.chatMsg.roll').count()) === 3 && (await gm.locator('.chatMsg.roll').count()) === 4);
   await gm.click('#secretRoll');
   await shot(gm, '05b-tirada-privada');
 

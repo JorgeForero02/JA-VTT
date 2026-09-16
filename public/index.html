@@ -263,8 +263,9 @@
       <div class="diceBar" id="diceBar" role="group" aria-label="Dados">
         <button class="die" data-d="4">d4</button><button class="die" data-d="6">d6</button><button class="die" data-d="8">d8</button><button class="die" data-d="10">d10</button><button class="die" data-d="12">d12</button><button class="die" data-d="20">d20</button><button class="die" data-d="100">d100</button><button class="die secretToggle gmOnly" id="secretRoll" aria-pressed="false" title="Tirada privada: sólo la ves tú y no queda en el chat" data-ic="lock" aria-label="Tirada privada"></button>
       </div>
+      <div id="diceTray" class="diceTray" hidden><div class="trayBar"><i id="trayProgress"></i></div><span id="trayFormula"></span><button class="btn primary" id="trayRoll" data-ic="dice">Tirar</button><button class="btn sq ghost" id="trayClear" data-ic="x" title="Vaciar" aria-label="Vaciar bandeja"></button></div>
       <form id="chatForm" class="chatForm"><input id="chatInput" maxlength="500" placeholder="Mensaje, o /r 2d6+3" autocomplete="off"><button class="btn primary sq" type="submit" data-ic="send" aria-label="Enviar"></button></form>
-      <p class="small muted chatHint">Tirar: pulsa un dado (con Mayús, dos; con Ctrl, tres) o escribe <code>/r 1d20+5 # motivo</code>. <span class="gmOnly">Privada: el candado o <code>/rs 1d20</code>.</span></p>
+      <p class="small muted chatHint">Pulsa dados para llenar la bandeja (Mayús ×2, Ctrl ×3) y «Tirar», o escribe <code>/r 2d8 1d4 +2 # motivo</code>. <span class="gmOnly">Privada: el candado o <code>/rs 1d20</code>.</span></p>
     </section>
     <section class="tabpane" id="tab-live">
       <details class="fold" data-fold="gente" open>

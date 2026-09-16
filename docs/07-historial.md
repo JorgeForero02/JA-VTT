@@ -200,3 +200,10 @@ El pulso variaba la intensidad de la máscara de oscuridad (alfa) despacio y par
 la vez: con alfa de 8 bits eso se ve como escalones de 1/255 sincronizados. Ahora el pulso respira
 en radio (±4,5 %) y en el tinte de color del brillo (82–100 %), y deja la máscara quieta. El
 parpadeo no lo sufría por ser rápido y ruidoso.
+
+## 2026-09-16 — Pulso sólo espacial; bandeja de dados
+
+Pulso: respira el radio (±5 %) y la proporción brillante/tenue (±12 %), sin tocar ningún alfa
+global (ni máscara ni tinte). Dados: la botonera llena una **bandeja** (clic = +1, Mayús ×2,
+Ctrl ×3); se tira con «Tirar», Enter o sola a los 2,5 s; la fórmula acepta términos separados
+por espacio (`2d8 1d4 +2`). Menos brillo especular en los dados 3D.

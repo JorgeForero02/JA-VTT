@@ -147,7 +147,7 @@ function buildLosMask(vs){
 function lightShape(c,src,t,mode){
   const poly=los(src,'light');if(poly.length<3)return;
   const f=animFactor(src,t);
-  const rD=ftPx(src.bright+src.dim)*f.r,rB=ftPx(src.bright)*f.r;if(rD<=0)return;
+  const rD=ftPx(src.bright+src.dim)*f.r,rB=Math.min(rD,ftPx(src.bright)*f.r*(f.rb??1));if(rD<=0)return;
   const I=clamp(src.intensity*(mode==='mask'?f.i:(f.g??f.i)),0,1.2);
   c.save();setWorld(c);
   tracePoly(c,poly);c.clip();
