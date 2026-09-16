@@ -160,7 +160,7 @@ function animFactor(src,t){
   const s=src.seed*1.713;
   if(src.anim==='flicker'){const n=Math.sin(t*5.1+s)*.55+Math.sin(t*9.7+s*2)*.3+Math.sin(t*17.3+s*3)*.15;return{r:1+n*.018,i:1+n*.08}}
   if(src.anim==='soft'){const n=Math.sin(t*2.7+s)*.6+Math.sin(t*5.3+s)*.4;return{r:1+n*.008,i:1+n*.04}}
-  if(src.anim==='pulse'){const n=Math.sin(t*1.7+s);return{r:1+n*.05,i:.86+n*.14}}
+  if(src.anim==='pulse'){const n=Math.sin(t*1.4+s);return{r:1+n*.03,i:.9+n*.1}}
   return{r:1,i:1};
 }
 const hasAnimated=()=>S.animate&&lightSources().some(s=>s.anim&&s.anim!=='none');

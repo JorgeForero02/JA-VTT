@@ -177,3 +177,10 @@ cambia (reenvía lo que llega).
 Los fotogramas de animación (parpadeo, pulso) ya no repintan mapa, cuadrícula, fichas, línea de
 visión ni controles: sólo máscara de luz, brillo y oscuridad. Elimina los tiempos irregulares por
 frame que se veían como tirones en la luz de pulso.
+
+## 2026-09-16 — Luz sin borde duro; pulso más suave
+
+La máscara de luz pasaba de brillante a tenue en un 4 % del radio (anillo duro) y el pulso
+movía ese anillo ±5 % con la intensidad bajando al 72 %: se veía a saltos aunque los fps fueran
+estables (comprobado con capturas consecutivas en Edge headless). Ahora la transición ocupa del
+−10 % al +14 % del radio brillante y el pulso es ±3 % de radio e intensidad 80–100 %.

@@ -148,3 +148,9 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
   assert.match(read('js/net.js'), /function chase\(state,tx,ty\)/);
   assert.match(read('js/net.js'), /\(c\.type==='token'\|\|c\.type==='light'\)&&\(old\.x!==c\.x\|\|old\.y!==c\.y\)/);
 });
+
+test('luces: transición brillante→tenue ancha y pulso contenido', () => {
+  const render = read('js/render.js');
+  assert.match(render, /g\.addColorStop\(Math\.max\(0,b-\.1\),`rgba\(255,255,255,\$\{top\}\)`\);g\.addColorStop\(Math\.min\(\.97,b\+\.14\)/);
+  assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.4\+s\);return\{r:1\+n\*\.03,i:\.9\+n\*\.1\}\}/);
+});

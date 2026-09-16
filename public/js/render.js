@@ -151,7 +151,8 @@ function lightShape(c,src,t,mode){
   if(mode==='mask'){
     const top=clamp(I,0,1);
     if(src.darkness){g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.85,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)')}
-    else if(b>0){g.addColorStop(0,`rgba(255,255,255,${top})`);g.addColorStop(b,`rgba(255,255,255,${top})`);g.addColorStop(Math.min(.98,b+.04),`rgba(255,255,255,${top*.52})`);g.addColorStop(.86,`rgba(255,255,255,${top*.4})`);g.addColorStop(1,'rgba(255,255,255,0)')}
+    // brillante → tenue con una transición ancha: un borde duro se ve saltar cuando la luz pulsa o se mueve
+    else if(b>0){g.addColorStop(0,`rgba(255,255,255,${top})`);g.addColorStop(Math.max(0,b-.1),`rgba(255,255,255,${top})`);g.addColorStop(Math.min(.97,b+.14),`rgba(255,255,255,${top*.5})`);g.addColorStop(.88,`rgba(255,255,255,${top*.38})`);g.addColorStop(1,'rgba(255,255,255,0)')}
     else{g.addColorStop(0,`rgba(255,255,255,${top*.52})`);g.addColorStop(.86,`rgba(255,255,255,${top*.4})`);g.addColorStop(1,'rgba(255,255,255,0)')}
   }else{
     g.addColorStop(0,hexA(src.color,.62*I));g.addColorStop(Math.max(.05,b*.9),hexA(src.color,.34*I));g.addColorStop(Math.min(.99,b+.12),hexA(src.color,.16*I));g.addColorStop(1,hexA(src.color,0));
