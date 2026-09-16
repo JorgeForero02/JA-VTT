@@ -72,3 +72,11 @@ iluminado que se ve queda explorado de lleno en la niebla (`EXP.boost`), aunque 
 El campo `sight` sigue aceptándose en el servidor y se ignora.
 **Por qué** — pedido del usuario tras confundirle el tope en producción.
 **Revertir** — `git revert` del commit.
+
+## 2026-09-16 — Orientar la linterna sorda de una ficha
+
+**Qué** — con la ficha seleccionada aparece la línea del cono y un tirador en su extremo;
+arrastrarlo gira la luz (pasos de 15°, Alt = libre). Lo puede usar el director y el dueño de la
+ficha. El jugador ve además el campo «Dirección (°)» en el editor de su ficha si la luz es un
+cono. Antes sólo el director podía cambiar la dirección, y sólo a mano desde el editor.
+**Revertir** — `git revert` del commit.

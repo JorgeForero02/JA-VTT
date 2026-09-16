@@ -267,6 +267,16 @@ function drawOverlay(player){
     const ic=iconImage(w.locked?'door-closed-locked':w.open?'door-open':'door-closed',w.open?'#6FB8A8':'#F0B35A');const s=px(16);
     if(ic.complete)c.drawImage(ic,m.x-s/2,m.y-s/2,s,s);
   }
+  // cono de luz de una ficha seleccionada: línea de dirección y tirador para girarla
+  for(const t of S.tokens){
+    if(!isSel(t)||!canControl(t))continue;
+    const L=tokenLight(t);if(!L||L.angle>=360)continue;
+    const a=(L.rot||0)*Math.PI/180,rr=ftPx(L.bright+L.dim),h=lightHandlePos(L);
+    c.save();c.setLineDash([px(5),px(5)]);c.lineWidth=px(1.5);c.strokeStyle='rgba(240,179,90,.9)';
+    c.beginPath();c.moveTo(t.x,t.y);c.lineTo(t.x+Math.cos(a)*rr,t.y+Math.sin(a)*rr);c.stroke();c.setLineDash([]);
+    c.beginPath();c.arc(h.x,h.y,px(7),0,Math.PI*2);c.fillStyle='#F0B35A';c.fill();c.strokeStyle='#1C2226';c.lineWidth=px(2);c.stroke();
+    c.restore();
+  }
   if(gm&&S.layers.lights.visible){
     for(const l of S.lights){
       const P=LIGHT_PRESETS[l.preset]||{icon:'lightbulb'};
