@@ -29,8 +29,8 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 ```bash
 docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
-npm run test:ui          # 17 pasos: registro, perfil, chat, dados, iniciativa, recuperación; capturas en test/e2e/capturas
-# 2.5D en headless: Edge necesita --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist (~6 fps); el paso «tablero 2.5D» entra en la tarea 6 de la fase A
+npm run test:ui          # 19 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D, recuperación; capturas en test/e2e/capturas
+# Edge headless con GPU por software (--use-angle=swiftshader …) para que el WebGL del 2.5D renderice (~6 fps); el paso 2.5D va ANTES de la recuperación porque ésta cierra las sesiones del director
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 ```
 

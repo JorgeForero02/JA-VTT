@@ -16,7 +16,7 @@ const step = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, `${name}.png`) });
 
 async function launch() {
-  for (const channel of ['msedge', 'chrome']) { try { return await chromium.launch({ channel, headless: true }); } catch {} }
+  for (const channel of ['msedge', 'chrome']) { try { return await chromium.launch({ channel, headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }); } catch {} }
   throw new Error('No hay Edge ni Chrome instalados');
 }
 const browser = await launch();
@@ -146,6 +146,23 @@ try {
   step('chat y dados apagados: la pestaña desaparece para jugador y director', gmTabHidden);
   await gm.check('#chatEnabled'); await gm.check('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
+
+  // tablero 2.5D: el motor monta su canvas y pinta algo que no es negro
+  // (va antes de la recuperación: ésta cierra todas las sesiones del director y le dejaría fuera)
+  await gm.goto(BASE + '/#/');
+  await gm.waitForSelector('#dashView:not([hidden])');
+  await gm.fill('#newBoardName', `Valle ${suffix}`);
+  await gm.selectOption('#newBoardMode', '2.5d');
+  await gm.click('#newBoardForm button[type=submit]');
+  await gm.waitForSelector('#stage canvas.d3', { timeout: 15000 });
+  await gm.waitForTimeout(2500);
+  // readPixels sobre el canvas ya presentado devuelve 0 (preserveDrawingBuffer es falso): se mide la captura
+  const buf = await gm.screenshot({ clip: { x: 600, y: 380, width: 64, height: 64 } });
+  const distinct = new Set(buf.slice(100, 4000)).size;
+  step('tablero 2.5D: canvas WebGL con imagen (captura no plana)', distinct > 16, String(distinct));
+  await shot(gm, '08-tablero-25d');
+  const railTools = await gm.$$eval('#rail .tool', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.dataset.tool));
+  step('rail 2.5D: sólo seleccionar y desplazar', railTools.join(',') === 'select,pan', railTools.join(','));
 
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';
