@@ -183,7 +183,7 @@ function leaveBoard(silent){
   openBoardId=null;
   Net.disconnect();Store.setBoard(null);
   UI.board=null;UI.realRole='player';UI.scene=null;UI.scenes=[];UI.where={};closeScenePop();renderScenes();
-  closePops();loadState(blankState());
+  closePops();loadState(blankState());syncStageMode();
   if(!silent&&location.hash!=='#/')location.hash='#/';
 }
 $('#backBtn').onclick=()=>{location.hash='#/'};

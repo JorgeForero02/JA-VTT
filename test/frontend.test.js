@@ -253,3 +253,18 @@ test('modo 2.5D: atlas CC0 y mapa de piezas presentes', () => {
   assert.match(read('../README.md'), /Kenney/);
   assert.match(read('../README.md'), /0x72/);
 });
+
+test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', () => {
+  const render = read('js/render.js');
+  assert.match(render, /function syncStageMode\(\)/);
+  assert.match(render, /if\(is25\(\)\)\{if\(ts-lastNet>40\)\{lastNet=ts;Net\.tick\(\)\}return\}/);
+  assert.match(render, /if\(is25\(\)&&window\.D3\)window\.D3\.resize\(\)/);
+  const editor = read('js/editor.js');
+  assert.ok((editor.match(/if\(is25\(\)\)return/g) || []).length >= 6, 'punteros, rueda, dblclick, contextmenu, drop y teclado');
+  assert.match(editor, /D3\.rotate\(-1\)/); assert.match(editor, /D3\.rotate\(1\)/);
+  assert.match(read('js/net.js'), /loadState\(st\);syncStageMode\(\)/);
+  assert.match(read('js/main.js'), /loadState\(blankState\(\)\);syncStageMode\(\)/);
+  const css = read('css/app.css');
+  assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
+  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);
+});

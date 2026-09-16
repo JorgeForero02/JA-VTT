@@ -57,7 +57,7 @@ const Net=(()=>{
     for(const k of COLL_KEYS)st[k]=[];
     for(const o of d.objects||[])if(COLL[o.type])st[COLL[o.type]].push(o);
     const keepHist=!first;if(newScene){hist.undo.length=0;hist.redo.length=0}const prevUndo=hist.undo.slice(),prevRedo=hist.redo.slice();
-    loadState(st);
+    loadState(st);syncStageMode();
     if(newScene){N.cursors.clear();UI.act=null;UI.chain=null;UI.curve=null;UI.arc=null;UI.zpoly=null;closePops()}
     if(first)loadFog(d.fog);
     if(keepHist&&UI.realRole==='gm'){hist.undo.push(...prevUndo);hist.redo.push(...prevRedo);syncUndo()}

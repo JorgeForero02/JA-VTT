@@ -64,6 +64,7 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .tool kbd{position:absolute;right:3px;bottom:1px;font:600 9px var(--sans);opacity:.55}
 .railsep{width:28px;height:1px;background:var(--line);margin:5px 0}
 .tool.gmOnly.hiddenTool{display:none}
+#app.d3 #rail .tool:not([data-tool="select"]):not([data-tool="pan"]),#app.d3 #rail .railsep{display:none}
 
 #stageWrap{position:relative;min-width:0;min-height:0;overflow:hidden;background:#12171A}
 #stage{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:default}
@@ -71,6 +72,8 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 #cGlow{mix-blend-mode:screen}
 #stage.panning{cursor:grabbing}
 #stage.crosshair{cursor:crosshair}
+#stage.d3 canvas:not(.d3){display:none}
+#stage.d3{cursor:grab}
 
 #subbar{position:absolute;left:12px;top:12px;right:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none;z-index:6}
 #subbar>*{pointer-events:auto}

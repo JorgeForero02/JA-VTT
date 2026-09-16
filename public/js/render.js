@@ -24,6 +24,7 @@ let W=800,H=600,dpr=1,ldpr=1;
 const LIGHT_LAYERS=()=>[maskC,losC,expC,cv.glow,cv.dark];
 const scaleOf=ctx=>ctx.canvas.__s||dpr;
 function resize(){
+  if(is25()&&window.D3)window.D3.resize();
   const r=stage.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);dpr=Math.min(2,window.devicePixelRatio||1);
   ldpr=Math.min(dpr,PERF.scale);
   const light=new Set(LIGHT_LAYERS());
@@ -73,10 +74,21 @@ function loop(ts){
   requestAnimationFrame(loop);
   noteFrame(ts);
   try{
+    if(is25()){if(ts-lastNet>40){lastNet=ts;Net.tick()}return}
     if(dirty){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000,false)}
     else if(anim&&animateThisFrame()){lastAnim=ts;frame.sources=null;const t0=performance.now();drawAll(ts/1000,true);notePerf(performance.now()-t0)}
     if(ts-lastNet>40){lastNet=ts;Net.tick()}
   }catch(err){console.error(err)}
+}
+
+/* 2.5D: el motor D3 pinta en su propio canvas; los canvas 2D se ocultan y no se dibujan */
+function syncStageMode(){
+  const want=is25(),has=!!(window.D3&&window.D3.isMounted());
+  stage.classList.toggle('d3',want);$('#app').classList.toggle('d3',want);
+  if(want&&!has&&window.D3){window.D3.mount(stage,{toast}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
+  else if(!want&&has)window.D3.unmount();
+  if(!want)$('#subbar').innerHTML='';
+  requestRender();
 }
 
 function hexA(hex,a){let h=(hex||'#ffffff').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16)||0;return`rgba(${n>>16&255},${n>>8&255},${n&255},${clamp(a,0,1)})`}
