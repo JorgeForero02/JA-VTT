@@ -44,3 +44,12 @@ panel (`#app.noPanel`) y guarda la preferencia en `localStorage` (`jav.panel`); 
 estrechas sigue abriendo el panel como capa. Iconos Lucide `panel-right-open/close`.
 **Por qué** — pedido del usuario: más espacio de mapa en escritorio.
 **Revertir** — `git revert` del commit `feat(ui): botón para ocultar el panel lateral`.
+
+## 2026-09-16 — Cursores suaves y guardas contra el doble clic
+
+**Qué** — los cursores de los demás se interpolan 110 ms hacia su posición nueva (misma
+técnica que las fichas, `cursorPos` en `net.js`) y se envían cada ~50 ms. `withBusy()`
+(`store.js`) desactiva los botones de un formulario mientras dura la petición: entrar / crear
+cuenta, crear tablero, unirse por código, añadir miembro, regenerar código; crear escena lleva
+un cerrojo de 1,5 s. Sin tests nuevos por decisión del usuario (cambios visuales).
+**Revertir** — `git revert` del commit.

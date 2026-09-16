@@ -13,6 +13,14 @@ async function apiJson(url,opt){
   if(!r.ok){const err=new Error((d&&d.error)||`Error ${r.status}`);err.status=r.status;throw err}
   return d;
 }
+/* Desactiva los botones de un formulario (o un botón suelto) mientras dura la petición:
+   evita el doble clic que crea cuentas, tableros o miembros duplicados. */
+async function withBusy(el,fn){
+  if(el.dataset.busy)return;
+  const btns=el.matches('button')?[el]:[...el.querySelectorAll('button[type=submit],button:not([type])')];
+  el.dataset.busy='1';for(const b of btns){b.disabled=true;b.classList.add('busy')}
+  try{return await fn()}finally{delete el.dataset.busy;for(const b of btns){b.disabled=false;b.classList.remove('busy')}}
+}
 const Store=(()=>{
   let boardId=null,metas=new Map(),usage={count:0,bytes:0,quota:0},ready=Promise.resolve();
   const listeners=new Set();

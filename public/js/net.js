@@ -33,7 +33,7 @@ const Net=(()=>{
         renderLiveSoon();renderScenes();requestRender();break;
       case 'fogreset':if(UI.scene&&d.scene===UI.scene.id){resetExplored();requestRender();toast('El director reinició la exploración de esta escena')}break;
       case 'members':N.members=d.members||[];renderLiveSoon();refreshPanels();break;
-      case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else N.cursors.set(d.uid,{x:d.x,y:d.y});requestRender();break;
+      case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else{const prev=N.cursors.get(d.uid),from=prev?cursorPos(prev):{x:d.x,y:d.y};N.cursors.set(d.uid,{x:d.x,y:d.y,fx:from.x,fy:from.y,t0:performance.now()})}requestRender();break;
       case 'board':if(UI.board){UI.board.name=d.name;syncBoardName()}break;
       case 'images':Store.refresh();break;
       case 'pong':toast(`El servidor respondió en ${Date.now()-d.at} ms`);break;
@@ -142,7 +142,7 @@ const Net=(()=>{
       const now=performance.now();
       const go=()=>{N.lastCur=performance.now();send(UI.hover?{t:'cursor',x:Math.round(UI.hover.x),y:Math.round(UI.hover.y)}:{t:'cursor',x:null,y:null})};
       clearTimeout(N.curTimer);
-      if(now-N.lastCur>60)go();else N.curTimer=setTimeout(go,70);
+      if(now-N.lastCur>50)go();else N.curTimer=setTimeout(go,55);
     },
     roleChanged(){},
     replaceAll(name){if(!synced)return;send({t:'replace',scene:UI.scene.id,name,settings:sceneMeta(),objects:COLL_KEYS.flatMap(k=>S[k])});baseline()},
@@ -170,6 +170,15 @@ let liveTimer=0;function renderLiveSoon(){clearTimeout(liveTimer);liveTimer=setT
 
 /* Movimiento remoto suave y aviso de quién movió cada ficha */
 const smoothMoves=new Map(),remoteMarks=new Map();
+/* Cursores ajenos: llegan cada ~60 ms; se interpolan hasta la posición nueva para que no salten */
+const CURSOR_GLIDE_MS=110;
+function cursorPos(cur){
+  if(cur.t0==null)return cur;
+  const k=(performance.now()-cur.t0)/CURSOR_GLIDE_MS;
+  if(k>=1)return cur;
+  requestRender();const e=1-(1-k)*(1-k);
+  return{x:cur.fx+(cur.x-cur.fx)*e,y:cur.fy+(cur.y-cur.fy)*e};
+}
 function displayPos(t){
   const m=smoothMoves.get(t.id);if(!m)return t;
   const k=(performance.now()-m.t0)/120;
@@ -195,7 +204,7 @@ function drawPeers(c){
   for(const p of Net.peers){
     if(!p.cur)continue;
     if(!isGM()&&p.role==='gm')continue; // el cursor del director no delata lo que mira
-    const x=p.cur.x,y=p.cur.y,s=px(1);
+    const P=cursorPos(p.cur),x=P.x,y=P.y,s=px(1);
     c.save();c.translate(x,y);c.scale(s,s);
     c.beginPath();c.moveTo(0,0);c.lineTo(0,18);c.lineTo(5,13.5);c.lineTo(9,21);c.lineTo(12,19.5);c.lineTo(8.5,12.5);c.lineTo(14,12.5);c.closePath();
     c.fillStyle=p.color;c.fill();c.strokeStyle='#1C2226';c.lineWidth=1.5;c.stroke();

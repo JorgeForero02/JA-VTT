@@ -949,10 +949,12 @@ $('#copyInvite').onclick=async()=>{
   try{await navigator.clipboard.writeText(link);toast('Enlace copiado: '+link,2600)}
   catch(e){const inp=$('#inviteLinkField');inp.value=link;inp.style.display='block';inp.select();toast('Copia el enlace del recuadro',2400)}
 };
-$('#newInvite').onclick=async()=>{try{const d=await apiJson(`/api/boards/${UI.board.id}/invite`,{method:'POST'});UI.board.invite_code=d.invite_code;renderLive();toast('Código nuevo. El anterior ya no sirve.')}catch(e){toast(e.message)}};
-async function addMember(){
+$('#newInvite').onclick=()=>withBusy($('#newInvite'),async()=>{try{const d=await apiJson(`/api/boards/${UI.board.id}/invite`,{method:'POST'});UI.board.invite_code=d.invite_code;renderLive();toast('Código nuevo. El anterior ya no sirve.')}catch(e){toast(e.message)}});
+function addMember(){
   const inp=$('#addMemberName');const name=inp.value.trim();if(!name)return;
-  try{await apiJson(`/api/boards/${UI.board.id}/members`,{method:'POST',body:JSON.stringify({name})});inp.value='';toast(`${name} ya forma parte del tablero`)}catch(e){toast(e.message,2600)}
+  withBusy($('#addMemberBtn'),async()=>{
+    try{await apiJson(`/api/boards/${UI.board.id}/members`,{method:'POST',body:JSON.stringify({name})});inp.value='';toast(`${name} ya forma parte del tablero`)}catch(e){toast(e.message,2600)}
+  });
 }
 $('#addMemberBtn').onclick=addMember;
 $('#addMemberName').onkeydown=e=>{if(e.key==='Enter')addMember()};
@@ -1071,6 +1073,7 @@ $('#sceneBtn').onclick=e=>{e.stopPropagation();$('#scenePop').hidden?openScenePo
 document.addEventListener('pointerdown',e=>{if(!$('#scenePop').hidden&&!e.target.closest('#scenePop')&&!e.target.closest('#sceneBtn'))closeScenePop()});
 $('#sceneCreate').onsubmit=e=>{
   e.preventDefault();
+  const form=$('#sceneCreate');if(form.dataset.busy)return;form.dataset.busy='1';setTimeout(()=>{delete form.dataset.busy},1500);
   const name=$('#newSceneName').value.trim(),tpl=$('#newSceneTpl').value;
   Net.flushFog();
   if(tpl!=='empty')sessionStorage.setItem('plantillaEscena',tpl);

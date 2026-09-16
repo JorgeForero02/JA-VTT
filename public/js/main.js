@@ -22,16 +22,19 @@ function setLoginMode(mode){
   $('#loginError').textContent='';
 }
 for(const t of document.querySelectorAll('#loginForm .gateTab'))t.onclick=()=>setLoginMode(t.dataset.mode);
-$('#loginForm').onsubmit=async e=>{
+$('#loginForm').onsubmit=e=>{
   e.preventDefault();
-  const name=$('#loginName').value.trim(),password=$('#loginPassword').value;
-  const mode=$('#loginForm').dataset.mode;
-  $('#loginError').textContent='';
-  try{
-    const d=await apiJson(mode==='register'?'/api/register':'/api/login',{method:'POST',body:JSON.stringify({name,password})});
-    $('#loginPassword').value='';
-    App.user=d.user;await afterLogin();
-  }catch(err){$('#loginError').textContent=err.message}
+  const form=$('#loginForm');
+  withBusy(form,async()=>{
+    const name=$('#loginName').value.trim(),password=$('#loginPassword').value;
+    const mode=form.dataset.mode;
+    $('#loginError').textContent='';
+    try{
+      const d=await apiJson(mode==='register'?'/api/register':'/api/login',{method:'POST',body:JSON.stringify({name,password})});
+      $('#loginPassword').value='';
+      App.user=d.user;await afterLogin();
+    }catch(err){$('#loginError').textContent=err.message}
+  });
 };
 $('#logoutBtn').onclick=async()=>{
   try{await apiJson('/api/logout',{method:'POST'})}catch(e){}
@@ -98,20 +101,24 @@ function renderDash(){
   fill($('#gmBoards'),gm,'Todavía no diriges ningún tablero. Crea uno arriba.');
   fill($('#playerBoards'),pl,'Aún no juegas en ningún tablero. Pide un código de invitación al director.');
 }
-$('#newBoardForm').onsubmit=async e=>{
+$('#newBoardForm').onsubmit=e=>{
   e.preventDefault();
-  const name=$('#newBoardName').value.trim(),tpl=$('#newBoardTpl').value;
-  try{
-    const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name})});
-    if(tpl!=='empty')sessionStorage.setItem('plantilla',JSON.stringify({board:d.board.id,kind:tpl}));
-    $('#newBoardName').value='';$('#newBoardTpl').value='empty';
-    location.hash='#/tablero/'+d.board.id;
-  }catch(err){toast(err.message)}
+  withBusy($('#newBoardForm'),async()=>{
+    const name=$('#newBoardName').value.trim(),tpl=$('#newBoardTpl').value;
+    try{
+      const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name})});
+      if(tpl!=='empty')sessionStorage.setItem('plantilla',JSON.stringify({board:d.board.id,kind:tpl}));
+      $('#newBoardName').value='';$('#newBoardTpl').value='empty';
+      location.hash='#/tablero/'+d.board.id;
+    }catch(err){toast(err.message)}
+  });
 };
-$('#joinForm').onsubmit=async e=>{
+$('#joinForm').onsubmit=e=>{
   e.preventDefault();
-  try{const d=await apiJson('/api/join',{method:'POST',body:JSON.stringify({code:$('#joinCode').value})});$('#joinCode').value='';toast(`Te uniste a «${d.board.name}»`);location.hash='#/tablero/'+d.board.id}
-  catch(err){toast(err.message,2600)}
+  withBusy($('#joinForm'),async()=>{
+    try{const d=await apiJson('/api/join',{method:'POST',body:JSON.stringify({code:$('#joinCode').value})});$('#joinCode').value='';toast(`Te uniste a «${d.board.name}»`);location.hash='#/tablero/'+d.board.id}
+    catch(err){toast(err.message,2600)}
+  });
 };
 
 /* ---------- tablero ---------- */
