@@ -142,7 +142,7 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
   const core = read('js/core.js');
   assert.match(core, /const P=displayPos\(t\);return\{x:P\.x,y:P\.y,bright:L\.bright/);
   assert.match(core, /const P=displayPos\(l\);out\.push\(\{x:P\.x,y:P\.y/);
-  assert.match(read('js/render.js'), /else if\(anim&&ts-lastAnim>16\)\{lastAnim=ts;frame\.sources=null;drawAll\(ts\/1000,true\)\}/, 'los frames de animación sólo redibujan las luces');
+  assert.match(read('js/render.js'), /else if\(anim&&ts-lastAnim>animInterval\(\)\)\{lastAnim=ts;frame\.sources=null;const t0=performance\.now\(\);drawAll\(ts\/1000,true\)/, 'los frames de animación sólo redibujan las luces');
   assert.match(read('js/render.js'), /ts-lastNet>40/);
   assert.match(read('js/net.js'), /const SMOOTH_TAU=70;/);
   assert.match(read('js/net.js'), /function chase\(state,tx,ty\)/);
@@ -160,7 +160,7 @@ test('luces: transición brillante→tenue ancha y pulso contenido', () => {
 
 test('render: capas de luz a escala 1 y exploración desenfocada cacheada entre fotogramas', () => {
   const render = read('js/render.js');
-  assert.match(render, /ldpr=Math\.min\(dpr,1\);/);
+  assert.match(render, /ldpr=Math\.min\(dpr,PERF\.scale\);/);
   assert.match(render, /const LIGHT_LAYERS=\(\)=>\[maskC,losC,expC,cv\.glow,cv\.dark\];/);
   assert.match(render, /function setWorld\(ctx\)\{const z=UI\.cam\.zoom,d=scaleOf\(ctx\);/);
   assert.match(render, /if\(!lightsOnly\)composeExplored\(\);/);
@@ -169,4 +169,13 @@ test('render: capas de luz a escala 1 y exploración desenfocada cacheada entre 
 test('exportar: usedImageIds existe y recoge las imágenes de objetos y fichas', () => {
   const editor = read('js/editor.js');
   assert.match(editor, /function usedImageIds\(\)\{const ids=new Set\(\);for\(const a of S\.assets\)if\(a\.img\)ids\.add\(a\.img\);for\(const t of S\.tokens\)if\(t\.img\)ids\.add\(t\.img\);return \[\.\.\.ids\]\}/);
+});
+
+test('render adaptativo: mide el fotograma de luz y baja escala/cadencia si no cabe en el frame', () => {
+  const render = read('js/render.js');
+  assert.match(render, /const PERF=\{scale:1,ms:0,frameMs:16\.7/);
+  assert.match(render, /if\(ms>budget\)\{PERF\.fast=0;if\(\+\+PERF\.slow>12&&PERF\.scale>\.5\)\{PERF\.scale=\.5;PERF\.slow=0;resize\(\)\}\}/);
+  assert.match(render, /const animInterval=\(\)=>PERF\.scale<1\?PERF\.frameMs\*2-2:PERF\.frameMs-2;/);
+  assert.match(render, /ldpr=Math\.min\(dpr,PERF\.scale\);/);
+  assert.match(read('js/editor.js'), /Render de luz: \$\{PERF\.ms\.toFixed\(1\)\} ms/);
 });

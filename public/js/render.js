@@ -25,7 +25,7 @@ const LIGHT_LAYERS=()=>[maskC,losC,expC,cv.glow,cv.dark];
 const scaleOf=ctx=>ctx.canvas.__s||dpr;
 function resize(){
   const r=stage.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);dpr=Math.min(2,window.devicePixelRatio||1);
-  ldpr=Math.min(dpr,1);
+  ldpr=Math.min(dpr,PERF.scale);
   const light=new Set(LIGHT_LAYERS());
   for(const c of[...Object.values(cv),maskC,losC,expC]){const d=light.has(c)?ldpr:dpr;c.__s=d;c.width=Math.round(W*d);c.height=Math.round(H*d)}
   requestRender();
@@ -49,12 +49,26 @@ const px=n=>n/UI.cam.zoom; // tamaño constante en pantalla
 
 let dirty=true,lastAnim=0,lastNet=0;
 function requestRender(){dirty=true}
+/* Rendimiento medido en este navegador. Si un fotograma de luz no cabe en un frame de pantalla,
+   se baja la resolución de las capas de luz (1 → .5) y la animación pasa a 30 fps regulares:
+   un movimiento lento a ritmo constante se ve fluido; a 60 fps irregulares se ve a saltos. */
+const PERF={scale:1,ms:0,frameMs:16.7,slow:0,fast:0,fps:0,frames:0,fpsAt:0,lastTs:0};
+function notePerf(ms,ts){
+  PERF.ms=PERF.ms?PERF.ms*.9+ms*.1:ms;
+  if(PERF.lastTs){const gap=ts-PERF.lastTs;if(gap<200)PERF.frameMs=PERF.frameMs*.9+gap*.1}PERF.lastTs=ts;
+  PERF.frames++;if(ts-PERF.fpsAt>1000){PERF.fps=Math.round(PERF.frames*1000/(ts-PERF.fpsAt));PERF.frames=0;PERF.fpsAt=ts}
+  const budget=PERF.frameMs*.75;
+  if(ms>budget){PERF.fast=0;if(++PERF.slow>12&&PERF.scale>.5){PERF.scale=.5;PERF.slow=0;resize()}}
+  else if(ms<budget*.3){PERF.slow=0;if(++PERF.fast>240&&PERF.scale<1){PERF.scale=1;PERF.fast=0;resize()}}
+  else{PERF.slow=0;PERF.fast=0}
+}
+const animInterval=()=>PERF.scale<1?PERF.frameMs*2-2:PERF.frameMs-2;
 function loop(ts){
   let anim=false;try{anim=hasAnimated()}catch(e){}
   requestAnimationFrame(loop);
   try{
     if(dirty){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000,false)}
-    else if(anim&&ts-lastAnim>16){lastAnim=ts;frame.sources=null;drawAll(ts/1000,true)}
+    else if(anim&&ts-lastAnim>animInterval()){lastAnim=ts;frame.sources=null;const t0=performance.now();drawAll(ts/1000,true);notePerf(performance.now()-t0,ts)}
     if(ts-lastNet>40){lastNet=ts;Net.tick()}
   }catch(err){console.error(err)}
 }

@@ -213,3 +213,11 @@ por espacio (`2d8 1d4 +2`). Menos brillo especular en los dados 3D.
 Fallo heredado del Mini VTT original: la función nunca existió. Definida (imágenes usadas por
 tableros/objetos y fichas). Probado en Edge headless: el .json exportado incluye muros, fichas y
 la imagen en base64.
+
+## 2026-09-16 — Render adaptativo y lectura de rendimiento
+
+El cliente mide cuánto tarda cada fotograma de luz. Si supera el 75 % del intervalo de pantalla
+durante 12 fotogramas, baja las capas de luz a 0,5× y la animación a la mitad de la frecuencia
+de pantalla (cadencia regular). Si sobra margen durante 4 s, vuelve a 1×. Mesa → Conexión muestra
+«Render de luz: N ms por fotograma (pantalla X Hz), capas de luz a S×» para diagnosticar en el
+navegador del usuario.

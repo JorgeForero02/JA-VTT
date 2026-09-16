@@ -975,7 +975,7 @@ function renderLive(){
     list.appendChild(r);
   }
   if(gm&&UI.board){$('#inviteCode').textContent=UI.board.invite_code||'';}
-  $('#liveStatus').textContent=Net.connected?`Conectado al servidor. Mensajes enviados: ${Net.stats.sent}, recibidos: ${Net.stats.recv}.`:'Sin conexión con el servidor.';
+  $('#liveStatus').textContent=(Net.connected?`Conectado al servidor. Mensajes enviados: ${Net.stats.sent}, recibidos: ${Net.stats.recv}.`:'Sin conexión con el servidor.')+(PERF.ms?` Render de luz: ${PERF.ms.toFixed(1)} ms por fotograma (pantalla ${(1000/PERF.frameMs).toFixed(0)} Hz), capas de luz a ${PERF.scale}×.`:'');
 }
 const inviteLink=()=>`${location.origin}/?invitar=${UI.board?UI.board.invite_code:''}`;
 $('#copyInvite').onclick=async()=>{
@@ -1233,3 +1233,5 @@ function initStep(dir){
   initSend(c);
 }
 $('#initNext').onclick=()=>initStep(1);$('#initPrev').onclick=()=>initStep(-1);$('#initBarNext').onclick=()=>initStep(1);
+/* la lectura de rendimiento de Mesa → Conexión se refresca mientras la pestaña está abierta */
+setInterval(()=>{if(UI.tab==='live'&&UI.board)renderLive()},1000);
