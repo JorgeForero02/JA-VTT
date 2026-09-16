@@ -28,6 +28,14 @@ export default [
     rules: { 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   {
+    // Motor 2.5D: módulos ES con ámbito propio, así que sí se buscan símbolos sin definir o sin usar
+    // (las reglas recomendadas se mezclan explícitamente: un `rules:` propio taparía las del spread).
+    files: ['public/js/d3/**/*.js'],
+    ...js.configs.recommended,
+    languageOptions: { ecmaVersion: 2024, sourceType: 'module', globals: browserGlobals },
+    rules: { ...js.configs.recommended.rules, 'no-empty': ['error', { allowEmptyCatch: true }], 'no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'none' }] },
+  },
+  {
     // El cliente son scripts clásicos que comparten el ámbito global entre archivos: sólo se
     // buscan errores de sintaxis; no-undef se desactiva porque los símbolos vienen de otros archivos.
     files: ['public/js/*.js'],

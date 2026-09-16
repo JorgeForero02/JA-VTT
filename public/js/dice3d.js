@@ -12,6 +12,10 @@ const FADE_MS = 500;
 const DIE_SIZE = 0.95;
 const MAX_DICE = 30;
 
+/* El motor 2.5D apaga THREE.ColorManagement (colores como en r128). Los dados se diseñaron con el
+   pipeline de r170, así que crean sus colores y materiales con la gestión de color encendida. */
+function withColorManagement(fn) { const was = THREE.ColorManagement.enabled; THREE.ColorManagement.enabled = true; try { return fn(); } finally { THREE.ColorManagement.enabled = was; } }
+
 /* ---------- geometría: caras como polígonos a partir de los sólidos de three ---------- */
 function facesFromGeometry(src) {
   const geo = src.index ? src.toNonIndexed() : src;
@@ -202,11 +206,13 @@ function ensure(container) {
   renderer.shadowMap.enabled = true;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x223044, 1.0));
-  const fill = new THREE.DirectionalLight(0xffd9a0, 0.5); fill.position.set(-8, 6, -6); scene.add(fill);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.15); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ opacity: 0.35 }));
-  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  withColorManagement(() => {
+    scene.add(new THREE.HemisphereLight(0xfff4e0, 0x223044, 1.0));
+    const fill = new THREE.DirectionalLight(0xffd9a0, 0.5); fill.position.set(-8, 6, -6); scene.add(fill);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.15); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ opacity: 0.35 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  });
   resize();
   new ResizeObserver(resize).observe(host);
 }
@@ -262,11 +268,11 @@ function roll(container, dice, color, seed) {
   if (!specs.length) return;
   clear();
   const sim = simulate(specs, seed || Date.now());
-  const meshes = specs.map((sp, i) => {
+  const meshes = withColorManagement(() => specs.map((sp, i) => {
     const up = upIndex(sp.solid, sim.final[i], sp.sides);
     const mesh = buildMesh(sp.solid, labelsFor(sp.solid, sp.sides, up, sp.value, sp.variant), color || '#E9E3D5', sp.sides);
     mesh.castShadow = true; mesh.scale.setScalar(DIE_SIZE); scene.add(mesh); return mesh;
-  });
+  }));
   const start = performance.now();
   const total = Math.max(...sim.frames.map((f) => f.length));
   active = meshes;

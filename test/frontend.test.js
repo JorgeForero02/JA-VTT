@@ -31,6 +31,28 @@ test('todos los scripts del cliente compilan', () => {
   }
   // dice3d.js es un módulo ES (import/export): se comprueba como tal
   assert.match(read('js/dice3d.js'), /^import \* as THREE from '\.\/vendor\/three\.module\.min\.js';$/m);
+  // el motor 2.5D son módulos ES: se compilan tras quitar import/export
+  const d3 = path.join(__dirname, '..', 'public', 'js', 'd3');
+  for (const f of fs.readdirSync(d3).filter((f) => f.endsWith('.js'))) {
+    const src = read('js/d3/' + f).replace(/^import[^\n]*\n/gm, '').replace(/^export /gm, '');
+    assert.doesNotThrow(() => new Function(src), 'd3/' + f);
+  }
+});
+
+test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
+  const eng = read('js/d3/engine.js');
+  assert.match(eng, /^import \* as THREE from '\.\.\/vendor\/three\.module\.min\.js';$/m);
+  assert.match(eng, /import \{ PACK_MAP \} from '\.\/packmap\.js'/);
+  assert.match(eng, /export function createEngine\(stage,opts\)/);
+  for (const bad of ['WebGLMultisampleRenderTarget', "getElementById('view')", "getElementById('hint')", 'localStorage', 'PACK_SRC', 'renderPanel(', 'window.innerWidth']) assert.ok(!eng.includes(bad), 'no debe quedar: ' + bad);
+  assert.match(eng, /samples:4/);
+  assert.match(eng, /outputColorSpace=THREE\.LinearSRGBColorSpace/);
+  assert.match(eng, /ColorManagement\.enabled=false/);
+  assert.match(eng, /sun\.intensity=envCur\.si\*Math\.PI/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
+  const dice = read('js/dice3d.js');
+  assert.match(dice, /function withColorManagement\(fn\)/);
 });
 
 test('cabecera: botón para ocultar el panel lateral, con estado y preferencia guardada', () => {
