@@ -8,7 +8,7 @@ const cx={scene:cv.scene.getContext('2d'),glow:cv.glow.getContext('2d'),dark:cv.
 const maskC=document.createElement('canvas'),losC=document.createElement('canvas');
 const mctx=maskC.getContext('2d'),lctx=losC.getContext('2d');
 /* Memoria de exploración por bloques: el mundo no tiene bordes */
-const EXP={scale:.12,size:2000,chunks:new Map(),max:260,boost:3}; // boost: la luz tenue vista cuenta como explorada
+const EXP={scale:.2,size:2000,chunks:new Map(),max:160,boost:3,blur:2.5}; // boost: la luz tenue vista cuenta como explorada
 function expChunk(cx,cy,create){
   const k=cx+','+cy;let ch=EXP.chunks.get(k);
   if(!ch&&create){
@@ -29,7 +29,7 @@ function resetExplored(){EXP.chunks.clear()}
 function loadFog(list){
   for(const f of list||[]){
     const ch=expChunk(f.cx,f.cy,true);const im=new Image();
-    im.onload=()=>{ch.x.setTransform(1,0,0,1,0,0);ch.x.globalCompositeOperation='source-over';ch.x.drawImage(im,0,0);requestRender()};
+    im.onload=()=>{ch.x.setTransform(1,0,0,1,0,0);ch.x.globalCompositeOperation='source-over';ch.x.imageSmoothingEnabled=true;ch.x.drawImage(im,0,0,ch.c.width,ch.c.height);requestRender()}; // se escala: la niebla guardada puede venir de otra resolución
     im.src=f.data;
   }
 }
@@ -204,13 +204,16 @@ function drawDarkness(player,vs){
     const z=UI.cam.zoom,s=EXP.scale,v=viewRect(),k=s/(dpr*z),S2=EXP.size;
     const cx0=Math.floor(v.x0/S2),cx1=Math.floor(v.x1/S2),cy0=Math.floor(v.y0/S2),cy1=Math.floor(v.y1/S2);
     const few=(cx1-cx0+1)*(cy1-cy0+1)<=48;
-    c.globalCompositeOperation='destination-out';c.globalAlpha=.42;c.imageSmoothingEnabled=true;
+    c.globalCompositeOperation='destination-out';c.globalAlpha=.42;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+    // la memoria es de baja resolución: un desenfoque leve en pantalla disimula los escalones al ampliarla
+    if('filter' in c)c.filter=`blur(${EXP.blur*dpr}px)`;
     for(let cx=cx0;cx<=cx1;cx++)for(let cy=cy0;cy<=cy1;cy++){
       const ch=expChunk(cx,cy,few);if(!ch)continue;
-      if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
+      if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.imageSmoothingEnabled=true;ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
       c.setTransform(dpr*z/s,0,0,dpr*z/s,dpr*(W/2+(cx*S2-UI.cam.x)*z),dpr*(H/2+(cy*S2-UI.cam.y)*z));
       c.drawImage(ch.c,0,0);
     }
+    if('filter' in c)c.filter='none';
     setRaw(c);c.globalAlpha=1;
   }
   c.globalCompositeOperation='destination-out';

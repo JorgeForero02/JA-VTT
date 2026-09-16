@@ -96,3 +96,9 @@ el cliente ignora correcciones sobre el objeto que está arrastrando (reenvía l
 **Regresión de la migración a PostgreSQL** (con SQLite el texto conservaba el orden). Tests:
 `test/rules.test.js` y caso en `test/realtime.test.js` que recarga el tablero de la base.
 **Revertir** — `git revert` del commit.
+
+## 2026-09-16 — Niebla explorada sin dientes de sierra
+
+Memoria de exploración al 20 % (antes 12 %; 160 bloques máx. en vez de 260 para no subir el
+consumo) y desenfoque leve (`EXP.blur`) al pintarla. Los tiles guardados con la resolución
+vieja se escalan al cargar.
