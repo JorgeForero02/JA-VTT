@@ -195,7 +195,7 @@ test('render: toda función usada en render.js está definida en algún script d
 
 test('render: dithering de la máscara de luz contra el banding', () => {
   const render = read('js/render.js');
-  assert.match(render, /function dither\(c\)/);
+  assert.match(render, /function dither\(c,op\)/);
   assert.match(render, /img\.data\[i\+3\]=Math\.random\(\)<\.5\?0:1/);
   assert.doesNotMatch(render, /dither\(c\);\s*c\.globalCompositeOperation='destination-out';\s*for\(const s of src\)/, 'el ruido nunca va a la máscara: la exploración lo acumularía');
   assert.match(render, /c\.drawImage\(maskC,0,0\);\s*dither\(c,'destination-out'\);/);
