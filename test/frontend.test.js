@@ -63,6 +63,8 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(eng, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
   assert.match(read('js/d3/art.js'), /^export function loadStyle\(key\)/m);
   assert.doesNotMatch(eng, /function pixelAtlas\(|function drawnAtlas\(/);
+  assert.match(read('js/d3/water.js'), /^export function simWater\(\)/m);
+  assert.match(read('js/d3/fx.js'), /^export function explode\(cell,levelKey,chained\)/m);
   const idx = read('js/d3/index.js');
   assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
   const dice = read('js/dice3d.js');
