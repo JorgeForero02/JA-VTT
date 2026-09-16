@@ -163,7 +163,7 @@ function animFactor(src,t){
   if(src.anim==='soft'){const n=Math.sin(t*2.7+s)*.6+Math.sin(t*5.3+s)*.4;return{r:1+n*.008,i:1+n*.04}}
   // pulso: respira en radio y en color, no en la máscara (un cambio lento y global de alfa se ve a escalones de 1/255)
   // sólo cambios espaciales: cada píxel cambia en su momento y no hay escalón global de alfa
-  if(src.anim==='pulse'){const n=Math.sin(t*1.3+s);return{r:1+n*.05,rb:1+n*.12,i:1,g:1}}
+  if(src.anim==='pulse'){const n=Math.sin(t*1.3+s);return{r:1+n*.035,rb:1+n*.1,i:1,g:1}}
   return{r:1,rb:1,i:1,g:1};
 }
 const hasAnimated=()=>S.animate&&lightSources().some(s=>s.anim&&s.anim!=='none');

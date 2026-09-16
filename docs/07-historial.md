@@ -235,3 +235,10 @@ y la animación va cada frame (o uno de cada dos, contado, en calidad reducida).
 El parche de la cadencia borró `hexA` al reemplazar el bloque del bucle. Restaurada; test de
 contrato nuevo que comprueba que toda función usada en `render.js` está definida. Lección: para
 cambios de cliente, `npm run test:ui` antes de desplegar, no sólo `npm run check`.
+
+## 2026-09-16 — Dithering en la máscara de luz
+
+Con cadencia y coste ya correctos (60 Hz, 0,2 ms medidos por el usuario), lo que quedaba del
+pulso era banding: 255 niveles de alfa en un degradado grande dan anillos de ~3 px que reptan al
+cambiar el radio. Se suma un patrón fijo de ruido de ±1 nivel a la máscara (`dither`), que rompe
+los anillos sin grano visible. Pulso algo más contenido (±3,5 % radio, ±10 % núcleo).

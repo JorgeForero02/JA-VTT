@@ -152,7 +152,7 @@ test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', 
 test('luces: transición brillante→tenue ancha y pulso contenido', () => {
   const render = read('js/render.js');
   assert.match(render, /g\.addColorStop\(Math\.max\(0,b-\.1\),`rgba\(255,255,255,\$\{top\}\)`\);g\.addColorStop\(Math\.min\(\.97,b\+\.14\)/);
-  assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.3\+s\);return\{r:1\+n\*\.05,rb:1\+n\*\.12,i:1,g:1\}\}/, 'el pulso es sólo espacial');
+  assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.3\+s\);return\{r:1\+n\*\.035,rb:1\+n\*\.1,i:1,g:1\}\}/, 'el pulso es sólo espacial');
   assert.match(read('js/editor.js'), /const Tray=\(\(\)=>\{/);
   assert.match(read('index.html'), /id="diceTray"/);
   assert.match(render, /mode==='mask'\?f\.i:\(f\.g\?\?f\.i\)/);
@@ -191,4 +191,11 @@ test('render: toda función usada en render.js está definida en algún script d
     assert.ok(defined.has(name), `${name} usada en render.js pero no definida`);
   }
   assert.match(render, /function hexA\(hex,a\)/);
+});
+
+test('render: dithering de la máscara de luz contra el banding', () => {
+  const render = read('js/render.js');
+  assert.match(render, /function dither\(c\)/);
+  assert.match(render, /img\.data\[i\+3\]=Math\.random\(\)<\.5\?0:1/);
+  assert.match(render, /dither\(c\);\s*c\.globalCompositeOperation='destination-out';\s*for\(const s of src\)if\(s\.darkness\)/);
 });
