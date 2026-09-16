@@ -200,3 +200,14 @@ test('render: dithering de la máscara de luz contra el banding', () => {
   assert.doesNotMatch(render, /dither\(c\);\s*c\.globalCompositeOperation='destination-out';\s*for\(const s of src\)/, 'el ruido nunca va a la máscara: la exploración lo acumularía');
   assert.match(render, /c\.drawImage\(maskC,0,0\);\s*dither\(c,'destination-out'\);/);
 });
+
+test('nuevo tablero: selector de tipo 2D/2.5D; la tarjeta lo etiqueta; el estado conoce el modo', () => {
+  const html = read('index.html');
+  assert.match(html, /<select id="newBoardMode"[^>]*>[\s\S]*<option value="2d"[^>]*>2D[\s\S]*<option value="2\.5d"[^>]*>2\.5D/);
+  const main = read('js/main.js');
+  assert.match(main, /body:JSON\.stringify\(\{name,mode\}\)/);
+  assert.match(main, /b\.mode==='2\.5d'/);
+  const core = read('js/core.js');
+  assert.match(core, /mode:'2d'/);
+  assert.match(core, /const is25=\(\)=>S\.mode==='2\.5d'/);
+});

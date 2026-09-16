@@ -122,6 +122,7 @@ function renderDash(){
     for(const b of list){
       const card=document.createElement('article');card.className='boardCard';
       const h=document.createElement('h3');h.textContent=b.name;
+      if(b.mode==='2.5d'){const tag=document.createElement('span');tag.className='tag';tag.textContent='2.5D';h.append(' ',tag)}
       const meta=document.createElement('div');meta.className='meta';
       meta.textContent=`${b.members} ${b.members===1?'miembro':'miembros'}, ${b.scenes} ${b.scenes===1?'escena':'escenas'}, actualizado ${ago(b.updated_at)}`+(b.role==='gm'?'':`. Dirige ${b.owner_name}`);
       const row=document.createElement('div');row.className='row';
@@ -143,9 +144,9 @@ function renderDash(){
 $('#newBoardForm').onsubmit=e=>{
   e.preventDefault();
   withBusy($('#newBoardForm'),async()=>{
-    const name=$('#newBoardName').value.trim();
+    const name=$('#newBoardName').value.trim(),mode=$('#newBoardMode').value;
     try{
-      const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name})});
+      const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name,mode})});
       $('#newBoardName').value='';
       location.hash='#/tablero/'+d.board.id;
     }catch(err){toast(err.message)}

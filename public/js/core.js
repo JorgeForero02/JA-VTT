@@ -54,6 +54,7 @@ const IMG=new Map();      // id de imagen -> HTMLImageElement
 function blankState(){return{
   version:2,name:'Escena nueva',cols:32,rows:22,env:'interior',ambient:0,darkColor:ENVS.interior.dark,
   fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,
+  mode:'2d',
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
 }}
@@ -68,6 +69,7 @@ const isSel=o=>UI.selected.includes(o.id);
 const layerKey=o=>o.type==='asset'?(o.kind==='prop'?'props':'map'):LAYER_OF[o.type];
 const layerState=o=>S.layers[layerKey(o)]||{visible:true,locked:false};
 const isGM=()=>UI.role==='gm';
+const is25=()=>S.mode==='2.5d';
 const myId=()=>UI.me?UI.me.id:null;
 const ownsToken=t=>!!t&&t.type==='token'&&t.owner!=null&&t.owner===myId();
 const ownsPlan=o=>!!o&&o.type==='plan'&&o.owner!=null&&o.owner===myId();

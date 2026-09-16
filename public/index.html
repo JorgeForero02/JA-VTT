@@ -42,6 +42,10 @@
       <form id="newBoardForm" class="dashCard">
         <h2>Nuevo tablero</h2>
         <label class="gateField"><span>Nombre</span><input id="newBoardName" maxlength="60" placeholder="La cripta del lunes" required></label>
+        <label class="gateField"><span>Tipo de mapa</span><select id="newBoardMode">
+          <option value="2d" selected>2D — plano con luz dinámica</option>
+          <option value="2.5d">2.5D — bloques, desniveles y cámara que gira</option>
+        </select></label>
         <button class="btn primary" type="submit" data-ic="plus">Crear y abrir</button>
       </form>
       <form id="joinForm" class="dashCard">
