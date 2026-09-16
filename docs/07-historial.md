@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Producción en https://tablero.supportive.pro
+
+**Qué** — repo privado `JorgeForero02/JA-VTT`; app Coolify `ja-vtt` (uuid
+`d6qlm5kzdoitlacr5br29fna`, proyecto D&D) desde `docker-compose.yml`, dominio
+`tablero.supportive.pro` (antes PlanarAlly, borrado por el usuario; quedan sus tres volúmenes
+`aloj51hvldbfcmvbxfkumfpq_planarally-*` sin uso). Detalle en [03](03-despliegue.md).
+**Por qué** — pedido del usuario tras aprobar la prueba local.
+**Evidencia** — 200 y certificado desde dentro; e2e 10/10 por WSS; restart por API sin perder
+filas (3 usuarios, 2 tableros, 75 objetos). Cuentas `gm-mu3ck9p7`/`pl-mu3ck9p7` del e2e quedan
+en la base (borrado remoto bloqueado por el clasificador); borrar con
+`DELETE FROM users WHERE name IN ('gm-mu3ck9p7','pl-mu3ck9p7')`.
+**Revertir** — `DELETE /api/v1/applications/d6qlm5kzdoitlacr5br29fna` (con volúmenes si se quiere
+borrar la base) y quitar la deploy key del repo.
+
 ## 2026-09-15 — Nace Just Another VTT a partir de Mini VTT
 
 **Qué**

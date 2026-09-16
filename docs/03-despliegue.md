@@ -1,7 +1,30 @@
 # 03 — Despliegue
 
-Estado al 2026-09-15: **probado en local con docker compose. No desplegado todavía en
-Coolify.** Cuando se despliegue, este documento pasa a describir producción.
+Estado al 2026-09-16: **en producción en https://tablero.supportive.pro** (Coolify en vps1new).
+
+## Producción
+
+| Dato | Valor |
+|---|---|
+| Dominio | `https://tablero.supportive.pro` (Let's Encrypt hasta 2026-12-11) |
+| Coolify | proyecto **D&D** · entorno `production` · app `ja-vtt` · uuid `d6qlm5kzdoitlacr5br29fna` |
+| Origen | `git@github.com:JorgeForero02/JA-VTT.git`, rama `main` (punta), compose `/docker-compose.yml` |
+| Clave | `github-deploy-ja-vtt` (Coolify uuid `tvonfo4u5mayl3kxq1owv1cc`), deploy key de sólo lectura en el repo. Privada en `vps1new:/root/.ssh/coolify-keys/ja-vtt-deploy` |
+| Variables | `POSTGRES_USER=jav`, `POSTGRES_DB=jav`, `POSTGRES_PASSWORD` (copia en `vps1new:/root/.ssh/coolify-keys/ja-vtt-postgres-password`) |
+| Contenedores | `app-d6qlm…` y `db-d6qlm…` (el sufijo cambia en cada deploy: resolver por prefijo) |
+| Datos | volumen `d6qlm5kzdoitlacr5br29fna_pgdata` |
+| Dominio en Coolify | `docker_compose_domains = {"app":{"domain":"https://tablero.supportive.pro"}}` |
+
+Desplegar: push a `main` y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
+UI). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
+contenedores con `docker` a mano.
+
+Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
+correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RESTART=no` → 10/10
+(WSS por Traefik, 190 ms por mensaje); restart por API → mismas filas antes y después.
+
+**Copias de seguridad: no las hay, por decisión del usuario (2026-09-16).** El script diario
+`/root/scripts/backup-coolify.sh` no incluye esta base.
 
 ## Piezas
 
@@ -29,15 +52,19 @@ docker compose down -v        # borra TAMBIÉN los datos
 Verificado el 2026-09-15: `docker compose ps` → ambos `healthy`; `GET /` → 200; `down` + `up`
 conserva filas (2 usuarios, 1 tablero, 1 objeto antes y después).
 
-## Coolify (vps1new) — procedimiento previsto, aún no ejecutado
+## Cómo se creó en Coolify (2026-09-16, por API)
 
-1. Subir el repo a GitHub (lo hace el usuario).
-2. Coolify → nuevo recurso → **Docker Compose** desde el repo, fichero `docker-compose.yml`.
-3. Variables en la UI: `POSTGRES_PASSWORD` fuerte; el resto puede quedar por defecto.
-   **Recordar:** en Coolify cambiar una variable **recompila** la imagen.
-4. Dominio en el servicio `app`, puerto 3000. Traefik añade TLS. Sin publicar puertos.
-5. Comprobar desde dentro del servidor: `curl -s https://DOMINIO/api/health`.
-6. Documentar en `vps1new:/root/docs/` (01–05, 07) y aquí.
+1. Repo privado `JorgeForero02/JA-VTT`; clave ed25519 generada en el servidor, alta en Coolify
+   (`POST /security/keys`) y como deploy key de sólo lectura en GitHub (una deploy key sólo
+   puede vivir en un repo: la de DnD no servía).
+2. `POST /applications/private-deploy-key` con `build_pack: dockercompose`,
+   `docker_compose_location: /docker-compose.yml`, `instant_deploy: false`.
+3. Coolify **crea solo las variables del compose**, con el texto del `:?` como valor:
+   `PATCH /applications/{uuid}/envs` para poner la contraseña real.
+4. Primer deploy sin dominio (Coolify rechaza el dominio hasta leer el compose). Después
+   `PATCH /applications/{uuid}` con `docker_compose_domains` **en forma de array**
+   `[{"name":"app","domain":"https://…"}]` y redeploy.
+5. Verificar desde dentro con `--resolve DOMINIO:443:127.0.0.1` (Norton falsea el TLS en el PC).
 
 WebSocket: Traefik lo pasa sin configuración extra; el cliente usa `wss://` cuando la
 página va por `https`.
@@ -51,8 +78,9 @@ docker compose exec -T db pg_dump -U jav -d jav --format=custom > jav-$(date +%F
 docker compose exec -T db pg_restore -U jav -d jav --clean --if-exists < jav-YYYY-MM-DD.dump
 ```
 
-En vps1new hay un backup diario a Drive (`gdrive:vps1new-backups`); al desplegar, añadir
-esta base a ese guion (pendiente en [06](06-pendientes.md)).
+El usuario decidió (2026-09-16) **no** añadir esta base al backup diario de vps1new. Si cambia
+de idea: bloque nuevo en `/root/scripts/backup-coolify.sh` resolviendo el contenedor por
+prefijo `db-d6qlm5kzdoitlacr5br29fna`.
 
 ## Gotchas
 
