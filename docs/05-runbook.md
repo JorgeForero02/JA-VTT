@@ -55,3 +55,10 @@ No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producció
 - `npm test` dio 2 fallos intermitentes en `realtime.test.js` el 2026-09-15 mientras Docker
   construía la imagen (CPU saturada); 9 corridas posteriores limpias. La espera por mensaje
   WS en tests es de 5 s (`test/helpers/ws.js`). No correr la suite mientras se construye.
+
+## Perfilar el render
+
+En la consola del navegador, dentro de un tablero: `const t=performance.now()/1000; const f=()=>cx.dark.getImageData(0,0,1,1);
+let t0=performance.now(); for(let i=0;i<20;i++){frame.sources=null;drawAll(t+i*.016,true);f()} (performance.now()-t0)/20`
+→ ms por fotograma de animación de luz. Referencia 2026-09-16 (Edge headless, 1920×1080 @2x, 7 luces,
+60 muros): 16 ms; por encima de 30 ms se notan tirones en el pulso.

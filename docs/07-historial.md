@@ -184,3 +184,12 @@ La máscara de luz pasaba de brillante a tenue en un 4 % del radio (anillo duro)
 movía ese anillo ±5 % con la intensidad bajando al 72 %: se veía a saltos aunque los fps fueran
 estables (comprobado con capturas consecutivas en Edge headless). Ahora la transición ocupa del
 −10 % al +14 % del radio brillante y el pulso es ±3 % de radio e intensidad 80–100 %.
+
+## 2026-09-16 — Fotograma de luz 3,5× más barato
+
+Medido en Edge headless a 1920×1080 con escala 2: 58 ms por fotograma animado (dos composiciones
+`destination-out` a pantalla completa a 3064×2052 px) → 16 ms. Dos cambios: las capas de luz
+(máscara, visión, exploración, brillo, oscuridad) se dibujan a escala 1 y el navegador las
+amplía (son degradados, no se nota); la niebla explorada desenfocada se compone sólo en los
+fotogramas completos y los de animación reutilizan la imagen. Mapa, fichas y controles siguen a
+la escala nativa. Guion de medida: ver `05-runbook` (perfilado).

@@ -5,8 +5,8 @@
 const stage=$('#stage');
 const cv={scene:$('#cScene'),glow:$('#cGlow'),dark:$('#cDark'),over:$('#cOver')};
 const cx={scene:cv.scene.getContext('2d'),glow:cv.glow.getContext('2d'),dark:cv.dark.getContext('2d'),over:cv.over.getContext('2d')};
-const maskC=document.createElement('canvas'),losC=document.createElement('canvas');
-const mctx=maskC.getContext('2d'),lctx=losC.getContext('2d');
+const maskC=document.createElement('canvas'),losC=document.createElement('canvas'),expC=document.createElement('canvas');
+const mctx=maskC.getContext('2d'),lctx=losC.getContext('2d'),ectx=expC.getContext('2d');
 /* Memoria de exploración por bloques: el mundo no tiene bordes */
 const EXP={scale:.2,size:2000,chunks:new Map(),max:160,boost:3,blur:2.5}; // boost: la luz tenue vista cuenta como explorada
 function expChunk(cx,cy,create){
@@ -18,10 +18,16 @@ function expChunk(cx,cy,create){
   return ch;
 }
 function viewRect(){const z=UI.cam.zoom;return{x0:UI.cam.x-W/(2*z),y0:UI.cam.y-H/(2*z),x1:UI.cam.x+W/(2*z),y1:UI.cam.y+H/(2*z)}}
-let W=800,H=600,dpr=1;
+let W=800,H=600,dpr=1,ldpr=1;
+/* Las capas de luz (máscara, visión, exploración, brillo, oscuridad) son degradados: se dibujan a
+   escala 1 aunque la pantalla sea 2x. Cuatro veces menos píxeles por fotograma animado. */
+const LIGHT_LAYERS=()=>[maskC,losC,expC,cv.glow,cv.dark];
+const scaleOf=ctx=>ctx.canvas.__s||dpr;
 function resize(){
   const r=stage.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);dpr=Math.min(2,window.devicePixelRatio||1);
-  for(const c of[...Object.values(cv),maskC,losC]){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
+  ldpr=Math.min(dpr,1);
+  const light=new Set(LIGHT_LAYERS());
+  for(const c of[...Object.values(cv),maskC,losC,expC]){const d=light.has(c)?ldpr:dpr;c.__s=d;c.width=Math.round(W*d);c.height=Math.round(H*d)}
   requestRender();
 }
 function resetExplored(){EXP.chunks.clear()}
@@ -36,8 +42,8 @@ function loadFog(list){
 function takeDirtyFog(){const out=[];for(const[k,ch]of EXP.chunks)if(ch.dirty){ch.dirty=false;const[cx,cy]=k.split(',').map(Number);out.push({cx,cy,data:ch.c.toDataURL('image/png')})}return out}
 const toWorld=sp=>({x:(sp.x-W/2)/UI.cam.zoom+UI.cam.x,y:(sp.y-H/2)/UI.cam.zoom+UI.cam.y});
 const toScreen=p=>({x:(p.x-UI.cam.x)*UI.cam.zoom+W/2,y:(p.y-UI.cam.y)*UI.cam.zoom+H/2});
-function setWorld(ctx){const z=UI.cam.zoom;ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(W/2-UI.cam.x*z),dpr*(H/2-UI.cam.y*z))}
-function setScreen(ctx){ctx.setTransform(dpr,0,0,dpr,0,0)}
+function setWorld(ctx){const z=UI.cam.zoom,d=scaleOf(ctx);ctx.setTransform(d*z,0,0,d*z,d*(W/2-UI.cam.x*z),d*(H/2-UI.cam.y*z))}
+function setScreen(ctx){const d=scaleOf(ctx);ctx.setTransform(d,0,0,d,0,0)}
 function setRaw(ctx){ctx.setTransform(1,0,0,1,0,0)}
 const px=n=>n/UI.cam.zoom; // tamaño constante en pantalla
 
@@ -62,7 +68,7 @@ function drawAll(t,lightsOnly){
   if(!lightsOnly){drawScene(player);if(player)buildLosMask(vs)}
   buildLightMask(t,player,vs);
   drawGlow(t,player);
-  drawDarkness(player,vs);
+  drawDarkness(player,vs,lightsOnly);
   if(lightsOnly)return;
   drawOverlay(player);
   $('#blindNote').style.display=player&&!vs.length?'grid':'none';
@@ -193,7 +199,25 @@ function drawGlow(t,player){
   if(player){c.globalCompositeOperation='destination-in';setRaw(c);c.drawImage(losC,0,0);c.globalCompositeOperation='source-over'}
   if(S.zones.length&&S.ambient>0){/* sin tinte extra */}
 }
-function drawDarkness(player,vs){
+/* Memoria de exploración en pantalla (espacio de píxeles), ya desenfocada */
+function composeExplored(){
+  const c=ectx;setRaw(c);c.globalCompositeOperation='source-over';c.clearRect(0,0,expC.width,expC.height);
+  const d=scaleOf(c),z=UI.cam.zoom,s=EXP.scale,v=viewRect(),k=s/(d*z),S2=EXP.size;
+  const cx0=Math.floor(v.x0/S2),cx1=Math.floor(v.x1/S2),cy0=Math.floor(v.y0/S2),cy1=Math.floor(v.y1/S2);
+  const few=(cx1-cx0+1)*(cy1-cy0+1)<=48;
+  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+  // la memoria es de baja resolución: un desenfoque leve en pantalla disimula los escalones al ampliarla
+  if('filter' in c)c.filter=`blur(${EXP.blur*d}px)`;
+  for(let cx=cx0;cx<=cx1;cx++)for(let cy=cy0;cy<=cy1;cy++){
+    const ch=expChunk(cx,cy,few);if(!ch)continue;
+    if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.imageSmoothingEnabled=true;ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
+    c.setTransform(d*z/s,0,0,d*z/s,d*(W/2+(cx*S2-UI.cam.x)*z),d*(H/2+(cy*S2-UI.cam.y)*z));
+    c.drawImage(ch.c,0,0);
+  }
+  if('filter' in c)c.filter='none';
+  setRaw(c);
+}
+function drawDarkness(player,vs,lightsOnly){
   const c=cx.dark;setRaw(c);c.globalCompositeOperation='source-over';c.globalAlpha=1;c.clearRect(0,0,cv.dark.width,cv.dark.height);
   if(!player){
     if(!UI.preview)return;
@@ -203,21 +227,10 @@ function drawDarkness(player,vs){
   }
   c.fillStyle=S.darkColor;c.fillRect(0,0,cv.dark.width,cv.dark.height);
   if(S.fog&&vs.length){
-    // guardar lo visto en la memoria de exploración (espacio del mundo)
-    const z=UI.cam.zoom,s=EXP.scale,v=viewRect(),k=s/(dpr*z),S2=EXP.size;
-    const cx0=Math.floor(v.x0/S2),cx1=Math.floor(v.x1/S2),cy0=Math.floor(v.y0/S2),cy1=Math.floor(v.y1/S2);
-    const few=(cx1-cx0+1)*(cy1-cy0+1)<=48;
-    c.globalCompositeOperation='destination-out';c.globalAlpha=.42;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
-    // la memoria es de baja resolución: un desenfoque leve en pantalla disimula los escalones al ampliarla
-    if('filter' in c)c.filter=`blur(${EXP.blur*dpr}px)`;
-    for(let cx=cx0;cx<=cx1;cx++)for(let cy=cy0;cy<=cy1;cy++){
-      const ch=expChunk(cx,cy,few);if(!ch)continue;
-      if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.imageSmoothingEnabled=true;ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
-      c.setTransform(dpr*z/s,0,0,dpr*z/s,dpr*(W/2+(cx*S2-UI.cam.x)*z),dpr*(H/2+(cy*S2-UI.cam.y)*z));
-      c.drawImage(ch.c,0,0);
-    }
-    if('filter' in c)c.filter='none';
-    setRaw(c);c.globalAlpha=1;
+    // en los fotogramas de animación de luz la memoria explorada no cambia: se reutiliza la
+    // composición desenfocada (el desenfoque por CPU en cada frame era lo que daba tirones)
+    if(!lightsOnly)composeExplored();
+    c.globalCompositeOperation='destination-out';c.globalAlpha=.42;c.drawImage(expC,0,0);c.globalAlpha=1;
   }
   c.globalCompositeOperation='destination-out';
   c.drawImage(maskC,0,0);

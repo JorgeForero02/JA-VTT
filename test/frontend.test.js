@@ -154,3 +154,11 @@ test('luces: transición brillante→tenue ancha y pulso contenido', () => {
   assert.match(render, /g\.addColorStop\(Math\.max\(0,b-\.1\),`rgba\(255,255,255,\$\{top\}\)`\);g\.addColorStop\(Math\.min\(\.97,b\+\.14\)/);
   assert.match(read('js/core.js'), /if\(src\.anim==='pulse'\)\{const n=Math\.sin\(t\*1\.4\+s\);return\{r:1\+n\*\.03,i:\.9\+n\*\.1\}\}/);
 });
+
+test('render: capas de luz a escala 1 y exploración desenfocada cacheada entre fotogramas', () => {
+  const render = read('js/render.js');
+  assert.match(render, /ldpr=Math\.min\(dpr,1\);/);
+  assert.match(render, /const LIGHT_LAYERS=\(\)=>\[maskC,losC,expC,cv\.glow,cv\.dark\];/);
+  assert.match(render, /function setWorld\(ctx\)\{const z=UI\.cam\.zoom,d=scaleOf\(ctx\);/);
+  assert.match(render, /if\(!lightsOnly\)composeExplored\(\);/);
+});
