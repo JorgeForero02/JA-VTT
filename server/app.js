@@ -616,10 +616,17 @@ async function recover(req, res) {
   const token = await db.createSession(user.id);
   return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
 }
+/* Las cuentas anteriores a la migración 002 no tienen código: se les da uno al entrar o al mirar el perfil */
+async function ensureRecoveryCode(user) {
+  if (user.recovery_code) return user.recovery_code;
+  user.recovery_code = db.newRecoveryCode();
+  await q.setRecoveryCode(user.recovery_code, user.id);
+  return user.recovery_code;
+}
 async function meRoutes(req, res, user, parts) {
   const M = req.method;
   if (parts[1] === 'recovery') {
-    if (M === 'GET') return send(res, 200, { recovery_code: (await q.userById(user.id)).recovery_code });
+    if (M === 'GET') return send(res, 200, { recovery_code: await ensureRecoveryCode(await q.userById(user.id)) });
     if (M === 'POST') { const code = db.newRecoveryCode(); await q.setRecoveryCode(code, user.id); return send(res, 200, { recovery_code: code }); }
   }
   if (parts[1] === 'password' && M === 'POST') {
@@ -645,6 +652,7 @@ async function login(req, res) {
   const user = name ? await q.userByName(name) : null;
   const ok = user ? await verifyPassword(body.password, user.password_hash) : false;
   if (!ok) return fail(res, 401, 'Usuario o contraseña incorrectos');
+  await ensureRecoveryCode(user);
   const token = await db.createSession(user.id);
   return send(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
 }

@@ -36,6 +36,15 @@ test('registro devuelve código de recuperación; con él se cambia la contrase�
   assert.equal((await fetch(base + '/api/me', { headers: { Cookie: oldCookie } })).status, 401, 'la sesión anterior ya no vale');
 });
 
+test('una cuenta sin código (anterior a la migración) recibe uno al entrar', async () => {
+  await db.pool.query("UPDATE users SET recovery_code = NULL WHERE lower(name) = 'ana'");
+  const login = await post('/api/login', { name: 'Ana', password: 'nueva123' });
+  assert.equal(login.status, 200);
+  const code = (await getJson('/api/me/recovery', cookieOf(login))).recovery_code;
+  assert.match(code, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  assert.equal((await db.q.userByName('Ana')).recovery_code, code);
+});
+
 test('regenerar el código invalida el anterior; cambiar contraseña exige la actual', async () => {
   const login = await post('/api/login', { name: 'Ana', password: 'nueva123' });
   const cookie = cookieOf(login);
