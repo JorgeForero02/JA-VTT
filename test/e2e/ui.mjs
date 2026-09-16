@@ -116,10 +116,27 @@ try {
   await shot(gm, '05-iniciativa-director');
   await shot(pl, '06-iniciativa-jugador');
 
-  // director apaga chat: la pestaña desaparece al jugador
+  // tirada privada del director: sólo él la ve
+  await gm.click('[data-tab="chat"]');
+  await gm.click('#secretRoll');
+  await gm.click('#diceBar .die[data-d="20"]');
+  await gm.waitForSelector('.chatMsg.roll.secret', { timeout: 5000 });
+  await pl.waitForTimeout(600);
+  step('tirada privada: el director la ve marcada, el jugador no la recibe', (await pl.locator('.chatMsg.roll').count()) === 2 && (await gm.locator('.chatMsg.roll').count()) === 3);
+  await gm.click('#secretRoll');
+  await shot(gm, '05b-tirada-privada');
+
+  // director apaga el chat (Ajustes): nadie escribe, la pestaña sigue por los dados; apaga dados: la pestaña desaparece para todos
+  await gm.click('[data-tab="layers"]');
   await gm.uncheck('#chatEnabled');
+  await pl.waitForFunction(() => document.getElementById('chatForm').style.display === 'none' && document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
+  step('chat apagado: el jugador pierde la caja de texto pero conserva los dados', true);
+  await gm.uncheck('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display === 'none', null, { timeout: 5000 });
-  step('chat: al desactivarlo, el jugador pierde la pestaña', true);
+  const gmTabHidden = await gm.evaluate(() => document.querySelector('[data-tab="chat"]').style.display === 'none');
+  step('chat y dados apagados: la pestaña desaparece para jugador y director', gmTabHidden);
+  await gm.check('#chatEnabled'); await gm.check('#diceEnabled');
+  await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
 
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';

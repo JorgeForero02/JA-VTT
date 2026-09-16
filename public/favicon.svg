@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1C2226"/>
+  <!-- d20 visto de frente: hexágono con el triángulo central y las aristas -->
+  <g fill="none" stroke="#F0B35A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="32,7 54,20 54,44 32,57 10,44 10,20"/>
+    <polygon points="32,17 47,40 17,40" fill="#F0B35A" fill-opacity=".18"/>
+    <path d="M32,7 32,17 M54,20 47,40 M10,20 17,40 M54,44 47,40 M10,44 17,40 M32,57 47,40 M32,57 17,40"/>
+  </g>
+  <text x="32" y="36" text-anchor="middle" font-family="Georgia, 'Alegreya', serif" font-weight="700" font-size="15" fill="#E9E3D5">20</text>
+</svg>

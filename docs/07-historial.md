@@ -2,6 +2,17 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Ajustes de chat/dados para todos, tiradas privadas, dados rediseñados, favicon
+
+**Qué** — `diceEnabled` junto a `chatEnabled`, ambos en la pestaña Ajustes y apagan la función
+para todo el mundo (la pestaña Chat desaparece si no queda nada). Tirada privada del director
+(candado / `/rs`): sólo a sus pantallas, sin guardar. Dados: rótulos colocados por la geometría
+real de cada cara (centro y radio inscrito; en el d4 un número por vértice), acabado con degradado
+del color del jugador, filigrana dorada y número marfil con borde. Iniciativa: editor rehecho
+(cabecera con ronda y turno, filas con marcador, herramientas agrupadas) y barra con colores
+fijos (no dependía del tema y salía ilegible en tema claro). Favicon SVG propio (d20) en vez de emoji.
+**Revertir** — `git revert` del commit.
+
 ## 2026-09-16 — Recuperación de contraseña, chat, dados 3D e iniciativa
 
 **Qué** — spec en `superpowers/specs/2026-09-16-chat-dados-iniciativa-recuperacion-design.md`.

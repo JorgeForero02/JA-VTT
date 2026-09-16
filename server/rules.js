@@ -96,14 +96,14 @@ function sanitize(o) {
   return null;
 }
 
-const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'initiativeShown', 'initiative'];
+const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative'];
 function cleanSettings(sc) {
   const o = {};
   if (!sc || typeof sc !== 'object') return o;
   if (ENVS.includes(sc.env)) o.env = sc.env;
   if (fin(sc.ambient)) o.ambient = clamp(sc.ambient, 0, 1);
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
-  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
+  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
   if (sc.initiative !== undefined) o.initiative = cleanInitiative(sc.initiative);
   if (sc.layers && typeof sc.layers === 'object') {
     o.layers = {};
@@ -116,7 +116,7 @@ function cleanSettings(sc) {
 }
 
 const DEFAULT_SCENE = { env: 'interior', ambient: 0, darkColor: '#0B0E11', fog: true, grid: true, snap: true, animate: true, plansReleased: false };
-const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, initiativeShown: false, initiative: { entries: [], turn: 0, round: 1 } };
+const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, initiative: { entries: [], turn: 0, round: 1 } };
 function splitSettings(sc) {
   const all = cleanSettings(sc), board = {}, scene = {};
   for (const [k, v] of Object.entries(all)) (BOARD_KEYS.includes(k) ? board : scene)[k] = v;

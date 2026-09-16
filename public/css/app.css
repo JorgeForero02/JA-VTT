@@ -328,17 +328,72 @@ code.secret{letter-spacing:.08em}
 .chatForm input{flex:1;min-height:36px;background:var(--ink);border:1px solid var(--line);border-radius:9px;padding:0 10px;color:var(--bone);font-size:14px}
 .chatHint{padding:0 12px 10px;margin:0}
 .chatHint code{font-size:12px}
-.initList .initRow{display:grid;grid-template-columns:1fr 64px auto auto;gap:6px;align-items:center;padding:4px 0}
-.initList .initRow input{min-height:30px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px;color:var(--bone);font-size:14px}
-.initList .initRow.current{background:var(--amber-soft);border-radius:8px;padding:4px 6px}
-.initList .initRow.hidden input{opacity:.55}
-.initBar{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 10px;background:rgba(28,34,38,.92);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);backdrop-filter:blur(4px)}
-.initRound{color:var(--fog);font-size:12px;white-space:nowrap}
-.initEntries{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin}
-.initEntry{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:4px 8px;border-radius:9px;border:1px solid transparent;font-size:12px;color:var(--fog);white-space:nowrap}
-.initEntry b{font:700 17px/1 var(--serif);color:var(--bone);margin-bottom:2px}
-.initEntry.current{border-color:var(--amber);background:var(--amber-soft);color:var(--bone)}
-.initEntry.current b{color:var(--amber)}
 .row.wrap{flex-wrap:wrap}
 @media (max-width:980px){.initBar{top:6px;max-width:calc(100% - 12px)}}
 .tabs button.unread::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-left:5px;vertical-align:middle}
+
+/* Iniciativa: editor (Mesa) */
+.initBody{display:flex;flex-direction:column;gap:10px}
+.initHead{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.initRoundBox{display:flex;flex-direction:column;align-items:center;line-height:1.15}
+.initRoundBox b{font:700 17px var(--serif);color:var(--bone)}
+.initRoundBox span{font-size:12px;color:var(--fog)}
+.initList{display:flex;flex-direction:column;gap:4px}
+.initList:empty::after{content:'Añade fichas de la escena o entradas sueltas y tira d20.';display:block;padding:10px;border:1px dashed var(--line);border-radius:10px;color:var(--fog);font-size:13px;text-align:center}
+.initRow{display:grid;grid-template-columns:8px 1fr 54px 30px 30px;gap:6px;align-items:center;padding:4px 6px 4px 4px;border-radius:9px;border:1px solid transparent;background:var(--raise)}
+.initRow .mark{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.initRow.current{border-color:var(--amber);background:var(--amber-soft)}
+.initRow.current .mark{background:var(--amber);box-shadow:0 0 0 3px rgba(240,179,90,.25)}
+.initRow input{min-height:30px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px;color:var(--bone);font-size:14px;min-width:0}
+.initRow input.val{text-align:center;font:700 15px var(--serif)}
+.initRow.hidden input{opacity:.5;text-decoration:line-through}
+.initRow .btn.sq{width:30px;height:30px;min-height:0}
+.initTools{display:flex;flex-wrap:wrap;gap:6px}
+.initTools .btn{flex:1 1 auto}
+/* Iniciativa: barra sobre el mapa (siempre oscura, sobre el mapa: colores fijos, no del tema) */
+.initBar{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 8px 6px 12px;background:rgba(28,34,38,.94);border:1px solid rgba(233,227,213,.18);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(4px);color:#E9E3D5}
+.initBar .btn{color:#E9E3D5;border-color:rgba(233,227,213,.18);background:transparent}
+.initBar .initRound{color:#9CA7A7;font-size:12px;white-space:nowrap;padding-right:8px;border-right:1px solid rgba(233,227,213,.18)}
+.initEntries{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:3px 4px;max-width:min(70vw,760px)}
+.initEntry{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;border:1px solid rgba(233,227,213,.18);background:rgba(233,227,213,.08);font-size:13px;color:#9CA7A7;white-space:nowrap}
+.initEntry b{font:700 15px/1 var(--serif);color:#E9E3D5}
+.initEntry.current{border-color:#F0B35A;background:rgba(240,179,90,.18);color:#E9E3D5;transform:scale(1.06)}
+.initEntry.current b{color:#F0B35A}
+.initEntry.done{opacity:.55}
+@media (max-width:980px){.initBar{top:6px;max-width:calc(100% - 12px)}}
+.tabs button.unread::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-left:5px;vertical-align:middle}
+
+/* Iniciativa: editor (Mesa) */
+.initBody{display:flex;flex-direction:column;gap:10px}
+.initHead{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.initRoundBox{display:flex;flex-direction:column;align-items:center;line-height:1.15}
+.initRoundBox b{font:700 17px var(--serif);color:var(--bone)}
+.initRoundBox span{font-size:12px;color:var(--fog)}
+.initList{display:flex;flex-direction:column;gap:4px}
+.initList:empty::after{content:'Añade fichas de la escena o entradas sueltas y tira d20.';display:block;padding:10px;border:1px dashed var(--line);border-radius:10px;color:var(--fog);font-size:13px;text-align:center}
+.initRow{display:grid;grid-template-columns:8px 1fr 54px 30px 30px;gap:6px;align-items:center;padding:4px 6px 4px 4px;border-radius:9px;border:1px solid transparent;background:var(--raise)}
+.initRow .mark{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.initRow.current{border-color:var(--amber);background:var(--amber-soft)}
+.initRow.current .mark{background:var(--amber);box-shadow:0 0 0 3px rgba(240,179,90,.25)}
+.initRow input{min-height:30px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px;color:var(--bone);font-size:14px;min-width:0}
+.initRow input.val{text-align:center;font:700 15px var(--serif)}
+.initRow.hidden input{opacity:.5;text-decoration:line-through}
+.initRow .btn.sq{width:30px;height:30px;min-height:0}
+.initTools{display:flex;flex-wrap:wrap;gap:6px}
+.initTools .btn{flex:1 1 auto}
+/* Iniciativa: barra sobre el mapa */
+.initBar{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);padding:6px 8px 6px 12px;background:rgba(28,34,38,.94);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(4px)}
+.initBar .initRound{color:var(--fog);font-size:12px;white-space:nowrap;padding-right:8px;border-right:1px solid var(--line)}
+.initEntries{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:3px 4px;max-width:min(70vw,760px)}
+.initEntry{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--raise);font-size:13px;color:var(--fog);white-space:nowrap}
+.initEntry b{font:700 15px/1 var(--serif);color:var(--bone)}
+.initEntry.current{border-color:var(--amber);background:var(--amber-soft);color:var(--bone);transform:scale(1.06)}
+.initEntry.current span{color:#E9E3D5}
+.initEntry.current b{color:var(--amber)}
+.initEntry.done{opacity:.6}
+@media (max-width:980px){.initBar{top:6px;max-width:calc(100% - 12px)}}
+/* Tirada privada */
+.diceBar .secretToggle{flex:0 0 40px}
+.diceBar .secretToggle[aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+.chatMsg.roll.secret{border-style:dashed;border-color:var(--amber)}
+.chatMsg.roll.secret .formula::before{content:'privada · ';color:var(--amber)}

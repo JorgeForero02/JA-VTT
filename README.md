@@ -72,8 +72,10 @@ recuerda cuáles dejaste abiertas):
 | **Mesa** | Participantes, invitaciones, reglas para jugadores, iniciativa y conexión |
 | **Ajustes** | Vista, cuadrícula, capas, tipos de muro y atajos de teclado |
 
-Los jugadores ven Fichas, Chat, Mesa y Ajustes. El director puede quitarles el chat y los dados
-(Mesa → Reglas para jugadores) y decide si ven la **iniciativa**: la gestiona en Mesa
+Los jugadores ven Fichas, Chat, Mesa y Ajustes. El director puede apagar el chat, los dados o
+ambos para **todo el mundo** (Ajustes → Chat y dados; si apaga los dos, la pestaña desaparece),
+puede hacer **tiradas privadas** (candado en la botonera o `/rs 1d20`) que sólo él ve y no quedan
+en el chat, y decide si los jugadores ven la **iniciativa**: la gestiona en Mesa
 (añadir fichas o entradas, tirar d20, ordenar, siguiente turno) y, si la muestra, aparece como
 barra sobre el mapa con el turno actual y la ronda; las fichas ocultas no salen.
 

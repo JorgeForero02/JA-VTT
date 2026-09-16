@@ -363,19 +363,26 @@ async function postChat(b, c, kind, body) {
   broadcast(b, { t: 'chat', msg });
   if (row.id % 50 === 0) await q.trimChat(b.id, CHAT_KEEP);
 }
-const chatAllowed = (b, c) => c.role === 'gm' || b.settings.chatEnabled !== false;
+/* Chat y dados se apagan para todo el mundo, director incluido: así nadie los ve */
 async function handleChat(b, c, d) {
-  if (!chatAllowed(b, c)) return c.ws.send({ t: 'error', error: 'El director ha desactivado el chat' });
+  if (b.settings.chatEnabled === false) return c.ws.send({ t: 'error', error: 'El chat está desactivado en este tablero' });
   const text = R.str(d.text, CHAT_MAX_TEXT).trim();
   if (!text) return;
   await postChat(b, c, 'text', { text });
 }
+/* Tirada privada del director: sólo la reciben sus propias pantallas y no se guarda */
 async function handleRoll(b, c, d) {
-  if (!chatAllowed(b, c)) return c.ws.send({ t: 'error', error: 'El director ha desactivado los dados' });
+  if (b.settings.diceEnabled === false) return c.ws.send({ t: 'error', error: 'Los dados están desactivados en este tablero' });
   let result;
   try { result = dice.roll(d.formula); } catch (e) { return c.ws.send({ t: 'error', error: e.message }); }
   const label = R.str(d.label, 60).trim();
-  await postChat(b, c, 'roll', Object.assign(result, label ? { label } : {}));
+  const body = Object.assign(result, label ? { label } : {});
+  if (d.secret && c.role === 'gm') {
+    const msg = { id: -Date.now(), user_id: c.user.id, user_name: c.user.name, user_color: c.user.color, kind: 'roll', body, created_at: Date.now(), secret: true };
+    for (const other of b.clients) if (other.role === 'gm') other.ws.send({ t: 'chat', msg });
+    return;
+  }
+  await postChat(b, c, 'roll', body);
 }
 async function handleInitiative(b, c, d) {
   if (c.role !== 'gm') return;

@@ -104,10 +104,10 @@ test('chat, dados, iniciativa y perfil: piezas del cliente en su sitio', () => {
   const net = read('js/net.js');
   assert.match(net, /case 'chat':Chat\.receive\(d\.msg\)/);
   assert.match(net, /case 'initiative':UI\.initiative=d\.initiative\|\|null;renderInitiative\(\)/);
-  assert.match(net, /'chatEnabled','initiativeShown'\]/);
+  assert.match(net, /'chatEnabled','diceEnabled','initiativeShown'\]/);
   const editor = read('js/editor.js');
   assert.match(editor, /function syncChatTab\(\)/);
-  assert.match(editor, /Dice3D\.roll\(\$\('#stageWrap'\),m\.body\.dice,m\.user_color,m\.id\)/);
+  assert.match(editor, /Dice3D\.roll\(\$\('#stageWrap'\),m\.body\.dice,m\.user_color,Math\.abs\(m\.id\)\)/);
   assert.match(editor, /const show=i&&i\.entries\.length&&\(gm\|\|S\.initiativeShown===true\)/);
   const main = read('js/main.js');
   assert.match(main, /recover:'\/api\/recover'/);
@@ -117,4 +117,23 @@ test('chat, dados, iniciativa y perfil: piezas del cliente en su sitio', () => {
   assert.match(dice, /Math\.max\(0, now - start\)/);
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'js', 'vendor', 'three.module.min.js')));
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'js', 'vendor', 'cannon-es.js')));
+});
+
+test('ajustes de chat/dados para todos, tirada privada, favicon propio', () => {
+  const html = read('index.html');
+  assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="favicon\.svg">/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'favicon.svg')));
+  assert.match(html, /id="tab-layers">\s*<details class="fold gmSect" data-fold="mesa"/, 'los interruptores viven en Ajustes');
+  assert.match(html, /id="diceEnabled"/);
+  assert.match(html, /class="die secretToggle gmOnly" id="secretRoll"/);
+  const editor = read('js/editor.js');
+  assert.match(editor, /const chat=S\.chatEnabled!==false,dice=S\.diceEnabled!==false;/);
+  assert.match(editor, /rs|gr|privada/, 'comandos de tirada privada');
+  const net = read('js/net.js');
+  assert.match(net, /roll\(formula,label,secret\)\{return send\(\{t:'roll',formula,label,secret:!!secret\}\)\}/);
+  const css = read('css/app.css');
+  assert.match(css, /\.initBar\{[^}]*color:#E9E3D5\}/, 'la barra de iniciativa no depende del tema');
+  const dice = read('js/dice3d.js');
+  assert.match(dice, /function faceFrame\(solid, f, sides\)/);
+  assert.match(dice, /const size = fr\.inR \* half \*/, 'el número se escala al radio inscrito de la cara');
 });

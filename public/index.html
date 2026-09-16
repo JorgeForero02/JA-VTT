@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Just Another VTT</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕯️</text></svg>">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -265,10 +265,10 @@
     <section class="tabpane chatPane" id="tab-chat">
       <div id="chatLog" class="chatLog" aria-live="polite"></div>
       <div class="diceBar" id="diceBar" role="group" aria-label="Dados">
-        <button class="die" data-d="4">d4</button><button class="die" data-d="6">d6</button><button class="die" data-d="8">d8</button><button class="die" data-d="10">d10</button><button class="die" data-d="12">d12</button><button class="die" data-d="20">d20</button><button class="die" data-d="100">d100</button>
+        <button class="die" data-d="4">d4</button><button class="die" data-d="6">d6</button><button class="die" data-d="8">d8</button><button class="die" data-d="10">d10</button><button class="die" data-d="12">d12</button><button class="die" data-d="20">d20</button><button class="die" data-d="100">d100</button><button class="die secretToggle gmOnly" id="secretRoll" aria-pressed="false" title="Tirada privada: sólo la ves tú y no queda en el chat" data-ic="lock" aria-label="Tirada privada"></button>
       </div>
       <form id="chatForm" class="chatForm"><input id="chatInput" maxlength="500" placeholder="Mensaje, o /r 2d6+3" autocomplete="off"><button class="btn primary sq" type="submit" data-ic="send" aria-label="Enviar"></button></form>
-      <p class="small muted chatHint">Tirar: pulsa un dado (con Mayús, dos; con Ctrl, tres) o escribe <code>/r 1d20+5</code>. Dados: d4 a d100.</p>
+      <p class="small muted chatHint">Tirar: pulsa un dado (con Mayús, dos; con Ctrl, tres) o escribe <code>/r 1d20+5 # motivo</code>. <span class="gmOnly">Privada: el candado o <code>/rs 1d20</code>.</span></p>
     </section>
     <section class="tabpane" id="tab-live">
       <details class="fold" data-fold="gente" open>
@@ -293,23 +293,26 @@
         <div class="foldBody">
           <label class="check"><input type="checkbox" id="sharedVision"> Visión compartida: cada jugador ve lo que ve el grupo</label>
           <label class="check"><input type="checkbox" id="playersDoors"> Pueden abrir y cerrar puertas</label>
-          <label class="check"><input type="checkbox" id="chatEnabled"> Chat y dados para los jugadores</label>
           <label class="check"><input type="checkbox" id="initiativeShown"> Mostrar la iniciativa a los jugadores</label>
         </div>
       </details>
       <details class="fold gmSect" data-fold="iniciativa" open>
         <summary><span class="foldTitle">Iniciativa</span><span class="count" id="initCount"></span></summary>
-        <div class="foldBody">
-          <div class="row wrap">
-            <button class="btn" id="initAddTokens" data-ic="users" title="Añade las fichas de esta escena que no estén ya">Añadir fichas</button>
+        <div class="foldBody initBody">
+          <div class="initHead">
+            <button class="btn sq" id="initPrev" data-ic="arrow-left" title="Turno anterior" aria-label="Turno anterior"></button>
+            <div class="initRoundBox"><b id="initRoundLabel">Sin participantes</b><span id="initTurnLabel"></span></div>
+            <button class="btn primary" id="initNext" data-ic="redo-2">Siguiente</button>
+          </div>
+          <div class="initList" id="initList"></div>
+          <div class="initTools">
+            <button class="btn" id="initAddTokens" data-ic="users" title="Añade las fichas de esta escena que aún no estén">Fichas de la escena</button>
             <button class="btn" id="initAddCustom" data-ic="plus">Entrada</button>
-            <button class="btn" id="initRollAll" data-ic="dice" title="Tira 1d20 por cada entrada y ordena">Tirar d20</button>
-            <button class="btn ghost" id="initSort" data-ic="sliders-horizontal">Ordenar</button>
+            <button class="btn" id="initRollAll" data-ic="dice" title="Tira 1d20 por cada participante y ordena">Tirar d20</button>
+            <button class="btn ghost" id="initSort" data-ic="sliders-horizontal" title="Ordenar de mayor a menor">Ordenar</button>
             <button class="btn ghost" id="initClear" data-ic="trash-2">Vaciar</button>
           </div>
-          <div class="list initList" id="initList"></div>
-          <div class="row"><button class="btn" id="initPrev" data-ic="arrow-left" aria-label="Anterior"></button><span class="small muted" id="initRoundLabel"></span><button class="btn primary" id="initNext" data-ic="redo-2">Siguiente</button></div>
-          <p class="small muted">Con «Mostrar la iniciativa a los jugadores» activado, ellos ven la barra sin las fichas ocultas ni las entradas marcadas como ocultas.</p>
+          <p class="small muted">Con «Mostrar la iniciativa a los jugadores» (pestaña Mesa → Reglas) ellos ven la barra, sin las fichas ocultas ni las entradas con el ojo cerrado.</p>
         </div>
       </details>
       <details class="fold" data-fold="conexion">
@@ -321,6 +324,14 @@
       </details>
     </section>
     <section class="tabpane" id="tab-layers">
+      <details class="fold gmSect" data-fold="mesa" open>
+        <summary><span class="foldTitle">Chat y dados</span></summary>
+        <div class="foldBody">
+          <label class="check"><input type="checkbox" id="chatEnabled"> Chat de texto</label>
+          <label class="check"><input type="checkbox" id="diceEnabled"> Dados</label>
+          <p class="small muted">Lo que apagues desaparece para todo el mundo, tú incluido. Si apagas las dos cosas, la pestaña Chat se quita.</p>
+        </div>
+      </details>
       <details class="fold" data-fold="vista" open>
         <summary><span class="foldTitle">Vista</span></summary>
         <div class="foldBody">

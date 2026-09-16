@@ -86,25 +86,45 @@ test('chat y dados: llegan a todos, quedan en la base y vienen en el estado; el 
   pl.send({ t: 'roll', formula: 'd7' });
   assert.match((await pl.next((m) => m.t === 'error')).error, /No hay dados de 7/);
 
-  // el director apaga el chat: el jugador no puede, el director sí; el jugador se entera por settings
+  // el director apaga el chat: nadie puede escribir (él tampoco); los dados siguen
   gm.send({ t: 'ops', scene: sceneId, up: [], del: [], settings: { chatEnabled: false } });
   const set = await pl.next((m) => m.t === 'ops' && m.settings);
   assert.equal(set.settings.chatEnabled, false);
+  assert.equal(set.settings.diceEnabled, true);
   assert.equal(set.settings.initiative, undefined, 'la iniciativa no viaja dentro de los ajustes del jugador');
   pl.send({ t: 'chat', text: 'eh' });
-  assert.match((await pl.next((m) => m.t === 'error')).error, /desactivado el chat/);
+  assert.match((await pl.next((m) => m.t === 'error')).error, /chat está desactivado/);
+  gm.send({ t: 'chat', text: 'yo tampoco' });
+  assert.match((await gm.next((m) => m.t === 'error')).error, /chat está desactivado/);
   pl.send({ t: 'roll', formula: 'd20' });
-  assert.match((await pl.next((m) => m.t === 'error')).error, /desactivado los dados/);
-  gm.send({ t: 'chat', text: 'yo sí' });
-  assert.equal((await pl.next((m) => m.t === 'chat')).msg.body.text, 'yo sí');
+  await pl.next((m) => m.t === 'chat' && m.msg.kind === 'roll');
+  await gm.next((m) => m.t === 'chat' && m.msg.kind === 'roll');
+  // y apaga los dados: nadie tira
+  gm.send({ t: 'ops', scene: sceneId, up: [], del: [], settings: { diceEnabled: false } });
+  await pl.next((m) => m.t === 'ops' && m.settings && m.settings.diceEnabled === false);
+  pl.send({ t: 'roll', formula: 'd20' });
+  assert.match((await pl.next((m) => m.t === 'error')).error, /dados están desactivados/);
+  gm.send({ t: 'roll', formula: 'd20', secret: true });
+  assert.match((await gm.next((m) => m.t === 'error')).error, /dados están desactivados/);
+  gm.send({ t: 'ops', scene: sceneId, up: [], del: [], settings: { diceEnabled: true } });
+  await pl.next((m) => m.t === 'ops' && m.settings && m.settings.diceEnabled === true);
+
+  // tirada privada del director: sólo él la recibe y no se guarda
+  gm.send({ t: 'roll', formula: '1d20+2', secret: true, label: 'Percepción del goblin' });
+  const secret = await gm.next((m) => m.t === 'chat' && m.msg.secret);
+  assert.equal(secret.msg.body.label, 'Percepción del goblin');
+  assert.ok(await pl.silence((m) => m.t === 'chat' && m.msg.secret, 400), 'el jugador no ve la tirada privada');
+  pl.send({ t: 'roll', formula: 'd4', secret: true });
+  const notSecret = await gm.next((m) => m.t === 'chat' && m.msg.kind === 'roll' && !m.msg.secret);
+  assert.equal(notSecret.msg.body.formula, '1d4', 'un jugador no puede tirar en privado: su tirada es pública');
 
   await app.flushAll();
   const rows = await db.q.recentChat(boardId, 10);
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4, 'texto, tirada, tirada del jugador con chat apagado, d4 público; la privada no se guarda');
   await pl.close();
   const again = connect(base, boardId, plCookie); await again.opened;
   const st2 = await again.next(isState);
-  assert.deepEqual(st2.chat.map((m) => m.kind), ['text', 'roll', 'text'], 'el historial llega en orden');
+  assert.deepEqual(st2.chat.map((m) => m.kind), ['text', 'roll', 'roll', 'roll'], 'el historial llega en orden');
   assert.equal((await db.q.board(boardId)).settings.chatEnabled, false, 'el ajuste se persistió');
   await gm.close(); await again.close();
 });

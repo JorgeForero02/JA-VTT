@@ -3,7 +3,7 @@
    comparando el estado con la última copia enviada y viaja como operación;
    el servidor valida permisos, guarda en SQLite y reparte a los demás. */
 const COLL_KEYS=Object.values(COLL);
-const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','layers','sharedVision','playersDoors','chatEnabled','initiativeShown'];
+const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','layers','sharedVision','playersDoors','chatEnabled','diceEnabled','initiativeShown'];
 const Net=(()=>{
   let ws=null,boardId=null,closedByUs=true,retry=0,synced=false,retryTimer=0;
   const shadow=new Map();let shadowScene='';
@@ -152,7 +152,7 @@ const Net=(()=>{
     },
     roleChanged(){},
     chat(text){return send({t:'chat',text})},
-    roll(formula,label){return send({t:'roll',formula,label})},
+    roll(formula,label,secret){return send({t:'roll',formula,label,secret:!!secret})},
     setInitiative(initiative){return send({t:'initiative',initiative})},
     replaceAll(name){if(!synced)return;send({t:'replace',scene:UI.scene.id,name,settings:sceneMeta(),objects:COLL_KEYS.flatMap(k=>S[k])});baseline()},
     scene(op,extra){if(UI.realRole!=='gm')return;send(Object.assign({t:'scene',op},extra||{}))},

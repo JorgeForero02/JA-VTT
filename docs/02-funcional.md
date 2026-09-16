@@ -18,7 +18,8 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 - Chat por tablero (todas las escenas), últimos 200 mensajes; los 100 más recientes llegan en el
   estado. Tiradas `NdM±k` con M ∈ {4,6,8,10,12,20,100}, ≤ 20 dados por término, ≤ 5 términos; el
   servidor tira con `crypto.randomInt` y todos los clientes animan el mismo resultado en 3D.
-- El director puede desactivar chat y dados para los jugadores (`chatEnabled`).
+- El director apaga chat (`chatEnabled`) y/o dados (`diceEnabled`) **para todos**, él incluido.
+- Tirada privada (`roll {secret:true}`, sólo director): llega sólo a sus pantallas, no se guarda.
 - Iniciativa: entradas (nombre, valor, ficha opcional, oculta opcional), turno y ronda, en los
   ajustes del tablero. Sólo el director la edita (WS `initiative`). Los jugadores la reciben sólo
   con `initiativeShown` y sin las fichas ocultas ni las entradas ocultas.

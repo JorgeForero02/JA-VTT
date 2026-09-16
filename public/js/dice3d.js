@@ -9,7 +9,7 @@ const MAX_STEPS = 60 * 6;
 const REST_STEPS = 45;
 const HOLD_MS = 2600;
 const FADE_MS = 500;
-const DIE_SIZE = 0.85;
+const DIE_SIZE = 0.95;
 const MAX_DICE = 30;
 
 /* ---------- geometría: caras como polígonos a partir de los sólidos de three ---------- */
@@ -65,49 +65,92 @@ function solidFor(sides) {
 const SOLIDS = new Map();
 const getSolid = (sides) => { if (!SOLIDS.has(sides)) SOLIDS.set(sides, solidFor(sides)); return SOLIDS.get(sides); };
 
-/* ---------- textura: un atlas con un rótulo por cara ---------- */
-function makeAtlas(labels, color, sides) {
-  const n = labels.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), cell = 128;
-  const cv = document.createElement('canvas'); cv.width = cols * cell; cv.height = rows * cell;
+/* ---------- textura: un atlas con una celda por cara ----------
+   Cada cara se proyecta a 2D (centro en el medio de la celda) y se dibuja como polígono:
+   así el número se coloca en el centro real de la cara y con un tamaño que cabe en ella. */
+const CELL = 192;
+function shade(hex, k) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '') || [0, 'e9', 'e3', 'd5'];
+  const c = [1, 2, 3].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(m[i], 16) * k))));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function faceFrame(solid, f, sides) {
+  const pts = f.map((i) => solid.verts[i]);
+  const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+  const n = new THREE.Vector3().crossVectors(pts[1].clone().sub(pts[0]), pts[2].clone().sub(pts[0])).normalize();
+  const u = pts[0].clone().sub(c).normalize(), v = new THREE.Vector3().crossVectors(n, u);
+  const R = Math.max(...pts.map((p) => p.distanceTo(c))) * 1.08;
+  // coordenadas 2D de cada vértice dentro de la celda (px), y radio inscrito
+  const local = pts.map((p) => { const d = p.clone().sub(c); return { x: d.dot(u) / R, y: d.dot(v) / R }; });
+  let inR = Infinity;
+  for (let i = 0; i < local.length; i++) {
+    const a = local[i], b = local[(i + 1) % local.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    inR = Math.min(inR, Math.abs((b.x - a.x) * a.y - (b.y - a.y) * a.x) / len);
+  }
+  return { pts, c, n, u, v, R, local, inR, sides };
+}
+function makeAtlas(frames, labels, color) {
+  const n = frames.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  const cv = document.createElement('canvas'); cv.width = cols * CELL; cv.height = rows * CELL;
   const c = cv.getContext('2d');
-  c.fillStyle = color; c.fillRect(0, 0, cv.width, cv.height);
-  c.fillStyle = '#1C2226'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  labels.forEach((label, i) => {
-    const x = (i % cols) * cell + cell / 2, y = Math.floor(i / cols) * cell + cell / 2;
-    const text = String(label);
-    if (sides === 4) {
-      // tres números por cara, cada uno mirando a su vértice
-      c.font = '700 34px "Alegreya Sans", system-ui, sans-serif';
-      label.forEach((v, k) => { const a = -Math.PI / 2 + (k * 2 * Math.PI) / 3; c.save(); c.translate(x + Math.cos(a) * 34, y + Math.sin(a) * 34); c.rotate(a + Math.PI / 2); c.fillText(String(v), 0, 0); c.restore(); });
+  c.fillStyle = shade(color, 0.55); c.fillRect(0, 0, cv.width, cv.height);
+  const half = CELL / 2;
+  frames.forEach((fr, i) => {
+    const ox = (i % cols) * CELL + half, oy = Math.floor(i / cols) * CELL + half;
+    const px = (p) => [ox + p.x * half, oy - p.y * half];
+    // cara: degradado del color del jugador, más oscuro hacia los bordes
+    c.save(); c.beginPath(); fr.local.forEach((p, k) => { const [x, y] = px(p); if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); c.clip();
+    const g = c.createRadialGradient(ox - half * 0.15, oy - half * 0.2, 4, ox, oy, half);
+    g.addColorStop(0, shade(color, 1.25)); g.addColorStop(0.55, color); g.addColorStop(1, shade(color, 0.6));
+    c.fillStyle = g; c.fillRect(ox - half, oy - half, CELL, CELL);
+    // filigrana: borde interior dorado y trazo fino
+    c.beginPath(); fr.local.forEach((p, k) => { const [x, y] = px({ x: p.x * 0.86, y: p.y * 0.86 }); if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath();
+    c.strokeStyle = 'rgba(240,179,90,.55)'; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 1.5; c.beginPath(); fr.local.forEach((p, k) => { const [x, y] = px({ x: p.x * 0.78, y: p.y * 0.78 }); if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); c.stroke();
+    c.restore();
+    // números: marfil con borde oscuro
+    const label = labels[i];
+    const draw = (text, x, y, size, rot) => {
+      c.save(); c.translate(x, y); c.rotate(rot || 0);
+      c.font = `700 ${size}px "Alegreya", Georgia, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = Math.max(2, size * 0.12); c.strokeStyle = 'rgba(20,24,28,.85)'; c.strokeText(text, 0, 0);
+      c.fillStyle = '#F6EEDC'; c.fillText(text, 0, 0);
+      if (text === '6' || text === '9') { c.fillStyle = '#F6EEDC'; c.fillRect(-size * 0.28, size * 0.42, size * 0.56, Math.max(2, size * 0.07)); }
+      c.restore();
+    };
+    if (fr.sides === 4) {
+      // un número junto a cada vértice, con el pie hacia el centro
+      fr.local.forEach((p, k) => {
+        const [vx, vy] = [p.x * half, -p.y * half];
+        const ang = Math.atan2(vy, vx);
+        draw(String(label[k]), ox + Math.cos(ang) * half * 0.56, oy + Math.sin(ang) * half * 0.56, half * 0.36, ang + Math.PI / 2);
+      });
       return;
     }
-    c.font = `700 ${text.length > 1 ? 52 : 64}px "Alegreya Sans", system-ui, sans-serif`;
-    c.fillText(text, x, y + 2);
-    if (text === '6' || text === '9') { c.fillRect(x - 14, y + 30, 28, 4); }
+    const text = String(label);
+    const size = fr.inR * half * (text.length > 1 ? 1.15 : 1.5);
+    draw(text, ox, oy, size, 0);
   });
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   return { tex, cols, rows };
 }
 function buildMesh(solid, labels, color, sides) {
-  const { tex, cols, rows } = makeAtlas(labels, color, sides);
+  const frames = solid.faces.map((f) => faceFrame(solid, f, sides));
+  const { tex, cols, rows } = makeAtlas(frames, labels, color);
   const positions = [], uvs = [], normals = [];
-  solid.faces.forEach((f, fi) => {
-    const pts = f.map((i) => solid.verts[i]);
-    const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
-    const n = new THREE.Vector3().crossVectors(pts[1].clone().sub(pts[0]), pts[2].clone().sub(pts[0])).normalize();
-    const u = pts[0].clone().sub(c).normalize(), v = new THREE.Vector3().crossVectors(n, u);
-    const R = Math.max(...pts.map((p) => p.distanceTo(c))) * (sides === 4 ? 1.0 : 1.15);
+  frames.forEach((fr, fi) => {
     const cx = fi % cols, cy = Math.floor(fi / cols);
-    const uvOf = (p) => { const d = p.clone().sub(c); return [(cx + 0.5 + d.dot(u) / (2 * R)) / cols, 1 - (cy + 0.5 - d.dot(v) / (2 * R)) / rows]; };
-    for (let i = 1; i < pts.length - 1; i++) {
-      for (const p of [pts[0], pts[i], pts[i + 1]]) { positions.push(p.x, p.y, p.z); normals.push(n.x, n.y, n.z); uvs.push(...uvOf(p)); }
+    const uvOf = (k) => [(cx + 0.5 + fr.local[k].x / 2) / cols, 1 - (cy + 0.5 - fr.local[k].y / 2) / rows];
+    for (let i = 1; i < fr.pts.length - 1; i++) {
+      for (const k of [0, i, i + 1]) { const p = fr.pts[k]; positions.push(p.x, p.y, p.z); normals.push(fr.n.x, fr.n.y, fr.n.z); uvs.push(...uvOf(k)); }
     }
   });
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, metalness: 0.05, transparent: true });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.32, metalness: 0.18, transparent: true });
   return new THREE.Mesh(geo, mat);
 }
 
@@ -159,8 +202,9 @@ function ensure(container) {
   renderer.shadowMap.enabled = true;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x223044, 1.1));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x223044, 1.0));
+  const fill = new THREE.DirectionalLight(0xffd9a0, 0.5); fill.position.set(-8, 6, -6); scene.add(fill);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.7); sun.position.set(6, 14, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ opacity: 0.35 }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   resize();

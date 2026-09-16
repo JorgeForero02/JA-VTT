@@ -640,10 +640,14 @@ function setPanelHidden(hidden){$('#app').classList.toggle('noPanel',hidden);try
 $('#panelToggle').onclick=()=>{if(narrow())$('#panel').classList.toggle('open');else setPanelHidden(!$('#app').classList.contains('noPanel'))};
 setPanelHidden((()=>{try{return localStorage.getItem('jav.panel')==='oculto'}catch(e){return false}})());
 $$('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+/* Chat y dados se apagan para todos; la pestaña sólo existe si queda algo que enseñar */
 function syncChatTab(){
-  const allowed=UI.realRole==='gm'||S.chatEnabled!==false;
-  $('[data-tab="chat"]').style.display=allowed?'':'none';
-  if(!allowed&&UI.tab==='chat')selectTab('tokens');
+  const chat=S.chatEnabled!==false,dice=S.diceEnabled!==false;
+  $('[data-tab="chat"]').style.display=chat||dice?'':'none';
+  $('#chatForm').style.display=chat?'':'none';
+  $('#diceBar').style.display=dice?'':'none';
+  $('#chatLog').classList.toggle('noDice',!dice);
+  if(!chat&&!dice&&UI.tab==='chat')selectTab('tokens');
 }
 function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='library')renderLibraryGrid();if(name==='live')renderLive();if(name==='chat')Chat.scrollToEnd()}
 $$('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
@@ -679,6 +683,7 @@ $('#animToggle').onchange=e=>{S.animate=e.target.checked;changed()};
 $('#sharedVision').onchange=e=>{S.sharedVision=e.target.checked;changed()};
 $('#playersDoors').onchange=e=>{S.playersDoors=e.target.checked;changed()};
 $('#chatEnabled').onchange=e=>{S.chatEnabled=e.target.checked;changed();syncChatTab()};
+$('#diceEnabled').onchange=e=>{S.diceEnabled=e.target.checked;changed();syncChatTab()};
 $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
 $('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';renderUploadCats();selectTab('library')};
 $('#centerBtn').onclick=centerView;
@@ -817,7 +822,7 @@ function renderSelbar(){
 function refreshPanels(){renderLists();renderSelbar();syncUndo()}
 function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
-  $('#chatEnabled').checked=S.chatEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
+  $('#chatEnabled').checked=S.chatEnabled!==false;$('#diceEnabled').checked=S.diceEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
 }
 function refreshAll(){
@@ -1125,10 +1130,9 @@ $('#sceneCreate').onsubmit=e=>{
 /* ---------- Chat y dados ---------- */
 const Chat=(()=>{
   const log=()=>$('#chatLog');
-  const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   const when=ts=>{const d=new Date(ts);return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
   function render(m){
-    const el=document.createElement('div');el.className='chatMsg '+m.kind;el.dataset.id=m.id;
+    const el=document.createElement('div');el.className='chatMsg '+m.kind+(m.secret?' secret':'');el.dataset.id=m.id;
     const who=`<span class="who" style="color:${esc(m.user_color||'#E9E3D5')}">${esc(m.user_name||'—')}</span>`;
     if(m.kind==='roll'){
       const b=m.body||{};
@@ -1143,19 +1147,21 @@ const Chat=(()=>{
   function load(list){const l=log();l.innerHTML='';for(const m of list)l.appendChild(render(m));scrollToEnd()}
   function receive(m){
     if(!m)return;const l=log();const stick=atEnd();l.appendChild(render(m));if(stick)scrollToEnd();
-    if(m.kind==='roll'&&window.Dice3D&&S.animate!==false&&UI.tab!==undefined)Dice3D.roll($('#stageWrap'),m.body.dice,m.user_color,m.id);
+    if(m.kind==='roll'&&window.Dice3D&&S.animate!==false)Dice3D.roll($('#stageWrap'),m.body.dice,m.user_color,Math.abs(m.id));
     if(UI.tab!=='chat'){const tab=$('[data-tab="chat"]');tab.classList.add('unread')}
   }
   function submit(){
     const inp=$('#chatInput');const text=inp.value.trim();if(!text)return;
-    const m=/^\/(r|roll|tirar)\s+(.+)$/i.exec(text);
-    if(m){const parts=m[2].split('#');Net.roll(parts[0].trim(),(parts[1]||'').trim())}else Net.chat(text);
+    const m=/^\/(r|roll|tirar|rs|gr|privada)\s+(.+)$/i.exec(text);
+    if(m){const parts=m[2].split('#');const secret=/^(rs|gr|privada)$/i.test(m[1])||secretMode();Net.roll(parts[0].trim(),(parts[1]||'').trim(),secret)}else Net.chat(text);
     inp.value='';
   }
   return{load,receive,submit,scrollToEnd};
 })();
 $('#chatForm').onsubmit=e=>{e.preventDefault();Chat.submit()};
-for(const b of $$('#diceBar .die'))b.onclick=e=>{const n=e.ctrlKey?3:e.shiftKey?2:1;Net.roll(`${n}d${b.dataset.d}`)};
+const secretMode=()=>UI.realRole==='gm'&&$('#secretRoll').getAttribute('aria-pressed')==='true';
+$('#secretRoll').onclick=()=>{const b=$('#secretRoll');const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));toast(on?'Tiradas privadas: sólo las ves tú':'Tiradas públicas',1400)};
+for(const b of $$('#diceBar .die[data-d]'))b.onclick=e=>{const n=e.ctrlKey?3:e.shiftKey?2:1;Net.roll(`${n}d${b.dataset.d}`,'',secretMode())};
 $('[data-tab="chat"]').addEventListener('click',()=>$('[data-tab="chat"]').classList.remove('unread'));
 
 /* ---------- Iniciativa ---------- */
@@ -1169,29 +1175,33 @@ function renderInitiative(){
   bar.hidden=!show;
   if(show){
     $('#initBarRound').textContent=`Ronda ${i.round}`;
-    $('#initBarEntries').innerHTML=i.entries.map((e,k)=>`<div class="initEntry${k===i.turn?' current':''}" title="${e.name}"><b>${e.value}</b><span>${e.name.replace(/[<>&]/g,'')}</span></div>`).join('');
+    $('#initBarEntries').innerHTML=i.entries.map((e,k)=>`<div class="initEntry${k===i.turn?' current':k<i.turn?' done':''}" title="${esc(e.name)}"><b>${e.value}</b><span>${esc(e.name)}</span></div>`).join('');
     const cur=$('#initBarEntries .current');if(cur)cur.scrollIntoView({block:'nearest',inline:'center'});
   }
   if(!gm)return;
   const list=$('#initList');if(!list)return;
   const it=i||{entries:[],turn:0,round:1};
   $('#initCount').textContent=it.entries.length||'';
-  $('#initRoundLabel').textContent=it.entries.length?`Ronda ${it.round} · turno ${it.turn+1}/${it.entries.length}`:'Sin participantes';
+  $('#initRoundLabel').textContent=it.entries.length?`Ronda ${it.round}`:'Sin participantes';
+  $('#initTurnLabel').textContent=it.entries.length?`turno ${it.turn+1} de ${it.entries.length} · ${esc(it.entries[it.turn]?it.entries[it.turn].name:'')}`:'';
   list.innerHTML='';
   it.entries.forEach((e,k)=>{
     const row=document.createElement('div');row.className='initRow'+(k===it.turn?' current':'')+(e.hidden?' hidden':'');
-    const name=document.createElement('input');name.value=e.name;name.maxLength=40;name.title='Nombre';
+    const mark=document.createElement('span');mark.className='mark';mark.title=k===it.turn?'Turno actual':'Ir a este turno';mark.style.cursor='pointer';
+    mark.onclick=()=>{const c=initCopy();c.turn=k;initSend(c)};
+    const name=document.createElement('input');name.value=e.name;name.maxLength=40;name.title='Nombre (clic en el punto para saltar a su turno)';
     name.onchange=()=>{const c=initCopy();c.entries[k].name=name.value.trim()||'Sin nombre';initSend(c)};
-    const val=document.createElement('input');val.type='number';val.step='0.5';val.value=e.value;val.title='Iniciativa';
+    const val=document.createElement('input');val.className='val';val.type='number';val.step='0.5';val.value=e.value;val.title='Iniciativa';
     val.onchange=()=>{const c=initCopy();c.entries[k].value=Number(val.value)||0;initSend(c)};
-    const eye=document.createElement('button');eye.className='btn sq ghost';eye.dataset.ic=e.hidden?'eye-off':'eye';eye.title=e.hidden?'Oculta a los jugadores':'Visible para los jugadores';
+    const eye=document.createElement('button');eye.className='btn sq ghost';eye.dataset.ic=e.hidden?'eye-off':'eye';eye.title=e.hidden?'Oculta a los jugadores: pulsa para mostrar':'Visible para los jugadores: pulsa para ocultar';
     eye.onclick=()=>{const c=initCopy();c.entries[k].hidden=!e.hidden;initSend(c)};
     const del=document.createElement('button');del.className='btn sq ghost';del.dataset.ic='x';del.title='Quitar';
     del.onclick=()=>{const c=initCopy();c.entries.splice(k,1);if(c.turn>=c.entries.length)c.turn=0;initSend(c)};
-    row.append(name,val,eye,del);list.appendChild(row);
+    row.append(mark,name,val,eye,del);list.appendChild(row);
   });
   hydrate(list);
 }
+const esc=v=>String(v??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 $('#initAddTokens').onclick=()=>{
   const c=initCopy();const have=new Set(c.entries.map(e=>e.tokenId));
   for(const t of S.tokens){if(have.has(t.id))continue;c.entries.push({id:nid(),name:t.name||(t.kind==='player'?'Personaje':'Enemigo'),value:0,tokenId:t.id})}
