@@ -53,7 +53,7 @@ test('visión: sin tope de alcance; visión en la oscuridad absoluta; lo ilumina
   assert.doesNotMatch(render, /ftPx\(v\.sight\)/, 'la máscara de visión ya no se recorta por alcance');
   assert.match(render, /createRadialGradient\(v\.x,v\.y,0,v\.x,v\.y,r\);g\.addColorStop\(0,'rgba\(255,255,255,1\)'\)/);
   assert.match(render, /scale:\.2,size:2000,chunks:new Map\(\),max:160,boost:3,blur:2\.5/);
-  assert.match(render, /c\.filter=`blur\(\$\{EXP\.blur\*dpr\}px\)`/);
+  assert.match(render, /c\.filter=`blur\(\$\{EXP\.blur\*d\}px\)`/);
   assert.match(render, /drawImage\(im,0,0,ch\.c\.width,ch\.c\.height\)/, 'la niebla guardada a otra resolución se escala');
   assert.match(render, /for\(let n=0;n<EXP\.boost;n\+\+\)ch\.x\.drawImage\(maskC,0,0\)/);
   const core = read('js/core.js');
