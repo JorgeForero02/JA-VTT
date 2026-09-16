@@ -623,6 +623,7 @@ function setRole(r){
   const realGmTabs=UI.realRole==='gm';
   for(const t of['lights','library'])$(`[data-tab="${t}"]`).style.display=r==='gm'?'':'none';
   $('[data-tab="scene"]').style.display=realGmTabs&&r==='gm'?'':'none';
+  syncChatTab();
   if(r!=='gm'&&['lights','library','scene'].includes(UI.tab))selectTab('tokens');
   Net.roleChanged();
   frame={};refreshAll();requestRender();
@@ -639,7 +640,12 @@ function setPanelHidden(hidden){$('#app').classList.toggle('noPanel',hidden);try
 $('#panelToggle').onclick=()=>{if(narrow())$('#panel').classList.toggle('open');else setPanelHidden(!$('#app').classList.contains('noPanel'))};
 setPanelHidden((()=>{try{return localStorage.getItem('jav.panel')==='oculto'}catch(e){return false}})());
 $$('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
-function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='library')renderLibraryGrid();if(name==='live')renderLive()}
+function syncChatTab(){
+  const allowed=UI.realRole==='gm'||S.chatEnabled!==false;
+  $('[data-tab="chat"]').style.display=allowed?'':'none';
+  if(!allowed&&UI.tab==='chat')selectTab('tokens');
+}
+function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='library')renderLibraryGrid();if(name==='live')renderLive();if(name==='chat')Chat.scrollToEnd()}
 $$('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 $('#selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
   if(a==='del')deleteSel();else if(a==='dup')duplicateSel();else if(a==='edit'){const o=selObjs()[0];if(o){const r=$('#selbar').getBoundingClientRect(),sr=stage.getBoundingClientRect();openEditor(o,{x:r.left-sr.left,y:r.top-sr.top-330})}}});
@@ -672,6 +678,8 @@ function renderSnapPrefs(){
 $('#animToggle').onchange=e=>{S.animate=e.target.checked;changed()};
 $('#sharedVision').onchange=e=>{S.sharedVision=e.target.checked;changed()};
 $('#playersDoors').onchange=e=>{S.playersDoors=e.target.checked;changed()};
+$('#chatEnabled').onchange=e=>{S.chatEnabled=e.target.checked;changed();syncChatTab()};
+$('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
 $('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';renderUploadCats();selectTab('library')};
 $('#centerBtn').onclick=centerView;
 $('#zoneToolBtn').onclick=()=>setTool('zone');
@@ -809,6 +817,7 @@ function renderSelbar(){
 function refreshPanels(){renderLists();renderSelbar();syncUndo()}
 function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
+  $('#chatEnabled').checked=S.chatEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
 }
 function refreshAll(){
@@ -1111,3 +1120,92 @@ $('#sceneCreate').onsubmit=e=>{
     d.addEventListener('toggle',()=>{if(!k)return;folds[k]=d.open;try{localStorage.setItem('jav.paneles',JSON.stringify(folds))}catch(e){}});
   });
 })();
+
+
+/* ---------- Chat y dados ---------- */
+const Chat=(()=>{
+  const log=()=>$('#chatLog');
+  const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  const when=ts=>{const d=new Date(ts);return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
+  function render(m){
+    const el=document.createElement('div');el.className='chatMsg '+m.kind;el.dataset.id=m.id;
+    const who=`<span class="who" style="color:${esc(m.user_color||'#E9E3D5')}">${esc(m.user_name||'—')}</span>`;
+    if(m.kind==='roll'){
+      const b=m.body||{};
+      const pips=(b.dice||[]).map(d=>d.rolls.map(v=>`<span class="pip${v===d.sides?' max':v===1?' min':''}" title="d${d.sides}">${v}</span>`).join('')).join('<span class="pip" style="border:0">+</span>');
+      el.innerHTML=`${who}<span class="formula">tiró ${esc(b.formula||'')}${b.label?' · '+esc(b.label):''}</span><span class="total">${b.total}</span><span class="when">${when(m.created_at)}</span><div class="pips">${pips}${b.mod?`<span class="pip" style="border-style:dashed">${b.mod>0?'+':''}${b.mod}</span>`:''}</div>`;
+    }else if(m.kind==='system'){el.innerHTML=`${esc(m.body&&m.body.text||'')}<span class="when">${when(m.created_at)}</span>`}
+    else el.innerHTML=`${who}${esc(m.body&&m.body.text||'')}<span class="when">${when(m.created_at)}</span>`;
+    return el;
+  }
+  const atEnd=()=>{const l=log();return l.scrollHeight-l.scrollTop-l.clientHeight<40};
+  function scrollToEnd(){const l=log();l.scrollTop=l.scrollHeight}
+  function load(list){const l=log();l.innerHTML='';for(const m of list)l.appendChild(render(m));scrollToEnd()}
+  function receive(m){
+    if(!m)return;const l=log();const stick=atEnd();l.appendChild(render(m));if(stick)scrollToEnd();
+    if(m.kind==='roll'&&window.Dice3D&&S.animate!==false&&UI.tab!==undefined)Dice3D.roll($('#stageWrap'),m.body.dice,m.user_color,m.id);
+    if(UI.tab!=='chat'){const tab=$('[data-tab="chat"]');tab.classList.add('unread')}
+  }
+  function submit(){
+    const inp=$('#chatInput');const text=inp.value.trim();if(!text)return;
+    const m=/^\/(r|roll|tirar)\s+(.+)$/i.exec(text);
+    if(m){const parts=m[2].split('#');Net.roll(parts[0].trim(),(parts[1]||'').trim())}else Net.chat(text);
+    inp.value='';
+  }
+  return{load,receive,submit,scrollToEnd};
+})();
+$('#chatForm').onsubmit=e=>{e.preventDefault();Chat.submit()};
+for(const b of $$('#diceBar .die'))b.onclick=e=>{const n=e.ctrlKey?3:e.shiftKey?2:1;Net.roll(`${n}d${b.dataset.d}`)};
+$('[data-tab="chat"]').addEventListener('click',()=>$('[data-tab="chat"]').classList.remove('unread'));
+
+/* ---------- Iniciativa ---------- */
+function initCopy(){const i=UI.initiative||{entries:[],turn:0,round:1};return{entries:i.entries.map(e=>Object.assign({},e)),turn:i.turn||0,round:i.round||1}}
+function initSend(i){UI.initiative=i;Net.setInitiative(i);renderInitiative()}
+function initSort(i){i.entries.sort((a,b)=>b.value-a.value);return i}
+function renderInitiative(){
+  const i=UI.initiative,bar=$('#initBar');
+  const gm=UI.realRole==='gm';
+  const show=i&&i.entries.length&&(gm||S.initiativeShown===true);
+  bar.hidden=!show;
+  if(show){
+    $('#initBarRound').textContent=`Ronda ${i.round}`;
+    $('#initBarEntries').innerHTML=i.entries.map((e,k)=>`<div class="initEntry${k===i.turn?' current':''}" title="${e.name}"><b>${e.value}</b><span>${e.name.replace(/[<>&]/g,'')}</span></div>`).join('');
+    const cur=$('#initBarEntries .current');if(cur)cur.scrollIntoView({block:'nearest',inline:'center'});
+  }
+  if(!gm)return;
+  const list=$('#initList');if(!list)return;
+  const it=i||{entries:[],turn:0,round:1};
+  $('#initCount').textContent=it.entries.length||'';
+  $('#initRoundLabel').textContent=it.entries.length?`Ronda ${it.round} · turno ${it.turn+1}/${it.entries.length}`:'Sin participantes';
+  list.innerHTML='';
+  it.entries.forEach((e,k)=>{
+    const row=document.createElement('div');row.className='initRow'+(k===it.turn?' current':'')+(e.hidden?' hidden':'');
+    const name=document.createElement('input');name.value=e.name;name.maxLength=40;name.title='Nombre';
+    name.onchange=()=>{const c=initCopy();c.entries[k].name=name.value.trim()||'Sin nombre';initSend(c)};
+    const val=document.createElement('input');val.type='number';val.step='0.5';val.value=e.value;val.title='Iniciativa';
+    val.onchange=()=>{const c=initCopy();c.entries[k].value=Number(val.value)||0;initSend(c)};
+    const eye=document.createElement('button');eye.className='btn sq ghost';eye.dataset.ic=e.hidden?'eye-off':'eye';eye.title=e.hidden?'Oculta a los jugadores':'Visible para los jugadores';
+    eye.onclick=()=>{const c=initCopy();c.entries[k].hidden=!e.hidden;initSend(c)};
+    const del=document.createElement('button');del.className='btn sq ghost';del.dataset.ic='x';del.title='Quitar';
+    del.onclick=()=>{const c=initCopy();c.entries.splice(k,1);if(c.turn>=c.entries.length)c.turn=0;initSend(c)};
+    row.append(name,val,eye,del);list.appendChild(row);
+  });
+  hydrate(list);
+}
+$('#initAddTokens').onclick=()=>{
+  const c=initCopy();const have=new Set(c.entries.map(e=>e.tokenId));
+  for(const t of S.tokens){if(have.has(t.id))continue;c.entries.push({id:nid(),name:t.name||(t.kind==='player'?'Personaje':'Enemigo'),value:0,tokenId:t.id})}
+  initSend(c);
+};
+$('#initAddCustom').onclick=()=>{const c=initCopy();c.entries.push({id:nid(),name:'Entrada',value:0});initSend(c)};
+$('#initRollAll').onclick=()=>{const c=initCopy();for(const e of c.entries)e.value=1+Math.floor(Math.random()*20);initSend(initSort(c));toast('Iniciativa tirada y ordenada',1600)};
+$('#initSort').onclick=()=>initSend(initSort(initCopy()));
+$('#initClear').onclick=()=>{if(!confirm('¿Vaciar la iniciativa?'))return;initSend({entries:[],turn:0,round:1})};
+function initStep(dir){
+  const c=initCopy();if(!c.entries.length)return;
+  c.turn+=dir;
+  if(c.turn>=c.entries.length){c.turn=0;c.round++}
+  if(c.turn<0){c.turn=c.entries.length-1;c.round=Math.max(1,c.round-1)}
+  initSend(c);
+}
+$('#initNext').onclick=()=>initStep(1);$('#initPrev').onclick=()=>initStep(-1);$('#initBarNext').onclick=()=>initStep(1);

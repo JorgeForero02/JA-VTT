@@ -3,7 +3,7 @@
    comparando el estado con la última copia enviada y viaja como operación;
    el servidor valida permisos, guarda en SQLite y reparte a los demás. */
 const COLL_KEYS=Object.values(COLL);
-const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','layers','sharedVision','playersDoors'];
+const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','layers','sharedVision','playersDoors','chatEnabled','initiativeShown'];
 const Net=(()=>{
   let ws=null,boardId=null,closedByUs=true,retry=0,synced=false,retryTimer=0;
   const shadow=new Map();let shadowScene='';
@@ -33,6 +33,8 @@ const Net=(()=>{
         renderLiveSoon();renderScenes();requestRender();break;
       case 'fogreset':if(UI.scene&&d.scene===UI.scene.id){resetExplored();requestRender();toast('El director reinició la exploración de esta escena')}break;
       case 'members':N.members=d.members||[];renderLiveSoon();refreshPanels();break;
+      case 'chat':Chat.receive(d.msg);break;
+      case 'initiative':UI.initiative=d.initiative||null;renderInitiative();break;
       case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else{const prev=N.cursors.get(d.uid),from=prev?cursorPos(prev):{x:d.x,y:d.y};N.cursors.set(d.uid,{x:d.x,y:d.y,fx:from.x,fy:from.y,t0:performance.now()})}requestRender();break;
       case 'board':if(UI.board){UI.board.name=d.name;syncBoardName()}break;
       case 'images':Store.refresh();break;
@@ -48,6 +50,7 @@ const Net=(()=>{
     const first=!synced||newScene;
     if(synced&&newScene)flushFog();
     UI.me=d.me;UI.realRole=d.role;UI.board=d.board;N.members=d.members||[];N.online=d.online||[];
+    if(Array.isArray(d.chat))Chat.load(d.chat);UI.initiative=d.initiative||null;renderInitiative();
     const prevSceneName=UI.scene&&UI.scene.name;
     UI.scene=d.scene;UI.scenes=d.scenes||[];UI.where=d.where||{};UI.activeScene=d.active;
     const st=Object.assign(blankState(),d.settings||{},{name:d.board.name});
@@ -148,6 +151,9 @@ const Net=(()=>{
       if(now-N.lastCur>50)go();else N.curTimer=setTimeout(go,55);
     },
     roleChanged(){},
+    chat(text){return send({t:'chat',text})},
+    roll(formula,label){return send({t:'roll',formula,label})},
+    setInitiative(initiative){return send({t:'initiative',initiative})},
     replaceAll(name){if(!synced)return;send({t:'replace',scene:UI.scene.id,name,settings:sceneMeta(),objects:COLL_KEYS.flatMap(k=>S[k])});baseline()},
     scene(op,extra){if(UI.realRole!=='gm')return;send(Object.assign({t:'scene',op},extra||{}))},
     travel(portal,all){flushFog();send({t:'travel',portal,all:!!all})},

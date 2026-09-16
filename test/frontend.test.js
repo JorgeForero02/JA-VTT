@@ -20,15 +20,17 @@ test('index.html: el formulario tiene nombre, contraseña y las dos pestañas (e
 
 test('main.js: envía nombre y contraseña a /api/login o /api/register según la pestaña', () => {
   const js = read('js/main.js');
-  assert.match(js, /mode==='register'\?'\/api\/register':'\/api\/login'/);
-  assert.match(js, /JSON\.stringify\(\{name,password\}\)/);
+  assert.match(js, /register:'\/api\/register',recover:'\/api\/recover'/);
+  assert.match(js, /const payload=\{name,password\}/);
   assert.match(js, /function setLoginMode\(mode\)/);
 });
 
 test('todos los scripts del cliente compilan', () => {
-  for (const f of fs.readdirSync(path.join(__dirname, '..', 'public', 'js')).filter((f) => f.endsWith('.js'))) {
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'public', 'js')).filter((f) => f.endsWith('.js') && f !== 'dice3d.js')) {
     assert.doesNotThrow(() => new Function(read('js/' + f)), f);
   }
+  // dice3d.js es un módulo ES (import/export): se comprueba como tal
+  assert.match(read('js/dice3d.js'), /^import \* as THREE from '\.\/vendor\/three\.module\.min\.js';$/m);
 });
 
 test('cabecera: botón para ocultar el panel lateral, con estado y preferencia guardada', () => {
@@ -91,4 +93,28 @@ test('muros: las articulaciones se arrastran con cualquier número de muros sele
   assert.match(editor, /if\(!UI\.chain&&!UI\.curve&&!UI\.arc&&UI\.wallShape==='chain'\)\{const v=hitWallVertex\(p\);if\(v\)\{startWallEnd\(v\);return\}\}/);
   const render = read('js/render.js');
   assert.match(render, /const big=isSel\(w\)\|\|UI\.tool==='wall'/);
+});
+
+test('chat, dados, iniciativa y perfil: piezas del cliente en su sitio', () => {
+  const html = read('index.html');
+  for (const id of ['tab-chat', 'chatLog', 'diceBar', 'chatForm', 'initBar', 'initList', 'chatEnabled', 'initiativeShown', 'profileBtn', 'profilePop', 'recoveryCode', 'recoveryPop', 'forgotBtn', 'loginCode', 'passwordForm']) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+  }
+  assert.match(html, /<script type="module" src="js\/dice3d\.js"><\/script>/);
+  const net = read('js/net.js');
+  assert.match(net, /case 'chat':Chat\.receive\(d\.msg\)/);
+  assert.match(net, /case 'initiative':UI\.initiative=d\.initiative\|\|null;renderInitiative\(\)/);
+  assert.match(net, /'chatEnabled','initiativeShown'\]/);
+  const editor = read('js/editor.js');
+  assert.match(editor, /function syncChatTab\(\)/);
+  assert.match(editor, /Dice3D\.roll\(\$\('#stageWrap'\),m\.body\.dice,m\.user_color,m\.id\)/);
+  assert.match(editor, /const show=i&&i\.entries\.length&&\(gm\|\|S\.initiativeShown===true\)/);
+  const main = read('js/main.js');
+  assert.match(main, /recover:'\/api\/recover'/);
+  assert.match(main, /apiJson\('\/api\/me\/recovery'\)/);
+  const dice = read('js/dice3d.js');
+  assert.match(dice, /const geo = src\.index \? src\.toNonIndexed\(\) : src;/);
+  assert.match(dice, /Math\.max\(0, now - start\)/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'js', 'vendor', 'three.module.min.js')));
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'js', 'vendor', 'cannon-es.js')));
 });

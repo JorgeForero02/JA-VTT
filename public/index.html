@@ -18,10 +18,12 @@
       <button type="button" class="gateTab" data-mode="register" role="tab" aria-selected="false">Crear cuenta</button>
     </div>
     <label class="gateField"><span>Nombre de usuario</span><input id="loginName" autocomplete="username" maxlength="24" required></label>
-    <label class="gateField"><span>Contraseña</span><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" maxlength="200" required></label>
+    <label class="gateField" id="loginCodeField" hidden><span>Código de recuperación</span><input id="loginCode" autocomplete="off" maxlength="16" placeholder="XXXX-XXXX-XXXX" spellcheck="false"></label>
+    <label class="gateField"><span id="loginPasswordLabel">Contraseña</span><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" maxlength="200" required></label>
     <button id="loginSubmit" class="btn primary gateBtn" type="submit">Entrar</button>
-    <p class="gateNote" data-for="login">¿Sin cuenta? Pulsa «Crear cuenta»: solo hace falta un nombre y una contraseña.</p>
-    <p class="gateNote" data-for="register" hidden>La contraseña necesita al menos 6 caracteres. No hay recuperación por correo: apúntala.</p>
+    <p class="gateNote" data-for="login">¿Sin cuenta? Pulsa «Crear cuenta». <button type="button" class="linkBtn" id="forgotBtn">¿Olvidaste la contraseña?</button></p>
+    <p class="gateNote" data-for="register" hidden>La contraseña necesita al menos 6 caracteres. Al crear la cuenta recibirás un <strong>código de recuperación</strong>: guárdalo, es la única forma de recuperar el acceso.</p>
+    <p class="gateNote" data-for="recover" hidden>Escribe tu nombre, el código de recuperación de tu perfil y una contraseña nueva. Si perdiste el código, contacta con quien administra la mesa. <button type="button" class="linkBtn" id="backToLoginBtn">Volver a entrar</button></p>
     <p id="loginError" class="gateError" role="alert"></p>
   </form>
 </section>
@@ -31,6 +33,7 @@
     <span class="brand">Just Another VTT</span>
     <span class="grow"></span>
     <label class="userChip" title="Tu color en las mesas"><input id="userColor" type="color"><span id="userName"></span></label>
+    <button id="profileBtn" class="btn ghost" data-ic="circle-user-round">Perfil</button>
     <button id="logoutBtn" class="btn ghost" data-ic="log-out">Salir</button>
   </header>
   <div class="dashBody">
@@ -66,6 +69,25 @@
     <button class="btn primary" type="submit">Crear y abrir</button>
   </form>
   <p id="scenePopNote" class="small muted"></p>
+</div>
+
+<div id="profilePop" class="scenePop" hidden role="dialog" aria-label="Perfil">
+  <h2>Tu perfil</h2>
+  <h3 class="popSub">Código de recuperación</h3>
+  <p class="small muted">Con tu nombre y este código puedes poner una contraseña nueva desde la pantalla de entrada. Guárdalo en un sitio seguro.</p>
+  <div class="invite"><code id="recoveryCode" class="secret" data-shown="0">••••-••••-••••</code><button id="recoveryShow" class="btn sq ghost" data-ic="eye" title="Mostrar u ocultar" aria-label="Mostrar u ocultar"></button><button id="recoveryCopy" class="btn" data-ic="copy">Copiar</button><button id="recoveryNew" class="btn sq ghost" data-ic="refresh-cw" title="Generar otro (el actual dejará de valer)" aria-label="Generar otro código"></button></div>
+  <h3 class="popSub">Cambiar contraseña</h3>
+  <form id="passwordForm">
+    <label class="gateField"><span>Contraseña actual</span><input id="pwCurrent" type="password" autocomplete="current-password" required></label>
+    <label class="gateField"><span>Contraseña nueva</span><input id="pwNew" type="password" autocomplete="new-password" minlength="6" maxlength="200" required></label>
+    <div class="row"><button class="btn primary" type="submit">Cambiar</button><button class="btn ghost" type="button" id="profileClose">Cerrar</button></div>
+  </form>
+</div>
+<div id="recoveryPop" class="scenePop" hidden role="dialog" aria-label="Código de recuperación">
+  <h2>Guarda tu código de recuperación</h2>
+  <p>No hay correo de recuperación: si olvidas la contraseña, <strong>este código</strong> es la única forma de volver a entrar. Lo tendrás siempre en <em>Perfil</em>.</p>
+  <div class="invite"><code id="recoveryCodeNew"></code><button id="recoveryCopyNew" class="btn" data-ic="copy">Copiar</button></div>
+  <div class="row"><button class="btn primary" id="recoveryOk">Ya lo guardé</button></div>
 </div>
 
 <div id="app" hidden>
@@ -106,6 +128,7 @@
     <button class="tool" data-tool="plan" data-ic="pencil-ruler" title="Planos tácticos (M)"><kbd>M</kbd></button>
   </nav>
   <div id="stageWrap">
+  <div id="initBar" class="initBar" hidden role="region" aria-label="Iniciativa"><span class="initRound" id="initBarRound"></span><div class="initEntries" id="initBarEntries"></div><button class="btn sq ghost gmOnly" id="initBarNext" data-ic="redo-2" title="Siguiente turno" aria-label="Siguiente turno"></button></div>
     <div id="stage">
       <canvas id="cScene"></canvas><canvas id="cGlow"></canvas><canvas id="cDark"></canvas><canvas id="cOver"></canvas>
     </div>
@@ -130,6 +153,7 @@
       <button role="tab" data-tab="lights" aria-selected="false" data-ic="lightbulb">Luces</button>
       <button role="tab" data-tab="library" aria-selected="false" data-ic="image">Imágenes</button>
       <button role="tab" data-tab="tokens" aria-selected="false" data-ic="users">Fichas</button>
+      <button role="tab" data-tab="chat" aria-selected="false" data-ic="send">Chat</button>
       <button role="tab" data-tab="live" aria-selected="false" data-ic="radio">Mesa</button>
       <button role="tab" data-tab="layers" aria-selected="false" data-ic="settings-2">Ajustes</button>
     </div>
@@ -238,6 +262,14 @@
         </div>
       </details>
     </section>
+    <section class="tabpane chatPane" id="tab-chat">
+      <div id="chatLog" class="chatLog" aria-live="polite"></div>
+      <div class="diceBar" id="diceBar" role="group" aria-label="Dados">
+        <button class="die" data-d="4">d4</button><button class="die" data-d="6">d6</button><button class="die" data-d="8">d8</button><button class="die" data-d="10">d10</button><button class="die" data-d="12">d12</button><button class="die" data-d="20">d20</button><button class="die" data-d="100">d100</button>
+      </div>
+      <form id="chatForm" class="chatForm"><input id="chatInput" maxlength="500" placeholder="Mensaje, o /r 2d6+3" autocomplete="off"><button class="btn primary sq" type="submit" data-ic="send" aria-label="Enviar"></button></form>
+      <p class="small muted chatHint">Tirar: pulsa un dado (con Mayús, dos; con Ctrl, tres) o escribe <code>/r 1d20+5</code>. Dados: d4 a d100.</p>
+    </section>
     <section class="tabpane" id="tab-live">
       <details class="fold" data-fold="gente" open>
         <summary><span class="foldTitle">Participantes</span><span class="count" id="onlineCount"></span></summary>
@@ -261,6 +293,23 @@
         <div class="foldBody">
           <label class="check"><input type="checkbox" id="sharedVision"> Visión compartida: cada jugador ve lo que ve el grupo</label>
           <label class="check"><input type="checkbox" id="playersDoors"> Pueden abrir y cerrar puertas</label>
+          <label class="check"><input type="checkbox" id="chatEnabled"> Chat y dados para los jugadores</label>
+          <label class="check"><input type="checkbox" id="initiativeShown"> Mostrar la iniciativa a los jugadores</label>
+        </div>
+      </details>
+      <details class="fold gmSect" data-fold="iniciativa" open>
+        <summary><span class="foldTitle">Iniciativa</span><span class="count" id="initCount"></span></summary>
+        <div class="foldBody">
+          <div class="row wrap">
+            <button class="btn" id="initAddTokens" data-ic="users" title="Añade las fichas de esta escena que no estén ya">Añadir fichas</button>
+            <button class="btn" id="initAddCustom" data-ic="plus">Entrada</button>
+            <button class="btn" id="initRollAll" data-ic="dice" title="Tira 1d20 por cada entrada y ordena">Tirar d20</button>
+            <button class="btn ghost" id="initSort" data-ic="sliders-horizontal">Ordenar</button>
+            <button class="btn ghost" id="initClear" data-ic="trash-2">Vaciar</button>
+          </div>
+          <div class="list initList" id="initList"></div>
+          <div class="row"><button class="btn" id="initPrev" data-ic="arrow-left" aria-label="Anterior"></button><span class="small muted" id="initRoundLabel"></span><button class="btn primary" id="initNext" data-ic="redo-2">Siguiente</button></div>
+          <p class="small muted">Con «Mostrar la iniciativa a los jugadores» activado, ellos ven la barra sin las fichas ocultas ni las entradas marcadas como ocultas.</p>
         </div>
       </details>
       <details class="fold" data-fold="conexion">
@@ -336,5 +385,6 @@
 <script src="js/editor.js"></script>
 <script src="js/templates.js"></script>
 <script src="js/main.js"></script>
+<script type="module" src="js/dice3d.js"></script>
 </body>
 </html>

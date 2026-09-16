@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Recuperación de contraseña, chat, dados 3D e iniciativa
+
+**Qué** — spec en `superpowers/specs/2026-09-16-chat-dados-iniciativa-recuperacion-design.md`.
+Servidor: migración 002 (`users.recovery_code`, `chat_messages`), `server/dice.js`, rutas
+`/api/recover`, `/api/me/recovery`, `/api/me/password`, mensajes WS `chat`/`roll`/`initiative`,
+ajustes `chatEnabled` e `initiativeShown`. Cliente: pestaña Chat con botonera de dados y `/r`,
+capa de dados 3D (`dice3d.js`, three.js + cannon-es; el servidor decide el resultado y el cliente
+rotula las caras para que la que cae arriba lo muestre), barra de iniciativa sobre el mapa con
+editor en Mesa, Perfil con código de recuperación y cambio de contraseña, «¿Olvidaste la
+contraseña?» en la entrada. Prueba visual con Playwright + Edge (`npm run test:ui`, 14/14).
+**Por qué** — pedido del usuario; comparación con otros VTT.
+**Revertir** — `git revert` de los commits del 2026-09-16 (server y cliente); la migración 002 es
+aditiva y puede quedarse.
+
 ## 2026-09-16 — Producción en https://tablero.supportive.pro
 
 **Qué** — repo privado `JorgeForero02/JA-VTT`; app Coolify `ja-vtt` (uuid

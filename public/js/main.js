@@ -17,10 +17,14 @@ function setLoginMode(mode){
   const form=$('#loginForm');form.dataset.mode=mode;
   for(const t of form.querySelectorAll('.gateTab'))t.setAttribute('aria-selected',String(t.dataset.mode===mode));
   for(const n of form.querySelectorAll('.gateNote'))n.hidden=n.dataset.for!==mode;
-  $('#loginSubmit').textContent=mode==='register'?'Crear cuenta y entrar':'Entrar';
-  $('#loginPassword').autocomplete=mode==='register'?'new-password':'current-password';
+  $('#loginSubmit').textContent={register:'Crear cuenta y entrar',recover:'Cambiar contraseña y entrar'}[mode]||'Entrar';
+  $('#loginPassword').autocomplete=mode==='login'?'current-password':'new-password';
+  $('#loginPasswordLabel').textContent=mode==='recover'?'Contraseña nueva':'Contraseña';
+  $('#loginCodeField').hidden=mode!=='recover';$('#loginCode').required=mode==='recover';
   $('#loginError').textContent='';
 }
+$('#forgotBtn').onclick=()=>{setLoginMode('recover');$('#loginCode').focus()};
+$('#backToLoginBtn').onclick=()=>setLoginMode('login');
 for(const t of document.querySelectorAll('#loginForm .gateTab'))t.onclick=()=>setLoginMode(t.dataset.mode);
 $('#loginForm').onsubmit=e=>{
   e.preventDefault();
@@ -30,9 +34,14 @@ $('#loginForm').onsubmit=e=>{
     const mode=form.dataset.mode;
     $('#loginError').textContent='';
     try{
-      const d=await apiJson(mode==='register'?'/api/register':'/api/login',{method:'POST',body:JSON.stringify({name,password})});
-      $('#loginPassword').value='';
-      App.user=d.user;await afterLogin();
+      const url={register:'/api/register',recover:'/api/recover'}[mode]||'/api/login';
+      const payload={name,password};if(mode==='recover')payload.code=$('#loginCode').value.trim();
+      const d=await apiJson(url,{method:'POST',body:JSON.stringify(payload)});
+      $('#loginPassword').value='';$('#loginCode').value='';
+      App.user=d.user;
+      if(mode==='recover')toast('Contraseña cambiada',2200);
+      await afterLogin();
+      if(d.recovery_code)showRecoveryCode(d.recovery_code);
     }catch(err){$('#loginError').textContent=err.message}
   });
 };
@@ -42,6 +51,36 @@ $('#logoutBtn').onclick=async()=>{
 };
 $('#userColor').oninput=e=>{clearTimeout($('#userColor').t);$('#userColor').t=setTimeout(async()=>{try{const d=await apiJson('/api/me',{method:'PATCH',body:JSON.stringify({color:e.target.value})});App.user=d.user}catch(err){toast(err.message)}},300)};
 function renderUserChip(){$('#userName').textContent=App.user.name;$('#userColor').value=App.user.color}
+
+/* ---------- perfil: código de recuperación y contraseña ---------- */
+async function copyText(text,okMsg){try{await navigator.clipboard.writeText(text);toast(okMsg||'Copiado',1400)}catch(e){toast('No se pudo copiar; selecciónalo a mano',2200)}}
+function showRecoveryCode(code){
+  const pop=$('#recoveryPop');$('#recoveryCodeNew').textContent=code;pop.hidden=false;
+  pop.style.left='50%';pop.style.top='20%';pop.style.transform='translateX(-50%)';
+  $('#recoveryCopyNew').onclick=()=>copyText(code,'Código copiado');
+  $('#recoveryOk').onclick=()=>{pop.hidden=true};
+}
+let recoveryCache=null;
+async function openProfile(){
+  const pop=$('#profilePop');pop.hidden=false;pop.style.left='50%';pop.style.top='12%';pop.style.transform='translateX(-50%)';
+  const codeEl=$('#recoveryCode');codeEl.dataset.shown='0';codeEl.textContent='••••-••••-••••';
+  try{recoveryCache=(await apiJson('/api/me/recovery')).recovery_code}catch(err){toast(err.message)}
+}
+$('#profileBtn').onclick=openProfile;
+$('#profileClose').onclick=()=>{$('#profilePop').hidden=true};
+$('#recoveryShow').onclick=()=>{const el=$('#recoveryCode');const show=el.dataset.shown!=='1';el.dataset.shown=show?'1':'0';el.textContent=show&&recoveryCache?recoveryCache:'••••-••••-••••'};
+$('#recoveryCopy').onclick=()=>{if(recoveryCache)copyText(recoveryCache,'Código copiado')};
+$('#recoveryNew').onclick=()=>withBusy($('#recoveryNew'),async()=>{
+  if(!confirm('El código actual dejará de valer. ¿Generar otro?'))return;
+  try{recoveryCache=(await apiJson('/api/me/recovery',{method:'POST'})).recovery_code;$('#recoveryCode').dataset.shown='1';$('#recoveryCode').textContent=recoveryCache;toast('Código nuevo; guárdalo',2200)}catch(err){toast(err.message)}
+});
+$('#passwordForm').onsubmit=e=>{
+  e.preventDefault();
+  withBusy($('#passwordForm'),async()=>{
+    try{await apiJson('/api/me/password',{method:'POST',body:JSON.stringify({current:$('#pwCurrent').value,password:$('#pwNew').value})});$('#pwCurrent').value='';$('#pwNew').value='';toast('Contraseña cambiada',2000)}
+    catch(err){toast(err.message,2600)}
+  });
+};
 
 async function afterLogin(){
   renderUserChip();

@@ -32,8 +32,10 @@ Las tablas se crean solas al arrancar (migraciones en `server/migrations/`).
 ## Cómo se usa
 
 1. **Entrar:** crea una cuenta con nombre y contraseña (pestaña «Crear cuenta»); después
-   entra con ellas. Cualquiera con la dirección puede registrarse; no hay recuperación de
-   contraseña por correo.
+   entra con ellas. Cualquiera con la dirección puede registrarse. Al crear la cuenta recibes
+   un **código de recuperación**: guárdalo. Lo tienes siempre en **Perfil** (oculto, con botón
+   para copiarlo o generar otro) y con él puedes poner una contraseña nueva desde «¿Olvidaste la
+   contraseña?». No hay correo.
 2. **Panel:** crea un tablero vacío o a partir de una plantilla (Granja o Herbolario),
    o únete a uno con un código de invitación.
 3. **Invitar:** dentro del tablero, pestaña **Mesa**. Comparte el código o el enlace,
@@ -66,10 +68,14 @@ recuerda cuáles dejaste abiertas):
 | **Luces** | Biblioteca de fuentes de luz y luces de la escena |
 | **Imágenes** | Subida y biblioteca de tableros, objetos y retratos |
 | **Fichas** | Crear fichas, personajes y enemigos (el jugador ve «Mi personaje») |
-| **Mesa** | Participantes, invitaciones, reglas para jugadores y conexión |
+| **Chat** | Mensajes del grupo y dados 3D (d4 a d100): botonera o `/r 2d6+3 # etiqueta`. El servidor decide el resultado y todos ven caer los dados |
+| **Mesa** | Participantes, invitaciones, reglas para jugadores, iniciativa y conexión |
 | **Ajustes** | Vista, cuadrícula, capas, tipos de muro y atajos de teclado |
 
-Los jugadores solo ven Fichas, Mesa y Ajustes.
+Los jugadores ven Fichas, Chat, Mesa y Ajustes. El director puede quitarles el chat y los dados
+(Mesa → Reglas para jugadores) y decide si ven la **iniciativa**: la gestiona en Mesa
+(añadir fichas o entradas, tirar d20, ordenar, siguiente turno) y, si la muestra, aparece como
+barra sobre el mapa con el turno actual y la ronda; las fichas ocultas no salen.
 
 ### Qué puede hacer cada rol
 

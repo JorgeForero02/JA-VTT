@@ -24,6 +24,17 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 | Conteos rápidos | `docker compose exec -T db psql -U jav -d jav -Atc "SELECT count(*) FROM users"` |
 | Backup / restore | ver [03-despliegue.md](03-despliegue.md) |
 
+## Prueba visual (Playwright con el Edge/Chrome instalado)
+
+```bash
+docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
+DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
+npm run test:ui          # 14 pasos: registro, perfil, chat, dados, iniciativa, recuperación; capturas en test/e2e/capturas
+npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
+```
+
+No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.
+
 ## Añadir una migración
 
 1. Crear `server/migrations/002-<nombre>.sql` (tres dígitos, orden alfabético).

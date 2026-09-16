@@ -9,7 +9,7 @@ Estado técnico al 2026-09-15.
 | Runtime | Node.js ≥ 22.5 (imagen `node:22-alpine`) | `fetch` y `WebSocket` globales se usan en tests |
 | HTTP + WebSocket | `node:http` + `server/ws.js` (RFC 6455 propio) | Sin Express ni `ws` |
 | Base de datos | PostgreSQL 16, driver `pg` | Única dependencia de producción |
-| Cliente | HTML + CSS + scripts clásicos (`public/js/*.js`) que comparten ámbito global | Sin bundler ni framework |
+| Cliente | HTML + CSS + scripts clásicos (`public/js/*.js`) que comparten ámbito global; `dice3d.js` es un módulo ES | Sin bundler. three.js + cannon-es vendorizados en `public/js/vendor` sólo para los dados 3D |
 | Tests | `node:test` contra un Postgres real | Sin framework |
 
 ## Capas
@@ -33,7 +33,8 @@ cookie `jav_session`, 1 año) · `boards` (dueño, `invite_code`, `settings` jso
 `active_scene`) → `scenes` (settings jsonb, orden) → `objects` (`data` jsonb; id BIGINT
 generado en cliente como `Date.now()*1000+aleatorio`) · `board_members` (rol `gm|player`,
 escena en la que está cada uno) · `images` (bytes en `bytea`, miniatura opcional; `board_id`
-NULL = muestra compartida) · `fog` (un PNG por casilla, por usuario y escena).
+NULL = muestra compartida) · `fog` (un PNG por casilla, por usuario y escena) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
+· `users.recovery_code` (migración 002).
 
 Tiempos en milisegundos desde época (BIGINT). `pg` devuelve BIGINT como texto: `db.js`
 registra un parser a `Number` (todos los valores caben en 2^53).

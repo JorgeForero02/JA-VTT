@@ -23,7 +23,8 @@ renumerar documentos.
 - **Cambios de esquema = nueva migración** `server/migrations/NNN-nombre.sql`. Nunca editar
   una ya aplicada.
 - **Reglas de negocio en `server/rules.js` y `server/auth.js`**, no en rutas ni en el cliente.
-- Una sola dependencia de producción (`pg`). Añadir otra es decisión explícita y documentada.
+- Dependencias de producción del servidor: sólo `pg`. En el cliente, three.js y cannon-es
+  vendorizados (`public/js/vendor`) para los dados 3D; nada por CDN. Añadir otra es decisión explícita.
 - Secretos sólo por variables de entorno. `.env` no se commitea.
 - El cliente son scripts clásicos compartiendo ámbito global: no introducir módulos ES ni
   bundler sin decisión explícita.
@@ -50,6 +51,7 @@ renumerar documentos.
 | Formato | — (estilo manual; sin prettier) | ver excepción |
 | Unitarios + integración | `npm test` (necesita Postgres en `TEST_DATABASE_URL`) | obligatorio |
 | E2E tiempo real | `npm run test:e2e` con la pila levantada | obligatorio antes de desplegar |
+| E2E visual | `npm run test:ui` (Playwright + Edge/Chrome del PC, servidor local en 3999) | obligatorio cuando se toca el cliente |
 | Cobertura con umbral | — | N2, pendiente P-04 |
 | Mutación automatizada | — | N3, pendiente P-04 |
 
@@ -60,3 +62,4 @@ renumerar documentos.
 | Formateador aplicado | No hay prettier; eslint sin reglas de formato | Código heredado con estilo compacto propio; reformatearlo entero enmascararía el diff. Se mantiene a mano |
 | Type-check | No hay TypeScript ni JSDoc checkeado | Proyecto pequeño, JS plano; eslint cubre errores de referencia en servidor |
 | Rate-limit / seguridad de login | Sin límite de intentos ni 2FA | Decisión del usuario: proyecto casi privado |
+| Secretos nunca en claro | `users.recovery_code` se guarda en claro | Decisión del usuario (2026-09-16): quiere verlo en su perfil cuando quiera. Quien lea la base puede entrar en cualquier cuenta: aceptado para un grupo privado |

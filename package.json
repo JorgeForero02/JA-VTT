@@ -9,7 +9,9 @@
     "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
     "lint": "eslint .",
     "check": "npm run lint && npm test",
-    "test:e2e": "node test/e2e/realtime.mjs"
+    "test:e2e": "node test/e2e/realtime.mjs",
+    "test:ui": "node test/e2e/ui.mjs",
+    "test:dice": "node test/e2e/dice.mjs"
   },
   "engines": {
     "node": ">=22.5"
@@ -22,6 +24,7 @@
     "@eslint/js": "^9.39.5",
     "cannon-es": "^0.20.0",
     "eslint": "^9.39.5",
+    "playwright": "^1.49.0",
     "three": "^0.170.0"
   }
 }
