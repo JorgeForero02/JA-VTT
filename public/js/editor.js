@@ -146,10 +146,16 @@ function planHitDist(p,q){
 }
 function polyEdgeDist(p,pts){let m=Infinity;for(let i=0;i<pts.length;i++)m=Math.min(m,pointSegDist(p,pts[i],pts[(i+1)%pts.length]));return m}
 function rectEdgeDist(p,r){const c=[{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];let m=Infinity;for(let i=0;i<4;i++)m=Math.min(m,pointSegDist(p,c[i],c[(i+1)%4]));return m}
-/* Tirador para orientar el cono de luz de una ficha (linterna sorda): director o dueño */
-function tokenAimHandle(t){const L=tokenLight(t);return L&&L.angle<360?lightHandlePos(L):null}
+/* Tiradores para orientar el cono de luz de una ficha (linterna sorda): director o dueño.
+   Tres puntos sobre la línea de dirección —junto a la ficha, a media luz y en el extremo—
+   para no tener que alejar el zoom cuando la luz llega lejos. */
+function tokenAimHandles(t){
+  const L=tokenLight(t);if(!L||L.angle>=360)return [];
+  const a=(L.rot||0)*Math.PI/180,rr=ftPx(L.bright+L.dim),near=tokenRadius(t)*1.7;
+  return [near,Math.max(near+px(14),rr/2),rr].map(r=>({x:t.x+Math.cos(a)*r,y:t.y+Math.sin(a)*r}));
+}
 function hitHandle(p){
-  for(const o of selObjs()){if(o.type==='token'&&canControl(o)){const h=tokenAimHandle(o);if(h&&dist(p,h)<=px(10))return{kind:'lightAim',o}}}
+  for(const o of selObjs()){if(o.type==='token'&&canControl(o)&&tokenAimHandles(o).some(h=>dist(p,h)<=px(10)))return{kind:'lightAim',o}}
   if(!isGM())return null;
   for(const o of selObjs()){
     if(!usable(o))continue;
@@ -261,7 +267,7 @@ stage.addEventListener('pointermove',e=>{
     case 'ruler':A.b=snapCell(p);break;
     case 'room':A.b=snapWallPoint(p,e);break;
     case 'wcircle':case 'zcircle':A.b=p;break;
-    case 'lightAim':{const o=A.o;let ang=Math.atan2(p.y-o.y,p.x-o.x)*180/Math.PI;if(!e.altKey)ang=Math.round(ang/15)*15;o.light.rot=((ang%360)+360)%360;A.moved=true;break}
+    case 'lightAim':{const o=A.o;let ang=Math.atan2(p.y-o.y,p.x-o.x)*180/Math.PI;ang=e.altKey?Math.round(ang/15)*15:Math.round(ang);o.light.rot=((ang%360)+360)%360;A.moved=true;break}
     case 'rotate':{const o=A.o;let ang=Math.atan2(p.y-o.y,p.x-o.x)*180/Math.PI+90;if(!e.altKey)ang=Math.round(ang/15)*15;o.rot=((ang%360)+360)%360;buildPhysics(o);A.moved=true;break}
     case 'zone':A.b=snapOn('zones',e)?snapVertex(p):p;break;
     case 'plan':case 'box':A.b=p;break;
@@ -493,7 +499,7 @@ function openEditor(o,sp){
       setTimeout(()=>openEditor(o,sp));
     });
     if(isToken&&L.preset==='none')return;
-    if(!gm&&isToken){check('Encendida',L.on,v=>L.on=v);if(L.angle<360){num('Dirección (°)',L.rot||0,-360,360,15,v=>{L.rot=v});note('También puedes girarla arrastrando el tirador del cono con la ficha seleccionada.')}return}
+    if(!gm&&isToken){check('Encendida',L.on,v=>L.on=v);if(L.angle<360){num('Dirección (°)',L.rot||0,-360,360,15,v=>{L.rot=v});note('Con la ficha seleccionada, arrastra cualquiera de los tres puntos del cono para girarla (Alt = pasos de 15°).')}return}
     const custom=()=>{if(!isToken&&L.preset!=='custom')L.preset='custom'};
     num(L.darkness?'Radio (pies)':'Luz brillante (pies)',L.bright,0,300,5,v=>{custom();L.bright=v});
     if(!L.darkness)num('Luz tenue extra (pies)',L.dim,0,300,5,v=>{custom();L.dim=v});

@@ -271,10 +271,11 @@ function drawOverlay(player){
   for(const t of S.tokens){
     if(!isSel(t)||!canControl(t))continue;
     const L=tokenLight(t);if(!L||L.angle>=360)continue;
-    const a=(L.rot||0)*Math.PI/180,rr=ftPx(L.bright+L.dim),h=lightHandlePos(L);
+    const a=(L.rot||0)*Math.PI/180,rr=ftPx(L.bright+L.dim);
     c.save();c.setLineDash([px(5),px(5)]);c.lineWidth=px(1.5);c.strokeStyle='rgba(240,179,90,.9)';
     c.beginPath();c.moveTo(t.x,t.y);c.lineTo(t.x+Math.cos(a)*rr,t.y+Math.sin(a)*rr);c.stroke();c.setLineDash([]);
-    c.beginPath();c.arc(h.x,h.y,px(7),0,Math.PI*2);c.fillStyle='#F0B35A';c.fill();c.strokeStyle='#1C2226';c.lineWidth=px(2);c.stroke();
+    c.fillStyle='#F0B35A';c.strokeStyle='#1C2226';c.lineWidth=px(2);
+    for(const h of tokenAimHandles(t)){c.beginPath();c.arc(h.x,h.y,px(7),0,Math.PI*2);c.fill();c.stroke()}
     c.restore();
   }
   if(gm&&S.layers.lights.visible){

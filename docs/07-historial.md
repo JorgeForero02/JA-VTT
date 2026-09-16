@@ -80,3 +80,8 @@ arrastrarlo gira la luz (pasos de 15°, Alt = libre). Lo puede usar el director 
 ficha. El jugador ve además el campo «Dirección (°)» en el editor de su ficha si la luz es un
 cono. Antes sólo el director podía cambiar la dirección, y sólo a mano desde el editor.
 **Revertir** — `git revert` del commit.
+
+## 2026-09-16 — Giro de la linterna: fino y con tres tiradores
+
+Giro de 1° por defecto (Alt = pasos de 15°) y tres puntos de agarre sobre la línea del cono
+(junto a la ficha, a media luz, en el extremo) para no tener que alejar el zoom.

@@ -61,7 +61,9 @@ test('visión: sin tope de alcance; visión en la oscuridad absoluta; lo ilumina
 
 test('linterna sorda de ficha: el dueño puede orientarla (tirador y campo Dirección)', () => {
   const editor = read('js/editor.js');
-  assert.match(editor, /function tokenAimHandle\(t\)/);
+  assert.match(editor, /function tokenAimHandles\(t\)/);
+  assert.match(editor, /ang=e\.altKey\?Math\.round\(ang\/15\)\*15:Math\.round\(ang\)/, 'giro fino por defecto, 15° con Alt');
+  assert.match(editor, /\[near,Math\.max\(near\+px\(14\),rr\/2\),rr\]/, 'tres tiradores: ficha, medio, extremo');
   assert.match(editor, /return\{kind:'lightAim',o\}/);
   assert.match(editor, /case 'lightAim':\{const o=A\.o;let ang=Math\.atan2/);
   assert.match(editor, /if\(!gm&&isToken\)\{check\('Encendida'[^\n]*num\('Dirección \(°\)'/);
