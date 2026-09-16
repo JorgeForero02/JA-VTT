@@ -173,7 +173,7 @@ setInterval(flushFog,3000);
 window.addEventListener('pagehide',flushFog);
 function remoteChanged(scene){
   requestRender();
-  clearTimeout(panelTimer);panelTimer=setTimeout(()=>{refreshPanels();if(scene){renderEnv();syncSceneInputs()}},60);
+  clearTimeout(panelTimer);panelTimer=setTimeout(()=>{refreshPanels();if(scene){renderEnv();syncSceneInputs();if(is25()&&window.D3&&window.D3.isMounted())window.D3.setEnv(S.env,S.ambient)}},60);
 }
 let liveTimer=0;function renderLiveSoon(){clearTimeout(liveTimer);liveTimer=setTimeout(()=>{if(typeof renderLive==='function')renderLive()},60)}
 

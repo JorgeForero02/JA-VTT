@@ -85,6 +85,7 @@ function loop(ts){
 function syncStageMode(){
   const want=is25(),has=!!(window.D3&&window.D3.isMounted());
   stage.classList.toggle('d3',want);$('#app').classList.toggle('d3',want);
+  if(want){$('#blindNote').style.display='none';$('#status').textContent=''}
   if(want&&!has&&window.D3){window.D3.mount(stage,{toast}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
   else if(!want&&has)window.D3.unmount();
   if(!want)$('#subbar').innerHTML='';

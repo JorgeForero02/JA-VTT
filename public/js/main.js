@@ -168,7 +168,7 @@ function openBoardView(id){
   leaveBoard(true);
   openBoardId=id;
   UI.board={id,name:''};UI.scene=null;UI.scenes=[];UI.selected=[];UI.act=null;UI.viewAs='party';
-  loadState(blankState());resetExplored();
+  loadState(blankState());syncStageMode();resetExplored();
   $('#sceneName').value='Conectando…';
   selectTab('scene');
   Store.setBoard(id);

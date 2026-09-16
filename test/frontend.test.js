@@ -264,6 +264,8 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(editor, /D3\.rotate\(-1\)/); assert.match(editor, /D3\.rotate\(1\)/);
   assert.match(read('js/net.js'), /loadState\(st\);syncStageMode\(\)/);
   assert.match(read('js/main.js'), /loadState\(blankState\(\)\);syncStageMode\(\)/);
+  assert.match(render, /#blindNote'\)\.style\.display='none'/, 'el aviso de ceguera 2D no debe quedar visible sobre el diorama');
+  assert.match(read('js/net.js'), /D3\.setEnv\(S\.env,S\.ambient\)/, 'un cambio de entorno remoto también debe llegar al motor montado');
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
   assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);
