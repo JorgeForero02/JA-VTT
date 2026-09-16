@@ -109,6 +109,22 @@ test('tableros: crear, listar, unirse por código; añadir miembro exige usuario
   assert.equal((await player.call('POST', `/api/boards/${boardId}/members`, { name: 'Ana' })).status, 404);
 });
 
+test('crear tablero 2.5D: se guarda el modo y se lista; un modo inválido cae a 2d', async () => {
+  const gm = client();
+  await gm.call('POST', '/api/login', { name: 'Ana', password: 'secreto1' });
+  const r = await gm.call('POST', '/api/boards', { name: 'Cripta', mode: '2.5d' });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.board.mode, '2.5d');
+  const bad = await gm.call('POST', '/api/boards', { name: 'Plano', mode: 'iso' });
+  assert.equal(bad.data.board.mode, '2d');
+  const list = await gm.call('GET', '/api/boards');
+  const modes = Object.fromEntries(list.data.boards.map((b) => [b.name, b.mode]));
+  assert.equal(modes.Cripta, '2.5d');
+  assert.equal(modes.Plano, '2d');
+  const one = await gm.call('GET', `/api/boards/${r.data.board.id}`);
+  assert.equal(one.data.board.mode, '2.5d');
+});
+
 test('imágenes: subir, descargar bytes idénticos, cuota y permisos', async () => {
   const gm = client();
   await gm.call('POST', '/api/login', { name: 'Ana', password: 'secreto1' });

@@ -39,7 +39,7 @@ test('tablero: se crea con escena activa, dueño como gm y código de invitació
   const board = await db.createBoard('Mesa uno', gm.id);
   assert.equal(board.name, 'Mesa uno');
   assert.match(board.invite_code, /^[A-Z2-9]{6}$/);
-  assert.deepEqual(board.settings, {});
+  assert.deepEqual(board.settings, { mode: '2d' });
   const scenes = await db.q.scenes(board.id);
   assert.equal(scenes.length, 1);
   assert.equal(scenes[0].id, board.active_scene);

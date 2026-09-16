@@ -325,6 +325,7 @@ async function handleOps(b, c, d) {
   let resendPlayers = false, boardChanged = false;
   if (d.settings && gm) {
     const { board, scene } = R.splitSettings(d.settings);
+    delete board.mode; // inmutable: sólo se fija al crear
     if ('plansReleased' in scene && scene.plansReleased !== sc.settings.plansReleased) resendPlayers = true;
     const bsBefore = JSON.stringify(b.settings);
     Object.assign(sc.settings, scene); sc.settingsDirty = true;
@@ -694,8 +695,9 @@ async function boardRoutes(req, res, user, parts) {
     if (M === 'POST') {
       const body = await readJson(req);
       const name = R.str(body.name, 60).trim() || 'Tablero sin nombre';
-      const b = await createBoard(name, user.id);
-      return send(res, 201, { board: { id: b.id, name: b.name } });
+      const mode = R.MODES.includes(body.mode) ? body.mode : '2d';
+      const b = await createBoard(name, user.id, mode);
+      return send(res, 201, { board: { id: b.id, name: b.name, mode } });
     }
     return fail(res, 404, 'Ruta no encontrada');
   }
@@ -705,7 +707,7 @@ async function boardRoutes(req, res, user, parts) {
   const gm = me.role === 'gm';
   const sub = parts[2];
   if (!sub) {
-    if (M === 'GET') return send(res, 200, { board: { id: board.id, name: board.name, owner_id: board.owner_id, role: me.role, invite_code: gm ? board.invite_code : undefined } });
+    if (M === 'GET') return send(res, 200, { board: { id: board.id, name: board.name, owner_id: board.owner_id, role: me.role, mode: (board.settings && board.settings.mode) || '2d', invite_code: gm ? board.invite_code : undefined } });
     if (M === 'PATCH' && gm) {
       const body = await readJson(req);
       const name = R.str(body.name, 60).trim();

@@ -115,6 +115,22 @@ test('el estado sobrevive a expulsar el tablero de memoria: reconectar lo recupe
   await player.close();
 });
 
+test('el director no puede cambiar el modo del tablero por ops', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Inmutable', mode: '2d' });
+  const boardId2 = created.board.id;
+  const gm = connect(base, boardId2, gmCookie);
+  await gm.opened;
+  const state0 = await gm.next(isState);
+  gm.send({ t: 'ops', scene: state0.scene.id, up: [], del: [], settings: { mode: '2.5d' } });
+  await gm.silence(isOps, 300); // el único ajuste enviado (mode) es inmutable: no hay nada que reenviar
+  await gm.close();
+  const again = connect(base, boardId2, gmCookie);
+  await again.opened;
+  const state1 = await again.next(isState);
+  assert.equal(state1.settings.mode, '2d');
+  await again.close();
+});
+
 test('un jugador que gira su propia luz no recibe corrección (las claves vienen reordenadas de jsonb)', async () => {
   const uid = (await db.q.userByName('Jugador')).id;
   const token = { id: 1003, type: 'token', kind: 'player', owner: uid, x: 225, y: 225, name: 'Linterna', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, light: { on: true, preset: 'bullseye', bright: 60, dim: 60, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 0 } };

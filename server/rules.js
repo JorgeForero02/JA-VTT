@@ -9,6 +9,7 @@ const WALL_KINDS = ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'porta
 const LIGHT_PRESETS = ['candle', 'torch', 'lantern', 'bullseye', 'campfire', 'brazier', 'magic', 'crystal', 'moon', 'daylight', 'window', 'darkness', 'custom', 'none'];
 const ANIMS = ['none', 'flicker', 'soft', 'pulse'];
 const ENVS = ['interior', 'day', 'dusk', 'night'];
+const MODES = ['2d', '2.5d'];
 const LAYER_IDS = ['map', 'props', 'zones', 'plans', 'tokens', 'lights', 'walls'];
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -96,11 +97,12 @@ function sanitize(o) {
   return null;
 }
 
-const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative'];
+const BOARD_KEYS = ['mode', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative'];
 function cleanSettings(sc) {
   const o = {};
   if (!sc || typeof sc !== 'object') return o;
   if (ENVS.includes(sc.env)) o.env = sc.env;
+  if (MODES.includes(sc.mode)) o.mode = sc.mode;
   if (fin(sc.ambient)) o.ambient = clamp(sc.ambient, 0, 1);
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
   for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
@@ -116,7 +118,7 @@ function cleanSettings(sc) {
 }
 
 const DEFAULT_SCENE = { env: 'interior', ambient: 0, darkColor: '#0B0E11', fog: true, grid: true, snap: true, animate: true, plansReleased: false };
-const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, initiative: { entries: [], turn: 0, round: 1 } };
+const DEFAULT_BOARD = { mode: '2d', sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, initiative: { entries: [], turn: 0, round: 1 } };
 function splitSettings(sc) {
   const all = cleanSettings(sc), board = {}, scene = {};
   for (const [k, v] of Object.entries(all)) (BOARD_KEYS.includes(k) ? board : scene)[k] = v;
@@ -188,4 +190,4 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };
+module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };

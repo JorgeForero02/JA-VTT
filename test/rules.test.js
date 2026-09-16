@@ -28,3 +28,12 @@ test('sanitize acepta el tipo de muro "cover" (maleza)', () => {
   assert.equal(w.kind, 'cover');
   assert.equal(R.sanitize({ id: 6, type: 'wall', kind: 'inventado', a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }).kind, 'wall');
 });
+
+test('mode: sólo 2d o 2.5d; por defecto 2d; es ajuste de tablero', () => {
+  assert.deepEqual(R.MODES, ['2d', '2.5d']);
+  assert.equal(R.cleanSettings({ mode: '2.5d' }).mode, '2.5d');
+  assert.equal(R.cleanSettings({ mode: '3d' }).mode, undefined);
+  assert.equal(R.DEFAULT_BOARD.mode, '2d');
+  assert.equal(R.splitSettings({ mode: '2.5d', env: 'day' }).board.mode, '2.5d');
+  assert.equal(R.splitSettings({ mode: '2.5d', env: 'day' }).scene.mode, undefined);
+});

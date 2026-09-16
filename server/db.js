@@ -88,6 +88,7 @@ function makeQueries(exec) {
 
     boardsForUser: (userId) => all(`
       SELECT b.id, b.name, b.owner_id, b.created_at, b.updated_at, m.role, u.name AS owner_name,
+        COALESCE(b.settings->>'mode', '2d') AS mode,
         (SELECT COUNT(*) FROM board_members x WHERE x.board_id = b.id) AS members,
         (SELECT COUNT(*) FROM scenes z WHERE z.board_id = b.id) AS scenes
       FROM board_members m JOIN boards b ON b.id = m.board_id JOIN users u ON u.id = b.owner_id
@@ -174,13 +175,13 @@ async function createUser(name, passwordHash) {
   return user;
 }
 
-async function createBoard(name, ownerId) {
+async function createBoard(name, ownerId, mode = '2d') {
   const id = randCode(8).toLowerCase();
   let code = randCode(6);
   while (await q.boardByCode(code)) code = randCode(6);
   const sceneId = newSceneId();
   await tx(async (t) => {
-    await t.insertBoard(id, name, ownerId, code, {});
+    await t.insertBoard(id, name, ownerId, code, { mode });
     await t.insertScene(sceneId, id, 'Escena 1', {}, 0);
     await t.setActiveScene(sceneId, id);
     await t.addMember(id, ownerId, 'gm');
