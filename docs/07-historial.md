@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Modo 2.5D, fase A: estado del motor en `ctx.js` (tarea 7)
+
+**Qué** — Refactor mecánico de `public/js/d3/engine.js`: se crea `public/js/d3/ctx.js` con el estado
+compartido (`G` mundo, `S` escena, `R` renderer, `U` uniforms, helpers de índice y constantes). Las
+variables mutables del módulo pasan a `G.*`/`S.*`/`R.*`/`U.*`; las colecciones se mantienen como
+alias locales para no romper los cierres. Se corrige el test de T7 (import relativo) y el test de T4
+(`G.visionDirty`). Se inicializan los arrays de simulación en `ctx.js` para evitar `null` en la
+primera carga. Se restaura `S.animLights` con `prefers-reduced-motion`.
+**Por qué** — Paso previo al troceo en módulos independientes (tareas 8–11 del plan); unifica el
+estado y evita dependencias circulares.
+**Evidencia** — `npm run check` 70/70 · `npm run test:ui` 19/19 (Playwright + Edge headless con
+swiftshader; captura `08-tablero-25d.png` no plana).
+**Revertir** — `git revert` del commit de esta tarea; no afecta datos de usuario.
+
 ## 2026-09-16 — Modo 2.5D, fase A hasta la tarea 5 (rama `modo-25d-fase-a`) y traspaso a OpenCode
 
 **Qué** — spec `superpowers/specs/2026-09-16-modo-25d-design.md` (aprobada por secciones) y planes

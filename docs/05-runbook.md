@@ -16,7 +16,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 | Qué | Comando |
 |---|---|
 | Lint | `npm run lint` |
-| Tests (32) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
+| Tests (70) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
 | Lint + tests | `npm run check` |
 | Pila local | `docker compose up -d --build` · `docker compose logs -f app` · `docker compose down` |
 | E2E contra la pila | `npm run test:e2e` (`BASE_URL` para otra URL; `E2E_RESTART=no` si no puede reiniciar el contenedor) |

@@ -1,7 +1,7 @@
 # 00 — Índice maestro · Just Another VTT
 
 **Leer PRIMERO en cada sesión, junto con [06-pendientes](06-pendientes.md).**
-Última actualización: 2026-09-17.
+Última actualización: 2026-09-16.
 
 ## Resumen en 30 segundos
 
@@ -13,20 +13,20 @@ abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
 
-Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D `public/js/d3/engine.js` (~2300, módulo ES; en `main` no existe)
+Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D `public/js/d3/engine.js` (~2250, módulo ES; en `main` no existe) + `ctx.js` (estado compartido G/S/R/U)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
 Estado de calidad verificado el 2026-09-16: `npm run lint` limpio · `npm test` →
-**60 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
-· `npm run test:ui` (Playwright + Edge) → **17/17** con capturas.
+**70 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge, GPU por software) → **19/19** con capturas.
 
 Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
 portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
-Trabajo en curso: **modo 2.5D** (rama `modo-25d-fase-a`, fase A parada en la tarea 5 de 12 el
-2026-09-16; se retoma con OpenCode). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
+Trabajo en curso: **modo 2.5D** (rama `modo-25d-fase-a`, fase A: tareas 1–7 de 12 completadas el
+2026-09-16; se continúa con OpenCode). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
 Resto: [06-pendientes.md](06-pendientes.md).
 
 ## Mapa de la documentación

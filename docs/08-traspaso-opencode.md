@@ -1,6 +1,6 @@
 # 08 — Traspaso a OpenCode: modo 2.5D
 
-Escrito el 2026-09-16 al parar la fase A en la tarea 5 de 12. **Este archivo es el punto de
+Escrito el 2026-09-16; actualizado el 2026-09-16 tras completar la tarea 7. **Este archivo es el punto de
 entrada para retomar el trabajo con OpenCode** (o cualquier otro agente). Cuando la fase A esté
 cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva en `_archivo/`.
 
@@ -9,15 +9,15 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | Qué | Dónde |
 |---|---|
 | Diseño aprobado (autoridad) | [`superpowers/specs/2026-09-16-modo-25d-design.md`](superpowers/specs/2026-09-16-modo-25d-design.md) |
-| Plan fase A (tareas 1–12; **1–5 hechas**) | [`superpowers/plans/2026-09-16-modo-25d-fase-a.md`](superpowers/plans/2026-09-16-modo-25d-fase-a.md) |
+| Plan fase A (tareas 1–12; **1–7 hechas**) | [`superpowers/plans/2026-09-16-modo-25d-fase-a.md`](superpowers/plans/2026-09-16-modo-25d-fase-a.md) |
 | Planes fases B, C, D, E | [`…-fase-b.md`](superpowers/plans/2026-09-16-modo-25d-fase-b.md) · [`…-fase-c.md`](superpowers/plans/2026-09-16-modo-25d-fase-c.md) · [`…-fase-d.md`](superpowers/plans/2026-09-16-modo-25d-fase-d.md) · [`…-fase-e.md`](superpowers/plans/2026-09-16-modo-25d-fase-e.md) |
 | Rama de trabajo | `modo-25d-fase-a` (desde `main` en `e0d0ffa`). **No está en `origin`.** |
 | Prototipo fuente (sólo lectura, gitignorado) | `diorama-jav/` — `index.html` de 2935 líneas es el original r128 del que se porta todo |
-| Motor portado | `public/js/d3/engine.js` (2266 líneas, un módulo) + `index.js` (puente `window.D3`) + `packmap.js` |
+| Motor portado | `public/js/d3/engine.js` (~2250 líneas, un módulo) + `index.js` (puente `window.D3`) + `packmap.js` + `ctx.js` (estado compartido G/S/R/U) |
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
 | Cómo se trabajó (briefs, informes, revisiones) | `.superpowers/sdd/2026-09-16-modo-25d-fase-a/` — gitignorado; el resumen útil está en §3 |
 
-## 2. Estado exacto (rama `modo-25d-fase-a`, 8 commits, 69 tests verdes)
+## 2. Estado exacto (rama `modo-25d-fase-a`, 10 commits, 70 tests verdes)
 
 | Commit | Qué |
 |---|---|
@@ -26,6 +26,7 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | `31daca7` | `packs25.png`, `packmap.js`, créditos, `.gitignore` |
 | `80a07ee` + `c3a5753` | Motor portado a three **r170** como módulo: sin HUD, sin `localStorage`; `ColorManagement.enabled=false` + salida lineal (look r128); luces ×π; `WebGLRenderTarget{samples:4}`; sombras suaves parcheando `ShaderChunk.lights_fragment_begin`; `stop()` seguro; dados envueltos en `withColorManagement` |
 | `383e1ae` + `a8d6aa2` | Shell: `syncStageMode()` monta/desmonta; canvas 2D ocultos; handlers 2D gateados con `is25()`; rail sólo Seleccionar/Desplazar; subbar con girar; `D3.setEnv` local y remoto; `#blindNote`/`#status` limpios |
+| tarea 7 (commit «refactor(2.5d): estado del mundo en ctx.js») | Tarea 7: estado compartido en `ctx.js` (`G/S/R/U`), variables mutables del motor migradas, tests de T4/T7 ajustados, `npm run check` 70/70, `npm run test:ui` 19/19 |
 
 Verificado en Edge headless (swiftshader): el valle renderiza dentro del shell; volver a un tablero
 2D restaura el 2D sin errores de consola (salvo el 401 esperado de `/api/me` sin sesión).
@@ -37,8 +38,8 @@ Verificado en Edge headless (swiftshader): el valle renderiza dentro del shell; 
 
 | # | Tarea | Nota |
 |---|---|---|
-| 6 | `test:ui`: flags swiftshader + paso «tablero 2.5D» | El script del checkpoint ya demostró que funciona con `--use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`; ~6 fps en headless |
-| 7 | Estado en `ctx.js` (`G/S/R/U`) | Refactor mecánico; comparar captura antes/después |
+| 6 | `test:ui`: flags swiftshader + paso «tablero 2.5D» | Hecho; 19/19 pasos |
+| 7 | Estado en `ctx.js` (`G/S/R/U`) | Hecho; variables mutables migradas, arrays inicializados en `ctx.js`, captura idéntica |
 | 8–11 | Troceo en `art/water/fx/vision/chars/camera/input/terrain/world`; `engine.js` desaparece | Cada uno con captura idéntica |
 | 12 | Docs 00–07, README, despliegue por API de Coolify, `test:e2e` | |
 

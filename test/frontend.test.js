@@ -58,7 +58,7 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(chunk, shadowRe, 'el regex de sombras debe casar con el chunk real de r170');
   assert.match(chunk.replace(shadowRe, (m) => 'mix(1.0,' + m.slice(0, -7) + ',uShadow) : 1.0;'), /\? mix\(1\.0,getShadow\( directionalShadowMap\[ i \][^;]*\),uShadow\) : 1\.0;/);
   // setEnv rehace niebla, bruma y visión; stop() es seguro mientras start() aún carga
-  assert.match(eng, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;visionDirty=true;[\s\S]*?applyEnv\(false\);/);
+  assert.match(eng, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(false\);/);
   assert.match(eng, /function stop\(\)\{stopped=true;/);
   assert.match(eng, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
   const idx = read('js/d3/index.js');
@@ -269,4 +269,12 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
   assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);
+});
+
+test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; engine.js ya no declara N ni H', () => {
+  const ctx = read('js/d3/ctx.js');
+  assert.match(ctx, /export const G=\{/); assert.match(ctx, /export const I=\(x,z\)=>z\*G\.N\+x/);
+  const eng = read('js/d3/engine.js');
+  assert.match(eng, /import \{ G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb \} from '\.\/ctx\.js'/);
+  assert.doesNotMatch(eng, /^\s*let N=|^\s*let H,M,W|^\s*const S=\{env:/m);
 });

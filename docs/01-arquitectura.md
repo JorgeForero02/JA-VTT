@@ -75,6 +75,11 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
 - Motor: `public/js/d3/engine.js` (módulo ES sobre el mismo three r170 de los dados; port del
   prototipo `diorama-jav/`, gitignorado). `public/js/d3/index.js` expone `window.D3 =
   {mount, unmount, resize, rotate, setEnv, isMounted}` para los scripts clásicos.
+- Estado compartido (fase A, tarea 7): `public/js/d3/ctx.js` exporta `G` (estado del mundo por celda),
+  `S` (ajustes de escena), `R` (renderer/escena/cámara/luces) y `U` (uniformes), más helpers de índice
+  (`I`, `cxOf`, `czOf`, `wx`, `wz`, `inb`) y constantes (`MAXH`, `MAXN`, `BASE_N`, `DIRS`). `engine.js`
+  los importa; las variables de módulo mutables pasaron a `G.*`/`S.*`/`R.*`/`U.*` para preparar el
+  troceo en módulos independientes (tareas 8–11).
 - Look fiel a r128: `THREE.ColorManagement.enabled = false` (global al módulo three) + salida
   `LinearSRGBColorSpace`; luces ×π (r170 quitó el modo legado); sombras suaves parcheando
   `ShaderChunk.lights_fragment_begin` (en r170 `onBeforeCompile` ve el template sin expandir). Los

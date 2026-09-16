@@ -48,6 +48,9 @@ intenta algo que no puede.
   (aún sin persistir), cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
   desplazan, F centra), entorno y luz ambiental de la pestaña Escena aplicados al 3D (también los
   cambios remotos del director). Sin fichas, edición ni niebla por jugador todavía.
+- Refactor interno (tarea 7): el estado del motor vive en `public/js/d3/ctx.js` (`G` mundo, `S` escena,
+  `R` renderer, `U` uniforms). No cambia el comportamiento visible; prepara el troceo en módulos
+  independientes (tareas 8–11).
 - Fases siguientes y estado: [08](08-traspaso-opencode.md).
 
 ## Arte del modo 2.5D
