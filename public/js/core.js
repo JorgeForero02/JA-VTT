@@ -16,6 +16,7 @@ const WALL_TYPES={
   door:{name:'Puerta',icon:'door-closed',sight:1,light:1,move:1,color:'#F0B35A',door:1,desc:'Como un muro mientras está cerrada'},
   window:{name:'Ventana',icon:'window-wall',sight:0,light:0,move:1,color:'#8EC5E8',dash:[10,6],desc:'Deja pasar vista y luz, no el paso'},
   veil:{name:'Velo',icon:'cloud-fog',sight:1,light:1,move:0,color:'#B79BD8',dash:[3,5],desc:'Follaje, humo o cortinas: tapa la vista, se puede cruzar'},
+  cover:{name:'Maleza',icon:'trees',sight:0,light:0,move:0,hide:1,color:'#9ED3A6',dash:[6,4],desc:'Hierba alta, niebla baja: el fondo y la luz se ven, pero oculta a las fichas y objetos que haya detrás; se puede cruzar'},
   barrier:{name:'Barrera',icon:'fence',sight:0,light:0,move:1,color:'#A7AFAF',dash:[2,8],desc:'Invisible: solo frena el movimiento'},
   portal:{name:'Portal',icon:'log-in',sight:1,light:1,move:1,color:'#E8A0BF',portal:1,desc:'Puerta a otra escena: un clic junto a él lleva al personaje allí'}
 };
@@ -111,7 +112,8 @@ function traceZone(c,z){if(z.pts&&z.pts.length>2)tracePoly(c,z.pts);else{c.begin
 function translateObj(o,dx,dy){if(o.a){o.a={x:o.a.x+dx,y:o.a.y+dy};o.b={x:o.b.x+dx,y:o.b.y+dy};return}o.x+=dx;o.y+=dy;if(o.pts)o.pts=o.pts.map(q=>({x:q.x+dx,y:q.y+dy}))}
 const inRect=(p,r)=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h;
 const normRect=(a,b)=>({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)});
-function blocks(w,kind){const t=WALL_TYPES[w.kind]||WALL_TYPES.wall;if(t.door&&w.open)return false;return !!t[kind]}
+// kind: 'sight' (vista del fondo), 'light', 'move' o 'hide' (lo que esconde fichas y objetos: muros y maleza)
+function blocks(w,kind){const t=WALL_TYPES[w.kind]||WALL_TYPES.wall;if(t.door&&w.open)return false;if(kind==='hide')return !!(t.hide||t.sight);return !!t[kind]}
 function angDiff(a,b){let d=(a-b)%360;if(d>180)d-=360;if(d<-180)d+=360;return Math.abs(d)}
 function inCone(src,p){if(!src.angle||src.angle>=360)return true;const ang=Math.atan2(p.y-src.y,p.x-src.x)*180/Math.PI;return angDiff(ang,src.rot||0)<=src.angle/2}
 
@@ -181,8 +183,8 @@ function viewers(){
   if(UI.viewAs!=='party'){const one=party.find(t=>t.id===UI.viewAs);if(one)return[one]}
   return party;
 }
-function canSee(v,p){
-  const poly=los(v,'sight');if(poly.length<3||!pointInPoly(poly,p))return false;
+function canSee(v,p,kind='sight'){
+  const poly=los(v,kind);if(poly.length<3||!pointInPoly(poly,p))return false;
   const d=dist(v,p);
   const L=lightAt(p);if(L.magic)return false;
   if(L.level>.25)return true;
@@ -195,8 +197,18 @@ function visibleToPlayers(t){
   if(frame.vis.has(t.id))return frame.vis.get(t.id);
   const vs=viewers(),r=tokenRadius(t)*.55;
   const pts=[{x:t.x,y:t.y},{x:t.x+r,y:t.y},{x:t.x-r,y:t.y},{x:t.x,y:t.y+r},{x:t.x,y:t.y-r}];
-  const ok=vs.some(v=>pts.some(p=>canSee(v,p)));
+  const ok=vs.some(v=>pts.some(p=>canSee(v,p,'hide')));
   frame.vis.set(t.id,ok);return ok;
+}
+/* Un objeto queda escondido para los jugadores sólo si hay maleza en la escena y ningún personaje lo alcanza a ver */
+function propVisibleToPlayers(a){
+  if(!S.walls.some(w=>w.kind==='cover'))return true;
+  frame.pvis=frame.pvis||new Map();
+  if(frame.pvis.has(a.id))return frame.pvis.get(a.id);
+  const hw=(a.w||CELL)/2*.6,hh=(a.h||CELL)/2*.6;
+  const pts=[{x:a.x,y:a.y},{x:a.x+hw,y:a.y},{x:a.x-hw,y:a.y},{x:a.x,y:a.y+hh},{x:a.x,y:a.y-hh}];
+  const ok=viewers().some(v=>pts.some(p=>canSee(v,p,'hide')));
+  frame.pvis.set(a.id,ok);return ok;
 }
 function doorVisibleToPlayers(w){
   const m={x:(w.a.x+w.b.x)/2,y:(w.a.y+w.b.y)/2};

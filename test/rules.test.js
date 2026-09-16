@@ -22,3 +22,9 @@ test('playerUpsert: girar la luz propia devuelve un objeto igual al enviado (sin
   assert.notEqual(JSON.stringify(result), JSON.stringify(neu), 'el orden de claves difiere tras pasar por jsonb');
   assert.equal(R.sameObject(result, neu), true, 'pero el contenido es el mismo: no hay que corregir al cliente');
 });
+
+test('sanitize acepta el tipo de muro "cover" (maleza)', () => {
+  const w = R.sanitize({ id: 5, type: 'wall', kind: 'cover', a: { x: 0, y: 0 }, b: { x: 100, y: 0 } });
+  assert.equal(w.kind, 'cover');
+  assert.equal(R.sanitize({ id: 6, type: 'wall', kind: 'inventado', a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }).kind, 'wall');
+});

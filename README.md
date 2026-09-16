@@ -120,6 +120,10 @@ Sube el mapa en **Imágenes → Tablero**. Si el nombre del archivo indica la es
 (por ejemplo `Taberna - 14x15 - 72 DPI.png`), se coloca a ese tamaño automáticamente.
 Si no, ajústala en el editor del tablero con **Píxeles por casilla**.
 
+Tipos de muro: **Muro** y **Puerta** tapan todo; **Ventana** deja pasar vista y luz; **Velo** tapa la
+vista pero se cruza; **Maleza** deja ver el fondo y la luz pero esconde las fichas y objetos que
+haya detrás (hierba alta, niebla baja); **Barrera** sólo frena el paso; **Portal** lleva a otra escena.
+
 Para interiores irregulares, la herramienta de muros (W) tiene tramos, salas,
 círculos, arcos y curvas; la herramienta de zonas (Z) dibuja zonas interiores
 poligonales, y con clic derecho sobre una figura de muros puedes crear la zona

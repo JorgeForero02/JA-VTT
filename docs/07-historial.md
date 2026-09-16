@@ -102,3 +102,12 @@ el cliente ignora correcciones sobre el objeto que está arrastrando (reenvía l
 Memoria de exploración al 20 % (antes 12 %; 160 bloques máx. en vez de 260 para no subir el
 consumo) y desenfoque leve (`EXP.blur`) al pintarla. Los tiles guardados con la resolución
 vieja se escalan al cargar.
+
+## 2026-09-16 — Tipo de muro «Maleza»
+
+**Qué** — nuevo `kind: 'cover'`: no bloquea vista del fondo, ni luz, ni paso; pero para los
+jugadores esconde las fichas (no propias) y los objetos que queden detrás. Se implementa como un
+tercer tipo de línea de visión `'hide'` (muros que tapan la vista + maleza) usado sólo por
+`visibleToPlayers` y `propVisibleToPlayers`. Aparece en la barra de muros, leyenda, editor y
+menú «Convertir en…» automáticamente (catálogo `WALL_TYPES`). Servidor: `WALL_KINDS` lo acepta.
+**Revertir** — `git revert` del commit; los muros ya guardados como `cover` pasarían a `wall`.

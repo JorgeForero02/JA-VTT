@@ -72,3 +72,13 @@ test('linterna sorda de ficha: el dueño puede orientarla (tirador y campo Direc
   const render = read('js/render.js');
   assert.match(render, /if\(!isSel\(t\)\|\|!canControl\(t\)\)continue;\s*const L=tokenLight\(t\);if\(!L\|\|L\.angle>=360\)continue;/);
 });
+
+test('maleza: deja ver el fondo, esconde fichas y objetos detrás', () => {
+  const core = read('js/core.js');
+  assert.match(core, /cover:\{name:'Maleza',icon:'trees',sight:0,light:0,move:0,hide:1/);
+  assert.match(core, /if\(kind==='hide'\)return !!\(t\.hide\|\|t\.sight\)/);
+  assert.match(core, /canSee\(v,p,'hide'\)/);
+  assert.match(core, /function propVisibleToPlayers\(a\)/);
+  const render = read('js/render.js');
+  assert.match(render, /a\.kind==='prop'&&\(!player\|\|propVisibleToPlayers\(a\)\)/);
+});

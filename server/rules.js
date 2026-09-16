@@ -5,7 +5,7 @@
    director lo permite). */
 
 const TYPES = ['wall', 'light', 'token', 'asset', 'plan', 'zone'];
-const WALL_KINDS = ['wall', 'door', 'window', 'veil', 'barrier', 'portal'];
+const WALL_KINDS = ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'portal'];
 const LIGHT_PRESETS = ['candle', 'torch', 'lantern', 'bullseye', 'campfire', 'brazier', 'magic', 'crystal', 'moon', 'daylight', 'window', 'darkness', 'custom', 'none'];
 const ANIMS = ['none', 'flicker', 'soft', 'pulse'];
 const ENVS = ['interior', 'day', 'dusk', 'night'];

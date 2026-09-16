@@ -82,7 +82,7 @@ function drawScene(player){
     c.strokeStyle='rgba(233,227,213,.09)';c.lineWidth=px(1);c.stroke();
     if(UI.cam.zoom>.3){const big=CELL*10;c.beginPath();for(let x=Math.floor(v.x0/big)*big;x<=v.x1;x+=big){c.moveTo(x,v.y0);c.lineTo(x,v.y1)}for(let y=Math.floor(v.y0/big)*big;y<=v.y1;y+=big){c.moveTo(v.x0,y);c.lineTo(v.x1,y)}c.strokeStyle='rgba(233,227,213,.05)';c.lineWidth=px(2);c.stroke()}
   }
-  if(S.layers.props.visible)for(const a of S.assets)if(a.kind==='prop')drawAsset(c,a);
+  if(S.layers.props.visible)for(const a of S.assets)if(a.kind==='prop'&&(!player||propVisibleToPlayers(a)))drawAsset(c,a);
   if(!S.layers.tokens.visible)return;
   const list=[...S.tokens].sort((a,b)=>(a.kind==='player')-(b.kind==='player'));
   for(const t of list){
