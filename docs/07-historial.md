@@ -2,6 +2,23 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Modo 2.5D, fase A hasta la tarea 5 (rama `modo-25d-fase-a`) y traspaso a OpenCode
+
+**Qué** — spec `superpowers/specs/2026-09-16-modo-25d-design.md` (aprobada por secciones) y planes
+A–E en `superpowers/plans/`. En la rama: `mode` de tablero inmutable (servidor + selector en el
+dashboard), atlas CC0 extraído, motor del diorama portado a three r170 como módulo
+(`public/js/d3/`), integración en el shell (canvas 2D ocultos, rail reducido, entorno sincronizado).
+Cada tarea con implementador + revisor independientes; correcciones relevantes: `replace` también
+respeta `mode`; el parche de sombras tenía que ir al `ShaderChunk`; parada segura del motor en
+mitad de la carga. Comprobado que «terreno iluminado con Interior» es comportamiento del diorama
+en vista Director, no un fallo. Se para en la tarea 5 por decisión del usuario: el resto se hará
+con OpenCode (`opencode.json`, `.opencode/agent`, `.opencode/command`, `docs/08`).
+**Por qué** — el usuario quiere mapas 2.5D como segundo tipo de tablero y cambia de herramienta.
+**Evidencia** — `npm run check` 69/69; capturas en Edge headless del valle dentro del shell y del
+2D intacto.
+**Revertir** — no mezclar la rama; o `git revert` de `8e76e75..a8d6aa2`. Sin migraciones: los
+tableros creados como 2.5D quedan como 2D sin datos.
+
 ## 2026-09-16 — Ajustes de chat/dados para todos, tiradas privadas, dados rediseñados, favicon
 
 **Qué** — `diceEnabled` junto a `chatEnabled`, ambos en la pestaña Ajustes y apagan la función

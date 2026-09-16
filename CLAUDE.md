@@ -11,6 +11,7 @@ de sesión ni pendientes aquí: van en `docs/06-pendientes.md` y `docs/07-histor
 1. [docs/00-INDEX.md](docs/00-INDEX.md) — resumen + mapa.
 2. [docs/06-pendientes.md](docs/06-pendientes.md) — qué está abierto.
 3. Antes de escribir código, [docs/04-convenciones.md](docs/04-convenciones.md).
+4. Si el trabajo es el modo 2.5D: [docs/08-traspaso-opencode.md](docs/08-traspaso-opencode.md).
 
 Reglas globales del PC: `~/.claude/dev-rules.md` · `~/.claude/docs-protocol.md`.
 

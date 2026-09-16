@@ -39,6 +39,17 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
+## Modo 2.5D (en curso, rama `modo-25d-fase-a`)
+
+- Al crear un tablero se elige **Tipo de mapa: 2D / 2.5D**; la tarjeta muestra la etiqueta `2.5D`.
+  El tipo no se puede cambiar después. `POST /api/boards {name, mode}`; `mode` viaja en la lista y
+  en `GET /api/boards/:id`.
+- Abrir un tablero 2.5D monta el motor en el escenario: pedestal con el «Valle del arroyo» de muestra
+  (aún sin persistir), cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
+  desplazan, F centra), entorno y luz ambiental de la pestaña Escena aplicados al 3D (también los
+  cambios remotos del director). Sin fichas, edición ni niebla por jugador todavía.
+- Fases siguientes y estado: [08](08-traspaso-opencode.md).
+
 ## Arte del modo 2.5D
 
 Los packs de arte del modo 2.5D (atlas y mapa de piezas) son CC0: Kenney Tiny Dungeon y 0x72 DungeonTileset II. Ver README §«Créditos del arte 2.5D» para detalles.

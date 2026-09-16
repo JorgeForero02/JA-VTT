@@ -65,6 +65,27 @@ Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
+## Modo 2.5D (rama `modo-25d-fase-a`, en curso)
+
+Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones: [08](08-traspaso-opencode.md).
+
+- `boards.settings.mode` ∈ {`2d`, `2.5d`}, fijado en `createBoard` e **inmutable**: `rules.boardSettingsPatch()`
+  lo elimina de cualquier `settings` que llegue por `ops` o `replace`. Los tableros anteriores no lo
+  tienen y se leen como `2d` (`COALESCE` en `boardsForUser`).
+- Motor: `public/js/d3/engine.js` (módulo ES sobre el mismo three r170 de los dados; port del
+  prototipo `diorama-jav/`, gitignorado). `public/js/d3/index.js` expone `window.D3 =
+  {mount, unmount, resize, rotate, setEnv, isMounted}` para los scripts clásicos.
+- Look fiel a r128: `THREE.ColorManagement.enabled = false` (global al módulo three) + salida
+  `LinearSRGBColorSpace`; luces ×π (r170 quitó el modo legado); sombras suaves parcheando
+  `ShaderChunk.lights_fragment_begin` (en r170 `onBeforeCompile` ve el template sin expandir). Los
+  dados reactivan la gestión de color sólo mientras construyen materiales (`withColorManagement`).
+- Shell: `render.syncStageMode()` monta/desmonta según `is25()`; en 2.5D los canvas 2D se ocultan,
+  `loop` sólo hace `Net.tick()`, los handlers de puntero/teclado de `editor.js` devuelven pronto y el
+  rail muestra sólo Seleccionar/Desplazar. `#stage canvas{pointer-events:none}` ⇒ el motor escucha en
+  `#stage`.
+- Pendiente (fases B–E): terreno persistente (`terrain`), ops `terrain`, fichas/luces/niebla, panel,
+  arte propio, agua/explosiones. Planes en `superpowers/plans/`.
+
 ## Decisiones y trampas
 
 - **Imágenes dentro de PostgreSQL** (bytea): un `pg_dump` respalda todo; a cambio, la base
