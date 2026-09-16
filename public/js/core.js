@@ -183,7 +183,7 @@ function viewers(){
 }
 function canSee(v,p){
   const poly=los(v,'sight');if(poly.length<3||!pointInPoly(poly,p))return false;
-  const d=dist(v,p);if(v.sight>0&&d>ftPx(v.sight)+1)return false;
+  const d=dist(v,p);
   const L=lightAt(p);if(L.magic)return false;
   if(L.level>.25)return true;
   return v.darkvision>0&&d<=ftPx(v.darkvision);
@@ -201,7 +201,7 @@ function visibleToPlayers(t){
 function doorVisibleToPlayers(w){
   const m={x:(w.a.x+w.b.x)/2,y:(w.a.y+w.b.y)/2};
   const len=dist(w.a,w.b)||1,nx=-(w.b.y-w.a.y)/len,ny=(w.b.x-w.a.x)/len;
-  return viewers().some(v=>{const side=Math.sign((v.x-m.x)*nx+(v.y-m.y)*ny)||1;const q={x:m.x+nx*side*3,y:m.y+ny*side*3};const poly=los(v,'sight');return poly.length>2&&pointInPoly(poly,q)&&(!(v.sight>0)||dist(v,q)<=ftPx(v.sight))})
+  return viewers().some(v=>{const side=Math.sign((v.x-m.x)*nx+(v.y-m.y)*ny)||1;const q={x:m.x+nx*side*3,y:m.y+ny*side*3};const poly=los(v,'sight');return poly.length>2&&pointInPoly(poly,q)})
 }
 
 /* ---------- Movimiento con colisión ---------- */

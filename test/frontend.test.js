@@ -45,3 +45,16 @@ test('cabecera: botón para ocultar el panel lateral, con estado y preferencia g
   assert.match(icons, /"panel-right-open"/);
   assert.match(icons, /"panel-right-close"/);
 });
+
+test('visión: sin tope de alcance; visión en la oscuridad absoluta; lo iluminado visto queda explorado', () => {
+  const render = read('js/render.js');
+  assert.doesNotMatch(render, /ftPx\(v\.sight\)/, 'la máscara de visión ya no se recorta por alcance');
+  assert.match(render, /createRadialGradient\(v\.x,v\.y,0,v\.x,v\.y,r\);g\.addColorStop\(0,'rgba\(255,255,255,1\)'\)/);
+  assert.match(render, /boost:3/);
+  assert.match(render, /for\(let n=0;n<EXP\.boost;n\+\+\)ch\.x\.drawImage\(maskC,0,0\)/);
+  const core = read('js/core.js');
+  assert.doesNotMatch(core, /v\.sight>0/);
+  const editor = read('js/editor.js');
+  assert.doesNotMatch(editor, /Alcance máximo/);
+  assert.match(editor, /Visión en la oscuridad \(pies\)/);
+});

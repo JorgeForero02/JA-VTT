@@ -8,7 +8,7 @@ const cx={scene:cv.scene.getContext('2d'),glow:cv.glow.getContext('2d'),dark:cv.
 const maskC=document.createElement('canvas'),losC=document.createElement('canvas');
 const mctx=maskC.getContext('2d'),lctx=losC.getContext('2d');
 /* Memoria de exploración por bloques: el mundo no tiene bordes */
-const EXP={scale:.12,size:2000,chunks:new Map(),max:260};
+const EXP={scale:.12,size:2000,chunks:new Map(),max:260,boost:3}; // boost: la luz tenue vista cuenta como explorada
 function expChunk(cx,cy,create){
   const k=cx+','+cy;let ch=EXP.chunks.get(k);
   if(!ch&&create){
@@ -133,9 +133,7 @@ function buildLosMask(vs){
   setWorld(c);c.fillStyle='#fff';
   for(const v of vs){
     const poly=los(v,'sight');if(poly.length<3)continue;
-    c.save();
-    if(v.sight>0){c.beginPath();c.arc(v.x,v.y,ftPx(v.sight),0,Math.PI*2);c.clip()}
-    tracePoly(c,poly);c.fill();c.restore();
+    c.save();tracePoly(c,poly);c.fill();c.restore();
   }
 }
 function lightShape(c,src,t,mode){
@@ -175,7 +173,8 @@ function buildLightMask(t,player,vs){
       const poly=los(v,'sight');if(poly.length<3)continue;
       const r=ftPx(v.darkvision);
       c.save();setWorld(c);tracePoly(c,poly);c.clip();
-      const g=c.createRadialGradient(v.x,v.y,0,v.x,v.y,r);g.addColorStop(0,'rgba(255,255,255,.62)');g.addColorStop(.9,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');
+      // dentro del radio se ve todo; las luces sólo aportan lo que queda más allá
+      const g=c.createRadialGradient(v.x,v.y,0,v.x,v.y,r);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.92,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');
       c.fillStyle=g;c.beginPath();c.arc(v.x,v.y,r,0,Math.PI*2);c.fill();c.restore();
     }
   }
@@ -208,7 +207,7 @@ function drawDarkness(player,vs){
     c.globalCompositeOperation='destination-out';c.globalAlpha=.42;c.imageSmoothingEnabled=true;
     for(let cx=cx0;cx<=cx1;cx++)for(let cy=cy0;cy<=cy1;cy++){
       const ch=expChunk(cx,cy,few);if(!ch)continue;
-      if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.drawImage(maskC,0,0);ch.dirty=true}
+      if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
       c.setTransform(dpr*z/s,0,0,dpr*z/s,dpr*(W/2+(cx*S2-UI.cam.x)*z),dpr*(H/2+(cy*S2-UI.cam.y)*z));
       c.drawImage(ch.c,0,0);
     }

@@ -81,6 +81,10 @@ Los jugadores solo ven Fichas, Mesa y Ajustes.
 | Mover su personaje | Sí (y cualquier ficha, también en «Vista de jugador») | Solo el suyo |
 | Nombre, color, retrato y luz del personaje | Sí | Solo el suyo |
 | Visión, tamaño y visibilidad de las fichas | Sí | No |
+
+Un personaje ve **todo** lo que quede dentro de su **visión en la oscuridad** y, más allá, sólo lo
+que esté iluminado (luces de la escena, antorchas, luz ambiente). Lo que ve queda explorado
+en la niebla de guerra, también lo que sólo alcanza a ver gracias a una luz lejana.
 | Abrir puertas | Sí | Si el director lo permite (Mesa → Reglas para jugadores) |
 | Cruzar portales | Sí, y llevar a todo el grupo | Solo con su personaje, estando cerca |
 | Crear, cambiar y borrar escenas | Sí | No; solo ve la escena donde está |

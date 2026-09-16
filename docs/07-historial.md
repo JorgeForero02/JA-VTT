@@ -61,3 +61,14 @@ escena nueva, director en origen, base, reconexión): verde. HTTP/3 quitado del 
 por los errores `ERR_QUIC_PROTOCOL_ERROR`/`ERR_SSL_PROTOCOL_ERROR` en el navegador del usuario
 (Norton). El reinicio a mano del proxy dejó ~10 min sin servicio a las apps compose; detalle y
 regla nueva en `vps1new:/root/docs/07` y `/05`.
+
+## 2026-09-16 — Modelo de visión: sin tope de alcance, visión en la oscuridad absoluta
+
+**Qué** — se retira «Alcance máximo» (`sight`) del editor y del render: era un tope duro que
+dejaba en negro todo lo que quedara más allá, incluidas luces de la escena y la antorcha propia
+(así estaban las fichas del usuario, a 10–20 ft). La visión en la oscuridad pasa a ser absoluta
+dentro de su radio (antes iluminaba al 55–62 %); las luces sólo aportan lo que sobresale. Lo
+iluminado que se ve queda explorado de lleno en la niebla (`EXP.boost`), aunque la luz sea tenue.
+El campo `sight` sigue aceptándose en el servidor y se ignora.
+**Por qué** — pedido del usuario tras confundirle el tope en producción.
+**Revertir** — `git revert` del commit.

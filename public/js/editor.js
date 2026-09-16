@@ -521,9 +521,8 @@ function openEditor(o,sp){
       check('Oculta para jugadores',o.hidden,v=>o.hidden=v);
       section('Visión');
       check('Tiene visión propia',o.vision!==false,v=>o.vision=v);
-      num('Alcance máximo (pies, 0 = sin límite)',o.sight||0,0,1000,5,v=>o.sight=v);
       num('Visión en la oscuridad (pies)',o.darkvision||0,0,300,5,v=>o.darkvision=v);
-      note('Los personajes con visión comparten lo que ven. Los enemigos no revelan nada.');
+      note('Dentro de su visión en la oscuridad lo ve todo; más allá, sólo lo que esté iluminado. Los personajes comparten lo que ven; los enemigos no revelan nada.');
     }
     section('Luz que lleva');
     lightFields(o.light||(o.light=tokenLightFrom('none')),true);
