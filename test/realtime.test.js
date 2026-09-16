@@ -118,11 +118,32 @@ test('el estado sobrevive a expulsar el tablero de memoria: reconectar lo recupe
 test('el director no puede cambiar el modo del tablero por ops', async () => {
   const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Inmutable', mode: '2d' });
   const boardId2 = created.board.id;
+  const detail2 = await json(gmCookie, 'GET', `/api/boards/${boardId2}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail2.board.invite_code });
+  const gm = connect(base, boardId2, gmCookie);
+  const player = connect(base, boardId2, playerCookie);
+  await gm.opened; await player.opened;
+  const state0 = await gm.next(isState);
+  await player.next(isState);
+  gm.send({ t: 'ops', scene: state0.scene.id, up: [], del: [], settings: { mode: '2.5d' } });
+  // el jugador sí recibe un 'ops' (settings viaja siempre que el director toca algo), pero con el modo sin cambiar
+  const got = await player.next(isOps);
+  assert.equal(got.settings.mode, '2d');
+  await gm.close(); await player.close();
+  const again = connect(base, boardId2, gmCookie);
+  await again.opened;
+  const state1 = await again.next(isState);
+  assert.equal(state1.settings.mode, '2d');
+  await again.close();
+});
+
+test('el director no puede cambiar el modo del tablero por replace', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Inmutable2', mode: '2d' });
+  const boardId2 = created.board.id;
   const gm = connect(base, boardId2, gmCookie);
   await gm.opened;
   const state0 = await gm.next(isState);
-  gm.send({ t: 'ops', scene: state0.scene.id, up: [], del: [], settings: { mode: '2.5d' } });
-  await gm.silence(isOps, 300); // el único ajuste enviado (mode) es inmutable: no hay nada que reenviar
+  gm.send({ t: 'replace', scene: state0.scene.id, name: state0.scene.name, objects: [], settings: { mode: '2.5d' } });
   await gm.close();
   const again = connect(base, boardId2, gmCookie);
   await again.opened;

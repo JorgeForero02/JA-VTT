@@ -324,8 +324,7 @@ async function handleOps(b, c, d) {
   }
   let resendPlayers = false, boardChanged = false;
   if (d.settings && gm) {
-    const { board, scene } = R.splitSettings(d.settings);
-    delete board.mode; // inmutable: sólo se fija al crear
+    const { board, scene } = R.boardSettingsPatch(d.settings);
     if ('plansReleased' in scene && scene.plansReleased !== sc.settings.plansReleased) resendPlayers = true;
     const bsBefore = JSON.stringify(b.settings);
     Object.assign(sc.settings, scene); sc.settingsDirty = true;
@@ -401,7 +400,7 @@ async function handleReplace(b, c, d) {
   const objs = (Array.isArray(d.objects) ? d.objects : []).map(R.sanitize).filter((o) => o && !elsewhere.has(o.id)).slice(0, 20000);
   sc.objects.clear();
   for (const o of objs) sc.objects.set(o.id, o);
-  if (d.settings) { const { board, scene } = R.splitSettings(d.settings); Object.assign(sc.settings, scene); Object.assign(b.settings, board); b.settingsDirty = true; }
+  if (d.settings) { const { board, scene } = R.boardSettingsPatch(d.settings); Object.assign(sc.settings, scene); Object.assign(b.settings, board); b.settingsDirty = true; }
   if (typeof d.name === 'string' && d.name.trim()) { sc.name = R.str(d.name, 60).trim(); await q.renameScene(sc.name, sc.id); }
   await tx(async (t) => {
     await t.clearSceneObjects(sc.id);

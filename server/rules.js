@@ -125,6 +125,15 @@ function splitSettings(sc) {
   return { board, scene };
 }
 
+/* Como splitSettings, pero para aplicar un parche a un tablero ya existente: `mode` es
+   inmutable tras crear el tablero, así que nunca viaja en la parte `board`. Único punto
+   usado por handleOps y handleReplace al mezclar ajustes que llegan del director. */
+function boardSettingsPatch(sc) {
+  const { board, scene } = splitSettings(sc);
+  delete board.mode;
+  return { board, scene };
+}
+
 /* Iniciativa: lista ordenada por el director. `tokenId` enlaza con una ficha (para ocultar a los
    jugadores las de fichas ocultas); las entradas sueltas no lo llevan. */
 const MAX_INITIATIVE = 60;
@@ -190,4 +199,4 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };
+module.exports = { sanitize, cleanSettings, splitSettings, boardSettingsPatch, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };

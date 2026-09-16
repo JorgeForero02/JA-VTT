@@ -37,3 +37,10 @@ test('mode: sólo 2d o 2.5d; por defecto 2d; es ajuste de tablero', () => {
   assert.equal(R.splitSettings({ mode: '2.5d', env: 'day' }).board.mode, '2.5d');
   assert.equal(R.splitSettings({ mode: '2.5d', env: 'day' }).scene.mode, undefined);
 });
+
+test('boardSettingsPatch: descarta mode (inmutable) pero conserva el resto de ajustes de tablero', () => {
+  const { board, scene } = R.boardSettingsPatch({ mode: '2.5d', sharedVision: false, env: 'night' });
+  assert.equal(board.mode, undefined);
+  assert.equal(board.sharedVision, false);
+  assert.equal(scene.env, 'night');
+});
