@@ -33,7 +33,7 @@ cookie `jav_session`, 1 año) · `boards` (dueño, `invite_code`, `settings` jso
 `active_scene`) → `scenes` (settings jsonb, orden) → `objects` (`data` jsonb; id BIGINT
 generado en cliente como `Date.now()*1000+aleatorio`) · `board_members` (rol `gm|player`,
 escena en la que está cada uno) · `images` (bytes en `bytea`, miniatura opcional; `board_id`
-NULL = muestra compartida) · `fog` (un PNG por casilla, por usuario y escena) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
+NULL = sin tablero, ya no se usa) · `fog` (un PNG por casilla, por usuario y escena) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
 · `users.recovery_code` (migración 002).
 
 Tiempos en milisegundos desde época (BIGINT). `pg` devuelve BIGINT como texto: `db.js`

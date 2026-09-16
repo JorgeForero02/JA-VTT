@@ -36,13 +36,12 @@ Las tablas se crean solas al arrancar (migraciones en `server/migrations/`).
    un **código de recuperación**: guárdalo. Lo tienes siempre en **Perfil** (oculto, con botón
    para copiarlo o generar otro) y con él puedes poner una contraseña nueva desde «¿Olvidaste la
    contraseña?». No hay correo.
-2. **Panel:** crea un tablero vacío o a partir de una plantilla (Granja o Herbolario),
-   o únete a uno con un código de invitación.
+2. **Panel:** crea un tablero o únete a uno con un código de invitación.
 3. **Invitar:** dentro del tablero, pestaña **Mesa**. Comparte el código o el enlace,
    o añade a alguien que ya tenga cuenta por su nombre de usuario. Desde ahí también puedes
    quitar miembros.
 4. **Escenas:** el botón con el nombre de la escena (arriba) abre el menú de escenas.
-   Desde ahí el director crea escenas (vacías o con plantilla), las renombra, duplica o
+   Desde ahí el director crea escenas, las renombra, duplica o
    elimina, y cambia de escena.
    - **Ver una escena** solo cambia la vista del director.
    - **Llevar al grupo** mueve a todos los jugadores y sus personajes a esa escena.
@@ -64,7 +63,7 @@ recuerda cuáles dejaste abiertas):
 
 | Pestaña | Contenido |
 |---|---|
-| **Escena** | Iluminación, zonas interiores, niebla de guerra y contenido (tablero de fondo y plantillas) |
+| **Escena** | Iluminación, zonas interiores, niebla de guerra y contenido (tablero de fondo) |
 | **Luces** | Biblioteca de fuentes de luz y luces de la escena |
 | **Imágenes** | Subida y biblioteca de tableros, objetos y retratos |
 | **Fichas** | Crear fichas, personajes y enemigos (el jugador ve «Mi personaje») |
@@ -85,7 +84,7 @@ barra sobre el mapa con el turno actual y la ronda; las fichas ocultas no salen.
 |---|---|---|
 | Muros, luces, zonas, tablero, imágenes | Sí | No |
 | Planos tácticos (M) | Sí; los suyos solo se ven si los publica | Sí: los ve todo el grupo y solo puede mover o borrar los suyos |
-| Cargar plantillas, importar y exportar escenas, deshacer | Sí | No |
+| Importar y exportar escenas, deshacer | Sí | No |
 | Mover su personaje | Sí (y cualquier ficha, también en «Vista de jugador») | Solo el suyo |
 | Nombre, color, retrato y luz del personaje | Sí | Solo el suyo |
 | Visión, tamaño y visibilidad de las fichas | Sí | No |
@@ -162,8 +161,7 @@ test/                  Tests (node:test) y prueba e2e contra docker compose
 docs/                  Documentación técnica y operativa
 public/index.html      Interfaz
 public/css/app.css     Estilos
-public/js/             Cliente (núcleo, dibujo, editor, red, plantillas)
-public/muestras/       Imágenes de las plantillas
+public/js/             Cliente (núcleo, dibujo, editor, red, dados 3D)
 public/fonts/          Tipografías Alegreya (licencia SIL OFL)
 ```
 
@@ -172,6 +170,4 @@ public/fonts/          Tipografías Alegreya (licencia SIL OFL)
 - Iconos: Lucide (licencia ISC).
 - Cálculo de visibilidad: visibility-polygon.js de Byron Knoll (dominio público).
 - Tipografías: Alegreya y Alegreya Sans de Huerta Tipográfica (SIL Open Font License).
-- El mapa del Herbolario de la plantilla es aportado por el autor; revisa su licencia
-  antes de compartir el programa con terceros.
 - Nació como «Mini VTT»; el historial del cambio está en `docs/07-historial.md`.

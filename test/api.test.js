@@ -128,7 +128,6 @@ test('imágenes: subir, descargar bytes idénticos, cuota y permisos', async () 
   const stranger = client();
   await stranger.call('POST', '/api/register', { name: 'Dani', password: 'secreto1' });
   assert.equal((await stranger.call('GET', `/api/images/${up.data.image.id}`)).status, 403);
-  assert.equal((await stranger.call('GET', '/api/images/muestra-goblin')).status, 200);
 });
 
 test('persistencia: los objetos volcados sobreviven a vaciar la caché en memoria', async () => {

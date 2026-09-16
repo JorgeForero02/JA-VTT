@@ -1,7 +1,6 @@
 'use strict';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const { db, resetSchema } = require('./helpers/db');
 
 before(async () => { await resetSchema(); });
@@ -11,7 +10,7 @@ test('migrate es idempotente: segunda pasada no aplica nada', async () => {
   const again = await db.migrate();
   assert.deepEqual(again, []);
   const { rows } = await db.pool.query('SELECT version FROM schema_migrations ORDER BY version');
-  assert.deepEqual(rows.map((r) => r.version), [1, 2]);
+  assert.deepEqual(rows.map((r) => r.version), [1, 2, 3]);
 });
 
 test('usuarios: crear, buscar sin distinguir mayúsculas, nombre duplicado falla', async () => {
@@ -95,10 +94,7 @@ test('niebla: upsert reemplaza el tile y devuelve Buffer', async () => {
   assert.deepEqual(await db.q.fogFor(board.active_scene, gm.id), []);
 });
 
-test('imágenes: muestras se siembran una vez; bytes idénticos; uso por tablero', async () => {
-  const dir = path.join(__dirname, '..', 'public', 'muestras');
-  assert.equal(await db.seedSamples(dir), 6);
-  assert.equal(await db.seedSamples(dir), 0);
+test('imágenes: bytes idénticos, uso por tablero, borrado', async () => {
   const gm = await db.createUser('Gm5', 'h');
   const board = await db.createBoard('Imgs', gm.id);
   const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4]);
@@ -109,7 +105,7 @@ test('imágenes: muestras se siembran una vez; bytes idénticos; uso por tablero
   assert.equal(usage.count, 1);
   assert.equal(usage.bytes, bytes.length);
   const list = await db.q.imagesForBoard(board.id);
-  assert.equal(list.length, 7);
+  assert.equal(list.length, 1);
   assert.ok(list.every((i) => i.data === undefined));
   await db.q.deleteImage('img1');
   assert.equal(await db.q.imageMeta('img1'), null);

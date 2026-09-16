@@ -188,37 +188,6 @@ async function createBoard(name, ownerId) {
   return q.board(id);
 }
 
-/* Imágenes de las plantillas: se cargan una vez desde public/muestras */
-const SAMPLES = [
-  { id: 'muestra-tablero', file: 'granja-tablero.webp', name: 'Granja del cruce', category: 'board', ppc: 25 },
-  { id: 'muestra-herbolario', file: 'herbolario.webp', name: 'Herbolario, planta 1', category: 'board', ppc: 72 },
-  { id: 'muestra-mesa', file: 'mesa-redonda.webp', name: 'Mesa redonda', category: 'prop', ppc: 0 },
-  { id: 'muestra-barril', file: 'barril.webp', name: 'Barril', category: 'prop', ppc: 0 },
-  { id: 'muestra-guerrera', file: 'guerrera.webp', name: 'Guerrera', category: 'pc', ppc: 0 },
-  { id: 'muestra-goblin', file: 'goblin.webp', name: 'Goblin', category: 'npc', ppc: 0 },
-];
-function webpSize(buf) {
-  // VP8X / VP8L / VP8
-  const fmt = buf.toString('ascii', 12, 16);
-  if (fmt === 'VP8X') return { w: 1 + buf.readUIntLE(24, 3), h: 1 + buf.readUIntLE(27, 3) };
-  if (fmt === 'VP8L') { const b = buf.readUInt32LE(21); return { w: 1 + (b & 0x3fff), h: 1 + ((b >> 14) & 0x3fff) }; }
-  if (fmt === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3fff, h: buf.readUInt16LE(28) & 0x3fff };
-  return { w: 0, h: 0 };
-}
-async function seedSamples(dir) {
-  let seeded = 0;
-  for (const s of SAMPLES) {
-    if (await q.imageExists(s.id)) continue;
-    const file = path.join(dir, s.file);
-    if (!fs.existsSync(file)) continue;
-    const data = fs.readFileSync(file);
-    const { w, h } = webpSize(data);
-    await q.insertImage({ id: s.id, boardId: null, ownerId: null, name: s.name, category: s.category, mime: 'image/webp', width: w, height: h, ppc: s.ppc, size: data.length, origin: 'muestra', data, thumb: null, thumbMime: null });
-    seeded++;
-  }
-  return seeded;
-}
-
 const close = () => pool.end();
 
-module.exports = { pool, q, tx, migrate, now, randCode, newSceneId, newRecoveryCode, createUser, createSession, createBoard, seedSamples, close, DATABASE_URL };
+module.exports = { pool, q, tx, migrate, now, randCode, newSceneId, newRecoveryCode, createUser, createSession, createBoard, close, DATABASE_URL };

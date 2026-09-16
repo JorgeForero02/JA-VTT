@@ -688,18 +688,14 @@ $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();
 $('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';renderUploadCats();selectTab('library')};
 $('#centerBtn').onclick=centerView;
 $('#zoneToolBtn').onclick=()=>setTool('zone');
-function applyTemplate(kind){
+function clearScene(){
   if(UI.realRole!=='gm')return;
-  const prev=snapshot();const keepName=S.name;
-  if(kind==='farm')seed();else if(kind==='herb')seedHerbalist();else loadState(Object.assign(blankState(),{name:keepName}));
-  for(const t of S.tokens)if(t.kind==='player')t.owner=null;
-  const rename=UI.scene&&/^Escena \d+$/.test(UI.scene.name);
-  pushUndo(prev);Net.replaceAll(rename?(kind==='farm'?'Granja del cruce':kind==='herb'?'Herbolario':undefined):undefined);refreshAll();centerView();
-  toast(kind==='farm'?'Plantilla «Granja» cargada. Deshacer recupera la escena anterior.':kind==='herb'?'Plantilla «Herbolario» cargada. Asigna los personajes a tus jugadores desde su editor.':'Escena vaciada. Puedes deshacerlo.',3000);
+  const prev=snapshot();
+  loadState(Object.assign(blankState(),{name:S.name}));
+  pushUndo(prev);Net.replaceAll();refreshAll();centerView();
+  toast('Escena vaciada. Puedes deshacerlo.',3000);
 }
-$('#seedFarm').onclick=()=>applyTemplate('farm');
-$('#seedHerb').onclick=()=>applyTemplate('herb');
-$('#clearBtn').onclick=()=>applyTemplate('empty');
+$('#clearBtn').onclick=clearScene;
 $('#allOn').onclick=()=>{pushUndo();S.lights.forEach(l=>l.on=true);changed()};
 $('#allOff').onclick=()=>{pushUndo();S.lights.forEach(l=>l.on=false);changed()};
 $$('[data-pick]').forEach(b=>b.onclick=()=>setTool(b.dataset.pick));
@@ -1110,11 +1106,10 @@ document.addEventListener('pointerdown',e=>{if(!$('#scenePop').hidden&&!e.target
 $('#sceneCreate').onsubmit=e=>{
   e.preventDefault();
   const form=$('#sceneCreate');if(form.dataset.busy)return;form.dataset.busy='1';setTimeout(()=>{delete form.dataset.busy},1500);
-  const name=$('#newSceneName').value.trim(),tpl=$('#newSceneTpl').value;
+  const name=$('#newSceneName').value.trim();
   Net.flushFog();
-  if(tpl!=='empty')sessionStorage.setItem('plantillaEscena',tpl);
-  Net.scene('create',{name:name||(tpl==='farm'?'Granja del cruce':tpl==='herb'?'Herbolario':''),open:true});
-  $('#newSceneName').value='';$('#newSceneTpl').value='empty';closeScenePop();
+  Net.scene('create',{name,open:true});
+  $('#newSceneName').value='';closeScenePop();
 };
 
 /* Secciones plegables del panel: se recuerda cuáles dejaste abiertas */

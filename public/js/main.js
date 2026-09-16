@@ -143,11 +143,10 @@ function renderDash(){
 $('#newBoardForm').onsubmit=e=>{
   e.preventDefault();
   withBusy($('#newBoardForm'),async()=>{
-    const name=$('#newBoardName').value.trim(),tpl=$('#newBoardTpl').value;
+    const name=$('#newBoardName').value.trim();
     try{
       const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name})});
-      if(tpl!=='empty')sessionStorage.setItem('plantilla',JSON.stringify({board:d.board.id,kind:tpl}));
-      $('#newBoardName').value='';$('#newBoardTpl').value='empty';
+      $('#newBoardName').value='';
       location.hash='#/tablero/'+d.board.id;
     }catch(err){toast(err.message)}
   });
@@ -176,11 +175,6 @@ function openBoardView(id){
   renderLive();
 }
 function onBoardReady(){
-  let pending=null;try{pending=JSON.parse(sessionStorage.getItem('plantilla')||'null')}catch(e){}
-  if(pending&&pending.board===openBoardId&&UI.realRole==='gm'){
-    sessionStorage.removeItem('plantilla');
-    Store.ready.then(()=>applyTemplate(pending.kind));
-  }
   if(UI.realRole!=='gm'&&!S.tokens.some(ownsToken))setTimeout(()=>toast('Crea tu personaje en la pestaña Fichas o espera a que el director te asigne uno.',3600),600);
 }
 function leaveBoard(silent){
@@ -206,4 +200,4 @@ $('#backBtn').onclick=()=>{location.hash='#/'};
   try{const d=await apiJson('/api/me');App.user=d.user;await afterLogin()}
   catch(e){showLogin()}
 })();
-window.JustAnotherVTT={S,UI,Store,Net,los,lightAt,canSee,viewers,visibleToPlayers,setRole,setTool,toWorld,toScreen,applyTemplate};
+window.JustAnotherVTT={S,UI,Store,Net,los,lightAt,canSee,viewers,visibleToPlayers,setRole,setTool,toWorld,toScreen};

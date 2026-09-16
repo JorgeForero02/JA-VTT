@@ -148,3 +148,12 @@ comparten ese punto se mueven juntos. Con la herramienta activa, los puntos se p
 
 Migración 002 aplicada en vps1new al arrancar; e2e 10/10 por WSS. Las cuentas existentes reciben
 su código de recuperación al entrar o al abrir Perfil.
+
+## 2026-09-16 — Sin plantillas; licencias en orden
+
+**Qué** — se retiran las plantillas Granja y Herbolario: `templates.js`, `public/muestras`,
+selectores y botones, `seedSamples`; migración 003 borra las 6 imágenes de muestra de la base
+(las fichas que las usaban quedan sin retrato). Se añaden `LICENSE` (MIT, coherente con
+`package.json`) y `THIRD-PARTY-LICENSES.md` con el inventario de terceros y sus avisos.
+**Por qué** — pedido del usuario; el mapa del Herbolario era de procedencia no documentada.
+**Revertir** — `git revert`; las imágenes borradas por la migración no vuelven (no había copia).

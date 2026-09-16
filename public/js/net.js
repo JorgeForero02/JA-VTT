@@ -72,7 +72,6 @@ const Net=(()=>{
     }else setRole(UI.role==='player'&&UI.realRole==='gm'?'player':d.role);
     refreshAll();syncBoardName();
     if(d.replaced)toast('El director cargó una escena nueva',2400);
-    if(d.created){const tpl=sessionStorage.getItem('plantillaEscena');sessionStorage.removeItem('plantillaEscena');if(tpl)Store.ready.then(()=>applyTemplate(tpl))}
   }
   function diff(){
     if(!synced||!N.connected)return;

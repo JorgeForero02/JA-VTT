@@ -7,7 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const db = require('./db');
-const { q, tx, randCode, newSceneId, createBoard, seedSamples } = db;
+const { q, tx, randCode, newSceneId, createBoard } = db;
 const { hashPassword, verifyPassword, validPassword, MIN_PASSWORD } = require('./auth');
 const { acceptUpgrade } = require('./ws');
 const R = require('./rules');
@@ -789,7 +789,7 @@ async function imageRoutes(req, res, user, parts) {
     const r = await q.imageData(parts[1]);
     return send(res, 200, r.data, Object.assign({ 'Content-Type': r.mime }, cache));
   }
-  if (!imgRow.board_id) return fail(res, 403, 'Las imágenes de muestra no se pueden cambiar');
+  if (!imgRow.board_id) return fail(res, 403, 'Esta imagen no pertenece a ningún tablero');
   if (me.role !== 'gm') return fail(res, 403, 'Solo el director puede cambiar la biblioteca');
   if (M === 'PATCH') {
     const body = await readJson(req);
@@ -885,7 +885,6 @@ function lanAddresses() {
 async function prepare() {
   const applied = await db.migrate();
   if (applied.length) console.log(`  Migraciones aplicadas: ${applied.join(', ')}`);
-  await seedSamples(path.join(PUBLIC, 'muestras'));
 }
 
 function listen(port) {

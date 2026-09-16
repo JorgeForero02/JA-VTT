@@ -42,8 +42,6 @@
       <form id="newBoardForm" class="dashCard">
         <h2>Nuevo tablero</h2>
         <label class="gateField"><span>Nombre</span><input id="newBoardName" maxlength="60" placeholder="La cripta del lunes" required></label>
-        <label class="gateField"><span>Empezar con</span>
-          <select id="newBoardTpl"><option value="empty">Lienzo vacío</option><option value="farm">Plantilla: Granja (exterior al atardecer)</option><option value="herb">Plantilla: Herbolario (interior irregular)</option></select></label>
         <button class="btn primary" type="submit" data-ic="plus">Crear y abrir</button>
       </form>
       <form id="joinForm" class="dashCard">
@@ -65,7 +63,6 @@
   <div id="sceneList"></div>
   <form id="sceneCreate" class="sceneCreate">
     <input id="newSceneName" maxlength="60" placeholder="Nombre de la escena nueva" aria-label="Nombre de la escena nueva">
-    <select id="newSceneTpl" aria-label="Contenido inicial"><option value="empty">Vacía</option><option value="farm">Plantilla Granja</option><option value="herb">Plantilla Herbolario</option></select>
     <button class="btn primary" type="submit">Crear y abrir</button>
   </form>
   <p id="scenePopNote" class="small muted"></p>
@@ -185,9 +182,8 @@
       <details class="fold" data-fold="contenido" open>
         <summary><span class="foldTitle">Contenido</span></summary>
         <div class="foldBody">
-          <p>El tablero de fondo se elige en Imágenes. Una plantilla sustituye todo lo de esta escena; puedes deshacerlo.</p>
+          <p>El tablero de fondo se elige en Imágenes. Vaciar la escena se puede deshacer.</p>
           <div class="row"><button class="btn" id="pickBoard" data-ic="image">Elegir tablero de fondo</button></div>
-          <div class="row"><button class="btn" id="seedFarm" data-ic="sunset">Plantilla Granja</button><button class="btn" id="seedHerb" data-ic="flame">Plantilla Herbolario</button></div>
           <div class="row"><button class="btn danger" id="clearBtn" data-ic="trash-2">Vaciar escena</button></div>
         </div>
       </details>
@@ -394,7 +390,6 @@
 <script src="js/store.js"></script>
 <script src="js/net.js"></script>
 <script src="js/editor.js"></script>
-<script src="js/templates.js"></script>
 <script src="js/main.js"></script>
 <script type="module" src="js/dice3d.js"></script>
 </body>
