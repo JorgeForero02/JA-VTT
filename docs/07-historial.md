@@ -111,3 +111,10 @@ tercer tipo de línea de visión `'hide'` (muros que tapan la vista + maleza) us
 `visibleToPlayers` y `propVisibleToPlayers`. Aparece en la barra de muros, leyenda, editor y
 menú «Convertir en…» automáticamente (catálogo `WALL_TYPES`). Servidor: `WALL_KINDS` lo acepta.
 **Revertir** — `git revert` del commit; los muros ya guardados como `cover` pasarían a `wall`.
+
+## 2026-09-16 — Editar articulaciones de muros siempre
+
+Los extremos de muro se arrastran con cualquier número de muros seleccionados (antes sólo con
+≤ 8, así que una sala o un círculo no se podía retocar) y también con la herramienta de muros
+activa: pinchar una articulación existente la mueve en vez de empezar un tramo; los tramos que
+comparten ese punto se mueven juntos. Con la herramienta activa, los puntos se pintan grandes.

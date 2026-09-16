@@ -160,7 +160,7 @@ function hitHandle(p){
   for(const o of selObjs()){
     if(!usable(o))continue;
     if(o.type==='light'&&dist(p,lightHandlePos(o))<=px(10))return{kind:'lightRadius',o};
-    if(o.type==='wall'&&UI.selected.length<=8){for(const k of['a','b'])if(dist(p,o[k])<=px(9))return{kind:'wallEnd',o,k}}
+    if(o.type==='wall'){for(const k of['a','b'])if(dist(p,o[k])<=px(9))return{kind:'wallEnd',o,k}}
     if(o.type==='asset'){if(o.kind==='prop'&&dist(p,rotHandle(o))<=px(10))return{kind:'rotate',o};for(const h of assetCorners(o))if(dist(p,h)<=px(9))return{kind:'resize',o,h:h.k}}
     if(o.type==='zone'&&o.pts){for(let i=0;i<o.pts.length;i++)if(dist(p,o.pts[i])<=px(8))return{kind:'zoneVertex',o,i}}
     if(o.type==='zone'&&!o.pts){for(const h of cornerHandles({x:o.x+o.w/2,y:o.y+o.h/2,w:o.w,h:o.h}))if(dist(p,h)<=px(9))return{kind:'zoneResize',o,h:h.k}}
@@ -179,6 +179,17 @@ function setTool(t){
   renderSubbar();requestRender();
 }
 function finishChain(){if(UI.chain){UI.chain=null;requestRender()}}
+/* Arrastrar una articulación: se mueven a la vez todos los extremos de muro que coinciden en ese punto */
+function startWallEnd(pt,snap){
+  const joined=[];for(const w of S.walls)for(const k of['a','b'])if(dist(w[k],pt)<.5&&usable(w))joined.push({w,k});
+  UI.act={kind:'wallEnd',joined,snap:snap||snapshot(),ignore:new Set(joined.map(j=>j.w))};
+}
+function hitWallVertex(p){
+  if(!S.layers.walls.visible)return null;
+  let best=null,bd=px(9);
+  for(const w of S.walls){if(!usable(w))continue;for(const k of['a','b']){const d=dist(p,w[k]);if(d<=bd){bd=d;best=w[k]}}}
+  return best;
+}
 stage.addEventListener('pointerdown',e=>{
   closePops();
   stage.setPointerCapture(e.pointerId);
@@ -192,6 +203,8 @@ stage.addEventListener('pointerdown',e=>{
   switch(UI.tool){
     case 'ruler':UI.act={kind:'ruler',a:snapCell(p),b:snapCell(p)};requestRender();return;
     case 'wall':{
+      // con la herramienta de muros, pinchar una articulación existente la arrastra en vez de empezar un tramo
+      if(!UI.chain&&!UI.curve&&!UI.arc&&UI.wallShape==='chain'){const v=hitWallVertex(p);if(v){startWallEnd(v);return}}
       const q=snapWallPoint(p,e);
       if(UI.wallShape==='rect'){UI.act={kind:'room',a:q,b:q};return}
       if(UI.wallShape==='circle'){const c=snapOn('walls',e)?halfSnap(p):p;UI.act={kind:'wcircle',a:c,b:c};return}
@@ -233,7 +246,7 @@ stage.addEventListener('pointerdown',e=>{
   const h=hitHandle(p);
   if(h){
     const snap=snapshot();
-    if(h.kind==='wallEnd'){const pt=h.o[h.k];const joined=[];for(const w of S.walls)for(const k of['a','b'])if(dist(w[k],pt)<.5&&usable(w))joined.push({w,k});UI.act={kind:'wallEnd',joined,snap,ignore:new Set(joined.map(j=>j.w))}}
+    if(h.kind==='wallEnd')startWallEnd(h.o[h.k],snap);
     else UI.act=Object.assign({snap},h,{start:h.o.type==='asset'?{x:h.o.x,y:h.o.y,w:h.o.w,h:h.o.h,rot:h.o.rot||0}:JSON.parse(JSON.stringify(h.o))});
     return;
   }

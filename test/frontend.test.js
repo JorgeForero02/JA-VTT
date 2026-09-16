@@ -82,3 +82,13 @@ test('maleza: deja ver el fondo, esconde fichas y objetos detrás', () => {
   const render = read('js/render.js');
   assert.match(render, /a\.kind==='prop'&&\(!player\|\|propVisibleToPlayers\(a\)\)/);
 });
+
+test('muros: las articulaciones se arrastran con cualquier número de muros seleccionados y desde la herramienta de muros', () => {
+  const editor = read('js/editor.js');
+  assert.doesNotMatch(editor, /UI\.selected\.length<=8/);
+  assert.match(editor, /function startWallEnd\(pt,snap\)/);
+  assert.match(editor, /function hitWallVertex\(p\)/);
+  assert.match(editor, /if\(!UI\.chain&&!UI\.curve&&!UI\.arc&&UI\.wallShape==='chain'\)\{const v=hitWallVertex\(p\);if\(v\)\{startWallEnd\(v\);return\}\}/);
+  const render = read('js/render.js');
+  assert.match(render, /const big=isSel\(w\)\|\|UI\.tool==='wall'/);
+});

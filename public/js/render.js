@@ -247,7 +247,7 @@ function drawOverlay(player){
       c.strokeStyle=T.door&&w.open?'rgba(240,179,90,.55)':T.color;c.lineWidth=px(T.door?5:3.5);
       if(T.dash)c.setLineDash(T.dash.map(px));else if(T.door&&w.open)c.setLineDash([px(4),px(5)]);
       c.beginPath();c.moveTo(w.a.x,w.a.y);c.lineTo(w.b.x,w.b.y);c.stroke();c.setLineDash([]);
-      const big=isSel(w)&&UI.selected.length<=8;c.fillStyle=T.color;for(const q of[w.a,w.b]){c.beginPath();c.arc(q.x,q.y,px(big?5:2.5),0,Math.PI*2);c.fill()}
+      const big=isSel(w)||UI.tool==='wall';c.fillStyle=T.color;for(const q of[w.a,w.b]){c.beginPath();c.arc(q.x,q.y,px(big?5:2.5),0,Math.PI*2);c.fill()}
       c.restore();
     }
   }
