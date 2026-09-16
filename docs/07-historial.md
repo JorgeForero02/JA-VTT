@@ -53,3 +53,11 @@ técnica que las fichas, `cursorPos` en `net.js`) y se envían cada ~50 ms. `wit
 cuenta, crear tablero, unirse por código, añadir miembro, regenerar código; crear escena lleva
 un cerrojo de 1,5 s. Sin tests nuevos por decisión del usuario (cambios visuales).
 **Revertir** — `git revert` del commit.
+
+## 2026-09-16 — Test de viaje por portal; HTTP/3 desactivado en el Traefik de vps1new
+
+**Qué** — `test/portal.test.js` reproduce el viaje de un jugador por un portal (ficha con luz,
+escena nueva, director en origen, base, reconexión): verde. HTTP/3 quitado del proxy de Coolify
+por los errores `ERR_QUIC_PROTOCOL_ERROR`/`ERR_SSL_PROTOCOL_ERROR` en el navegador del usuario
+(Norton). El reinicio a mano del proxy dejó ~10 min sin servicio a las apps compose; detalle y
+regla nueva en `vps1new:/root/docs/07` y `/05`.
