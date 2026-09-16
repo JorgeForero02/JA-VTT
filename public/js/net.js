@@ -35,7 +35,7 @@ const Net=(()=>{
       case 'members':N.members=d.members||[];renderLiveSoon();refreshPanels();break;
       case 'chat':Chat.receive(d.msg);break;
       case 'initiative':UI.initiative=d.initiative||null;renderInitiative();break;
-      case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else{const prev=N.cursors.get(d.uid),from=prev?cursorPos(prev):{x:d.x,y:d.y};N.cursors.set(d.uid,{x:d.x,y:d.y,fx:from.x,fy:from.y,t0:performance.now()})}requestRender();break;
+      case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else{const prev=N.cursors.get(d.uid);N.cursors.set(d.uid,{x:d.x,y:d.y,s:prev&&prev.s?prev.s:{x:d.x,y:d.y,last:performance.now()}})}requestRender();break;
       case 'board':if(UI.board){UI.board.name=d.name;syncBoardName()}break;
       case 'images':Store.refresh();break;
       case 'pong':toast(`El servidor respondió en ${Date.now()-d.at} ms`);break;
@@ -108,7 +108,7 @@ const Net=(()=>{
       // fichas y luces que mueve otro se deslizan hasta su posición nueva en vez de saltar
       if(old&&(c.type==='token'||c.type==='light')&&(old.x!==c.x||old.y!==c.y)){
         const busy=UI.act&&UI.act.kind==='move'&&UI.act.items.some(it=>it.o===old);
-        if(!busy){const cur=displayPos(old);smoothMoves.set(c.id,{fx:cur.x,fy:cur.y,t0:performance.now()})}
+        if(!busy){const cur=displayPos(old);const st=smoothMoves.get(c.id)||{};st.x=cur.x;st.y=cur.y;st.last=performance.now();smoothMoves.set(c.id,st)}
         if(who&&c.type==='token')remoteMarks.set(c.id,{name:who.name,color:who.color,until:performance.now()+1600});
       }
       if(old){for(const k of Object.keys(old))delete old[k];Object.assign(old,c)}else coll.push(c);
@@ -148,7 +148,7 @@ const Net=(()=>{
       const now=performance.now();
       const go=()=>{N.lastCur=performance.now();send(UI.hover?{t:'cursor',x:Math.round(UI.hover.x),y:Math.round(UI.hover.y)}:{t:'cursor',x:null,y:null})};
       clearTimeout(N.curTimer);
-      if(now-N.lastCur>50)go();else N.curTimer=setTimeout(go,55);
+      if(now-N.lastCur>33)go();else N.curTimer=setTimeout(go,35);
     },
     roleChanged(){},
     chat(text){return send({t:'chat',text})},
@@ -179,21 +179,29 @@ let liveTimer=0;function renderLiveSoon(){clearTimeout(liveTimer);liveTimer=setT
 
 /* Movimiento remoto suave y aviso de quién movió cada ficha */
 const smoothMoves=new Map(),remoteMarks=new Map();
-/* Cursores ajenos: llegan cada ~60 ms; se interpolan hasta la posición nueva para que no salten */
-const CURSOR_GLIDE_MS=110;
+/* Suavizado continuo: lo que llega de otros (fichas, luces, cursores) no salta a su posición
+   nueva ni se detiene entre paquetes; persigue el objetivo con un retardo de ~SMOOTH_TAU ms.
+   Cuanto más lejos está, más rápido va, así que nunca se queda atrás de forma visible. */
+const SMOOTH_TAU=70;
+function chase(state,tx,ty){
+  const now=performance.now();
+  if(state.last==null){state.x=tx;state.y=ty;state.last=now;return false}
+  const dt=Math.min(100,now-state.last);state.last=now;
+  const k=1-Math.exp(-dt/SMOOTH_TAU);
+  state.x+=(tx-state.x)*k;state.y+=(ty-state.y)*k;
+  if(Math.hypot(tx-state.x,ty-state.y)<.35){state.x=tx;state.y=ty;return false}
+  requestRender();return true;
+}
 function cursorPos(cur){
-  if(cur.t0==null)return cur;
-  const k=(performance.now()-cur.t0)/CURSOR_GLIDE_MS;
-  if(k>=1)return cur;
-  requestRender();const e=1-(1-k)*(1-k);
-  return{x:cur.fx+(cur.x-cur.fx)*e,y:cur.fy+(cur.y-cur.fy)*e};
+  if(cur.x==null)return cur;
+  if(!cur.s)cur.s={};
+  chase(cur.s,cur.x,cur.y);
+  return{x:cur.s.x,y:cur.s.y};
 }
 function displayPos(t){
   const m=smoothMoves.get(t.id);if(!m)return t;
-  const k=(performance.now()-m.t0)/120;
-  if(k>=1){smoothMoves.delete(t.id);return t}
-  requestRender();const e=1-(1-k)*(1-k);
-  return{x:m.fx+(t.x-m.fx)*e,y:m.fy+(t.y-m.fy)*e};
+  if(!chase(m,t.x,t.y)){smoothMoves.delete(t.id);return t}
+  return{x:m.x,y:m.y};
 }
 function drawRemoteMarks(c,player){
   const now=performance.now();

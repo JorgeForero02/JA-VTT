@@ -163,3 +163,11 @@ selectores y botones, `seedSamples`; migración 003 borra las 6 imágenes de mue
 La luz de una ficha y las luces sueltas usan la posición interpolada (`displayPos`), así se
 deslizan con la ficha en vez de saltar; las luces que mueve otro también se interpolan (120 ms).
 El parpadeo se redibuja a 30 fps (antes 24) y pierde el componente rápido que temblaba.
+
+## 2026-09-16 — Movimiento remoto continuo
+
+Sustituye la interpolación fija de 120 ms (se paraba entre paquetes → tirones) por una
+persecución exponencial continua (`chase`, τ = 70 ms) para fichas, luces y cursores; los envíos
+de cambios pasan de 80 a 40 ms y los de cursor de 50 a 33 ms; la animación se redibuja a 60 fps
+mientras haya algo moviéndose. Más CPU en el cliente sólo durante el movimiento; el servidor no
+cambia (reenvía lo que llega).
