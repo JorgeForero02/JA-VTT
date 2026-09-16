@@ -242,3 +242,10 @@ Con cadencia y coste ya correctos (60 Hz, 0,2 ms medidos por el usuario), lo que
 pulso era banding: 255 niveles de alfa en un degradado grande dan anillos de ~3 px que reptan al
 cambiar el radio. Se suma un patrón fijo de ruido de ±1 nivel a la máscara (`dither`), que rompe
 los anillos sin grano visible. Pulso algo más contenido (±3,5 % radio, ±10 % núcleo).
+
+## 2026-09-16 (noche) — Fix: niebla granulada por el dithering
+
+El ruido se sumaba a la máscara de luz, y la memoria de exploración acumula esa máscara frame a
+frame: los píxeles de ruido se «exploraban» solos y la niebla salía con manchas. Ahora el ruido se
+aplica sólo a la capa de oscuridad final (no se acumula). Migración 004 borra la niebla guardada
+(un día de exploración, contaminada). Los jugadores vuelven a explorar desde cero.

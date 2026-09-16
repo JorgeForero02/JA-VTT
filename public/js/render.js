@@ -190,13 +190,13 @@ function lightShape(c,src,t,mode){
 /* Dithering: ruido fijo de ±1 nivel de alfa. Un degradado grande sólo tiene 255 niveles y sus
    anillos se ven reptar cuando el radio cambia despacio (pulso); el ruido rompe los anillos. */
 let ditherPattern=null;
-function dither(c){
+function dither(c,op){
   if(!ditherPattern){
     const n=128,cv=document.createElement('canvas');cv.width=cv.height=n;const x=cv.getContext('2d');
     const img=x.createImageData(n,n);for(let i=0;i<img.data.length;i+=4){img.data[i]=img.data[i+1]=img.data[i+2]=255;img.data[i+3]=Math.random()<.5?0:1}
     x.putImageData(img,0,0);ditherPattern=c.createPattern(cv,'repeat');
   }
-  setRaw(c);c.globalCompositeOperation='lighter';c.fillStyle=ditherPattern;c.fillRect(0,0,c.canvas.width,c.canvas.height);
+  setRaw(c);c.globalCompositeOperation=op;c.fillStyle=ditherPattern;c.fillRect(0,0,c.canvas.width,c.canvas.height);
 }
 function buildLightMask(t,player,vs){
   const c=mctx;setRaw(c);c.globalCompositeOperation='source-over';c.clearRect(0,0,maskC.width,maskC.height);
@@ -218,7 +218,6 @@ function buildLightMask(t,player,vs){
       c.fillStyle=g;c.beginPath();c.arc(v.x,v.y,r,0,Math.PI*2);c.fill();c.restore();
     }
   }
-  dither(c);
   c.globalCompositeOperation='destination-out';
   for(const s of src)if(s.darkness)lightShape(c,s,t,'mask');
   if(player){c.globalCompositeOperation='destination-in';setRaw(c);c.drawImage(losC,0,0)}
@@ -254,7 +253,7 @@ function drawDarkness(player,vs,lightsOnly){
   if(!player){
     if(!UI.preview)return;
     c.fillStyle=hexA(S.darkColor,.74);c.fillRect(0,0,cv.dark.width,cv.dark.height);
-    c.globalCompositeOperation='destination-out';c.drawImage(maskC,0,0);c.globalCompositeOperation='source-over';
+    c.globalCompositeOperation='destination-out';c.drawImage(maskC,0,0);dither(c,'destination-out');c.globalCompositeOperation='source-over';
     return;
   }
   c.fillStyle=S.darkColor;c.fillRect(0,0,cv.dark.width,cv.dark.height);
@@ -266,6 +265,7 @@ function drawDarkness(player,vs,lightsOnly){
   }
   c.globalCompositeOperation='destination-out';
   c.drawImage(maskC,0,0);
+  dither(c,'destination-out'); // sobre la oscuridad final, nunca sobre la máscara: la exploración la acumularía
   // las fichas propias siempre se distinguen
   setWorld(c);c.globalAlpha=.7;
   for(const v of S.tokens){if(v.kind!=='player'||v.hidden)continue;c.beginPath();c.arc(v.x,v.y,tokenRadius(v)*1.05,0,Math.PI*2);c.fill()}
