@@ -105,10 +105,11 @@ const Net=(()=>{
       // una corrección sobre lo que estoy arrastrando llega tarde: me quedo con lo mío y lo reenvío
       const held=old&&UI.act&&(UI.act.o===old||(UI.act.items&&UI.act.items.some(it=>it.o===old)));
       if(d.fix&&held){shadow.set(c.id,JSON.stringify(c));any=true;continue}
-      if(old&&c.type==='token'&&(old.x!==c.x||old.y!==c.y)){
+      // fichas y luces que mueve otro se deslizan hasta su posición nueva en vez de saltar
+      if(old&&(c.type==='token'||c.type==='light')&&(old.x!==c.x||old.y!==c.y)){
         const busy=UI.act&&UI.act.kind==='move'&&UI.act.items.some(it=>it.o===old);
         if(!busy){const cur=displayPos(old);smoothMoves.set(c.id,{fx:cur.x,fy:cur.y,t0:performance.now()})}
-        if(who)remoteMarks.set(c.id,{name:who.name,color:who.color,until:performance.now()+1600});
+        if(who&&c.type==='token')remoteMarks.set(c.id,{name:who.name,color:who.color,until:performance.now()+1600});
       }
       if(old){for(const k of Object.keys(old))delete old[k];Object.assign(old,c)}else coll.push(c);
       shadow.set(c.id,JSON.stringify(old||c));

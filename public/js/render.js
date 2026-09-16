@@ -47,7 +47,7 @@ function loop(ts){
   let anim=false;try{anim=hasAnimated()}catch(e){}
   requestAnimationFrame(loop);
   try{
-    if(dirty||(anim&&ts-lastAnim>42)){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000)}
+    if(dirty||(anim&&ts-lastAnim>32)){lastAnim=ts;frame={};dirty=false;drawAll(ts/1000)}
     if(ts-lastNet>80){lastNet=ts;Net.tick()}
   }catch(err){console.error(err)}
 }

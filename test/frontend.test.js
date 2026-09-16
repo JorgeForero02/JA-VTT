@@ -137,3 +137,11 @@ test('ajustes de chat/dados para todos, tirada privada, favicon propio', () => {
   assert.match(dice, /function faceFrame\(solid, f, sides\)/);
   assert.match(dice, /const size = fr\.inR \* half \*/, 'el número se escala al radio inscrito de la cara');
 });
+
+test('luces suaves: siguen la posición interpolada y el parpadeo va a 30 fps', () => {
+  const core = read('js/core.js');
+  assert.match(core, /const P=displayPos\(t\);return\{x:P\.x,y:P\.y,bright:L\.bright/);
+  assert.match(core, /const P=displayPos\(l\);out\.push\(\{x:P\.x,y:P\.y/);
+  assert.match(read('js/render.js'), /anim&&ts-lastAnim>32/);
+  assert.match(read('js/net.js'), /\(c\.type==='token'\|\|c\.type==='light'\)&&\(old\.x!==c\.x\|\|old\.y!==c\.y\)/);
+});

@@ -146,19 +146,19 @@ function tracePoly(ctx,poly){ctx.beginPath();if(!poly.length)return;ctx.moveTo(p
 
 /* ---------- Fuentes de luz y visión ---------- */
 const tokenRadius=t=>(t.size||1)*CELL/2*.86;
-function tokenLight(t){const L=t.light;if(!L||!L.on||L.preset==='none'||(L.bright+L.dim)<=0)return null;return{x:t.x,y:t.y,bright:L.bright,dim:L.dim,color:L.color,intensity:L.intensity??1,anim:L.anim,angle:L.angle||360,rot:L.rot||0,darkness:false,seed:t.id,owner:t}}
+function tokenLight(t){const L=t.light;if(!L||!L.on||L.preset==='none'||(L.bright+L.dim)<=0)return null;const P=displayPos(t);return{x:P.x,y:P.y,bright:L.bright,dim:L.dim,color:L.color,intensity:L.intensity??1,anim:L.anim,angle:L.angle||360,rot:L.rot||0,darkness:false,seed:t.id,owner:t}}
 let frame={};
 function lightSources(){
   if(frame.sources)return frame.sources;
   const out=[];
-  for(const l of S.lights){if(!l.on)continue;out.push({x:l.x,y:l.y,bright:l.bright,dim:l.dim,color:l.color,intensity:l.intensity??1,anim:l.anim,angle:l.angle||360,rot:l.rot||0,darkness:!!l.darkness,seed:l.id})}
+  for(const l of S.lights){if(!l.on)continue;const P=displayPos(l);out.push({x:P.x,y:P.y,bright:l.bright,dim:l.dim,color:l.color,intensity:l.intensity??1,anim:l.anim,angle:l.angle||360,rot:l.rot||0,darkness:!!l.darkness,seed:l.id})}
   for(const t of S.tokens){if(t.hidden&&!isGM())continue;const s=tokenLight(t);if(s)out.push(s)}
   return frame.sources=out;
 }
 function animFactor(src,t){
   if(!S.animate||!src.anim||src.anim==='none')return{r:1,i:1};
   const s=src.seed*1.713;
-  if(src.anim==='flicker'){const n=Math.sin(t*7.3+s)*.5+Math.sin(t*13.1+s*2)*.3+Math.sin(t*23.7+s*3)*.2;return{r:1+n*.02,i:1+n*.09}}
+  if(src.anim==='flicker'){const n=Math.sin(t*5.1+s)*.55+Math.sin(t*9.7+s*2)*.3+Math.sin(t*17.3+s*3)*.15;return{r:1+n*.018,i:1+n*.08}}
   if(src.anim==='soft'){const n=Math.sin(t*2.7+s)*.6+Math.sin(t*5.3+s)*.4;return{r:1+n*.008,i:1+n*.04}}
   if(src.anim==='pulse'){const n=Math.sin(t*1.7+s);return{r:1+n*.05,i:.86+n*.14}}
   return{r:1,i:1};

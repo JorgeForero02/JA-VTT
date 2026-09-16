@@ -157,3 +157,9 @@ selectores y botones, `seedSamples`; migración 003 borra las 6 imágenes de mue
 `package.json`) y `THIRD-PARTY-LICENSES.md` con el inventario de terceros y sus avisos.
 **Por qué** — pedido del usuario; el mapa del Herbolario era de procedencia no documentada.
 **Revertir** — `git revert`; las imágenes borradas por la migración no vuelven (no había copia).
+
+## 2026-09-16 — Luces más suaves
+
+La luz de una ficha y las luces sueltas usan la posición interpolada (`displayPos`), así se
+deslizan con la ficha en vez de saltar; las luces que mueve otro también se interpolan (120 ms).
+El parpadeo se redibuja a 30 fps (antes 24) y pierde el componente rápido que temblaba.
