@@ -229,3 +229,9 @@ para animar el siguiente: se realimentaba y bajaba hasta ~110 ms (el usuario mid
 Hz», render 0,2 ms). Ahora la frecuencia de pantalla se mide con todos los fotogramas del bucle
 y la animación va cada frame (o uno de cada dos, contado, en calidad reducida). Medido en Edge:
 59,5 fotogramas animados/s con intervalo 16,7 ms constante.
+
+## 2026-09-16 — Fix urgente: `hexA is not defined` (brillo de luces roto en producción ~15 min)
+
+El parche de la cadencia borró `hexA` al reemplazar el bloque del bucle. Restaurada; test de
+contrato nuevo que comprueba que toda función usada en `render.js` está definida. Lección: para
+cambios de cliente, `npm run test:ui` antes de desplegar, no sólo `npm run check`.

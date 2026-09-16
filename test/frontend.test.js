@@ -181,3 +181,14 @@ test('render adaptativo: mide el fotograma de luz y baja escala/cadencia si no c
   assert.match(render, /ldpr=Math\.min\(dpr,PERF\.scale\);/);
   assert.match(read('js/editor.js'), /Render de luz: \$\{PERF\.ms\.toFixed\(1\)\} ms/);
 });
+
+test('render: toda función usada en render.js está definida en algún script del cliente', () => {
+  const files = fs.readdirSync(path.join(__dirname, '..', 'public', 'js')).filter((f) => f.endsWith('.js') && f !== 'dice3d.js');
+  const all = files.map((f) => read('js/' + f)).join('\n');
+  const defined = new Set([...all.matchAll(/(?:^|[\s;{}])(?:function\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+  const render = read('js/render.js');
+  for (const name of ['hexA', 'lightShape', 'buildLightMask', 'drawGlow', 'drawDarkness', 'composeExplored', 'drawOverlay', 'drawScene', 'buildLosMask', 'displayPos', 'cursorPos', 'tokenLight', 'lightSources', 'animFactor', 'clamp', 'ftPx', 'tracePoly', 'roundRect', 'iconImage', 'viewRect', 'expChunk', 'setWorld', 'setRaw', 'setScreen', 'scaleOf', 'notePerf', 'noteFrame', 'animateThisFrame']) {
+    assert.ok(defined.has(name), `${name} usada en render.js pero no definida`);
+  }
+  assert.match(render, /function hexA\(hex,a\)/);
+});

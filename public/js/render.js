@@ -79,6 +79,9 @@ function loop(ts){
   }catch(err){console.error(err)}
 }
 
+function hexA(hex,a){let h=(hex||'#ffffff').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16)||0;return`rgba(${n>>16&255},${n>>8&255},${n&255},${clamp(a,0,1)})`}
+
+/* lightsOnly: fotograma de animación de luces; el mapa, la visión y los controles no han cambiado */
 function drawAll(t,lightsOnly){
   const player=!isGM();
   const vs=player?viewers():[];
