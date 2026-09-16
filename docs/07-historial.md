@@ -132,3 +132,8 @@ Los extremos de muro se arrastran con cualquier número de muros seleccionados (
 ≤ 8, así que una sala o un círculo no se podía retocar) y también con la herramienta de muros
 activa: pinchar una articulación existente la mueve en vez de empezar un tramo; los tramos que
 comparten ese punto se mueven juntos. Con la herramienta activa, los puntos se pintan grandes.
+
+## 2026-09-16 — Producción: chat, dados, iniciativa y recuperación desplegados (cfaa9dc)
+
+Migración 002 aplicada en vps1new al arrancar; e2e 10/10 por WSS. Las cuentas existentes reciben
+su código de recuperación al entrar o al abrir Perfil.
