@@ -165,3 +165,8 @@ test('render: capas de luz a escala 1 y exploración desenfocada cacheada entre 
   assert.match(render, /function setWorld\(ctx\)\{const z=UI\.cam\.zoom,d=scaleOf\(ctx\);/);
   assert.match(render, /if\(!lightsOnly\)composeExplored\(\);/);
 });
+
+test('exportar: usedImageIds existe y recoge las imágenes de objetos y fichas', () => {
+  const editor = read('js/editor.js');
+  assert.match(editor, /function usedImageIds\(\)\{const ids=new Set\(\);for\(const a of S\.assets\)if\(a\.img\)ids\.add\(a\.img\);for\(const t of S\.tokens\)if\(t\.img\)ids\.add\(t\.img\);return \[\.\.\.ids\]\}/);
+});

@@ -10,6 +10,8 @@ function undo(){if(UI.realRole!=='gm'||!hist.undo.length)return;hist.redo.push(s
 function redo(){if(UI.realRole!=='gm'||!hist.redo.length)return;hist.undo.push(snapshot());applySnapshot(hist.redo.pop());syncUndo();toast('Rehecho')}
 function syncUndo(){$('#undoBtn').disabled=!hist.undo.length;$('#redoBtn').disabled=!hist.redo.length}
 function saveSoon(){} // el servidor guarda cada cambio en SQLite
+/* Imágenes que usa la escena (tablero, objetos y retratos): las que van dentro del .json exportado */
+function usedImageIds(){const ids=new Set();for(const a of S.assets)if(a.img)ids.add(a.img);for(const t of S.tokens)if(t.img)ids.add(t.img);return [...ids]}
 function guessCat(k){const t=S.tokens.find(t=>t.img===k);if(t)return t.kind==='enemy'?'npc':'pc';const a=S.assets.find(a=>a.img===k);return a&&a.kind==='prop'?'prop':'board'}
 /* Sube al tablero las imágenes de un archivo exportado y devuelve el cambio de ids */
 async function importImages(map){

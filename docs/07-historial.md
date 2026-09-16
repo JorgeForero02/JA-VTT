@@ -207,3 +207,9 @@ Pulso: respira el radio (±5 %) y la proporción brillante/tenue (±12 %), sin t
 global (ni máscara ni tinte). Dados: la botonera llena una **bandeja** (clic = +1, Mayús ×2,
 Ctrl ×3); se tira con «Tirar», Enter o sola a los 2,5 s; la fórmula acepta términos separados
 por espacio (`2d8 1d4 +2`). Menos brillo especular en los dados 3D.
+
+## 2026-09-16 — Fix: exportar escena fallaba (`usedImageIds is not defined`)
+
+Fallo heredado del Mini VTT original: la función nunca existió. Definida (imágenes usadas por
+tableros/objetos y fichas). Probado en Edge headless: el .json exportado incluye muros, fichas y
+la imagen en base64.
