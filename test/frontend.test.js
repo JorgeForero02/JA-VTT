@@ -49,6 +49,18 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(eng, /outputColorSpace=THREE\.LinearSRGBColorSpace/);
   assert.match(eng, /ColorManagement\.enabled=false/);
   assert.match(eng, /sun\.intensity=envCur\.si\*Math\.PI/);
+  // sombras suaves: onBeforeCompile recibe la plantilla sin expandir, así que se parchea el chunk
+  assert.match(eng, /ShaderChunk\.lights_fragment_begin/);
+  const shadowRe = /getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/;
+  assert.match(eng, /lights_fragment_begin\.replace\(\/getShadow\\\( directionalShadowMap/);
+  const three = read('js/vendor/three.module.min.js');
+  const chunk = JSON.parse('"' + three.match(/lights_fragment_begin:"((?:[^"\\]|\\.)*)"/)[1] + '"');
+  assert.match(chunk, shadowRe, 'el regex de sombras debe casar con el chunk real de r170');
+  assert.match(chunk.replace(shadowRe, (m) => 'mix(1.0,' + m.slice(0, -7) + ',uShadow) : 1.0;'), /\? mix\(1\.0,getShadow\( directionalShadowMap\[ i \][^;]*\),uShadow\) : 1\.0;/);
+  // setEnv rehace niebla, bruma y visión; stop() es seguro mientras start() aún carga
+  assert.match(eng, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;visionDirty=true;[\s\S]*?applyEnv\(false\);/);
+  assert.match(eng, /function stop\(\)\{stopped=true;/);
+  assert.match(eng, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
   const idx = read('js/d3/index.js');
   assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
   const dice = read('js/dice3d.js');

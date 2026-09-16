@@ -662,8 +662,10 @@ function patchMat(mat,opt){
   vFogXZ=fwp.xz+objectNormal.xz*0.45;vUp=objectNormal.y;
 #endif`);
     let fs=sh.fragmentShader;
-    // sombras del sol más suaves (r170 sombrea por luz en lights_fragment_begin: se envuelve getShadow(...))
-    fs=fs.replace(/getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/,m=>'mix(1.0,'+m.slice(0,-7)+',uShadow) : 1.0;');
+    // sombras del sol más suaves. onBeforeCompile recibe la plantilla sin expandir (sólo #include), así que
+    // se parchea el chunk lights_fragment_begin (donde r170 sombrea por luz) y se inserta ya expandido.
+    const lfb=T3.ShaderChunk.lights_fragment_begin.replace(/getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/,m=>'mix(1.0,'+m.slice(0,-7)+',uShadow) : 1.0;');
+    fs=fs.replace('#include <lights_fragment_begin>',lfb);
     sh.fragmentShader='varying vec2 vFogXZ;\nvarying float vUp;\nvarying float vFogY;\nuniform sampler2D uVis;\nuniform sampler2D uLight;\nuniform float uHalf;\nuniform float uGain;\nuniform float uFloor;\nuniform float uFogOn;\nuniform float uGrid;\nuniform float uFogAlpha;\nuniform vec3 uDark;\nuniform float uShadow;\nuniform float uAmbFlat;\nuniform float uMist;\nuniform vec3 uMistCol;\nuniform float uMistBase;\nuniform float uMistTop;\nuniform float uMistT;\n'
       +MIST_NOISE+fs.replace('#include <fog_fragment>',FOG_FRAG+'\n#include <fog_fragment>');
   };
@@ -2252,15 +2254,22 @@ function frame(now){
 }
 
 /* ---------- API interna: lo que expone createEngine ---------- */
+let stopped=false;
 async function start(){
-  try{await loadPacks();}catch(e){throw new Error('No se pudo cargar el arte 2.5D');}
+  try{await loadPacks();}catch(e){throw new Error('No se pudo cargar el arte 2.5D',{cause:e});}
+  if(stopped)return; // stop() llegó mientras cargaba el arte: no montar nada
   restyle('packs'); // loadStyle + asignar el atlas al terreno (creado con map:null)
   resize();loadScene('valle');setTool('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
 }
-function stop(){cancelAnimationFrame(raf);unbindKeys();unbindPointers();renderer.dispose();rt.dispose();canvas.remove();}
+function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 function rotate(dir){thetaT+=dir*Math.PI/2;}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
 const ENV_MAP={interior:'interior',day:'day',dusk:'dusk',night:'night'};
-function setEnv(env,amb){if(ENVS[ENV_MAP[env]]){S.env=ENV_MAP[env];}S.amb=amb;applyEnv(false);}
+// Como el cambio de entorno del panel del diorama: niebla, bruma y visión se rehacen con el entorno.
+function setEnv(env,amb){
+  if(ENVS[ENV_MAP[env]]){S.env=ENV_MAP[env];}
+  const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;visionDirty=true;
+  applyEnv(false);
+}
 return { start, stop, resize, rotate, setEnv };
 }
