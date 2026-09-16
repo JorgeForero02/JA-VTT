@@ -39,6 +39,10 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
+## Arte del modo 2.5D
+
+Los packs de arte del modo 2.5D (atlas y mapa de piezas) son CC0: Kenney Tiny Dungeon y 0x72 DungeonTileset II. Ver README §«Créditos del arte 2.5D» para detalles.
+
 ## API (resumen)
 
 | Método y ruta | Quién | Qué |

@@ -165,6 +165,15 @@ public/js/             Cliente (núcleo, dibujo, editor, red, dados 3D)
 public/fonts/          Tipografías Alegreya (licencia SIL OFL)
 ```
 
+## Créditos del arte 2.5D
+
+| Pack | Autor | Licencia |
+|---|---|---|
+| Tiny Dungeon 1.0 | Kenney — https://kenney.nl | CC0 1.0 |
+| 16x16 DungeonTileset II v1.7 | 0x72 — https://0x72.itch.io/dungeontileset-ii (recoloreado por GrafxKid) | CC0 1.0 |
+
+CC0 es dominio público: no exige dar crédito, pero se reconoce igual. El pixel art propio, el estilo dibujado, las antorchas, braseros, cristales, el agua y el pasto se generan por código.
+
 ## Créditos
 
 - Iconos: Lucide (licencia ISC).

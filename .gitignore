@@ -3,3 +3,4 @@ data/
 .env
 *.log
 test/e2e/capturas/
+diorama-jav/          # prototipo fuente del modo 2.5D; se lee, no se versiona

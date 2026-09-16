@@ -211,3 +211,11 @@ test('nuevo tablero: selector de tipo 2D/2.5D; la tarjeta lo etiqueta; el estado
   assert.match(core, /mode:'2d'/);
   assert.match(core, /const is25=\(\)=>S\.mode==='2\.5d'/);
 });
+
+test('modo 2.5D: atlas CC0 y mapa de piezas presentes', () => {
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'img', 'packs25.png')));
+  const map = read('js/d3/packmap.js');
+  assert.match(map, /^export const PACK_MAP=\{"t:floor":\[\[0,0,16,16\]\]/m);
+  assert.match(read('../README.md'), /Kenney/);
+  assert.match(read('../README.md'), /0x72/);
+});
