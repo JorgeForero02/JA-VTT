@@ -282,7 +282,7 @@ export const closedDoor=j=>isDoor(j)&&!objs.get(j).open;
 export const blocksMove=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].move&&!(isDoor(j)&&objs.get(j).open);
 export const blocksSight=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].sight&&!(isDoor(j)&&objs.get(j).open);
 const higher=(j,i)=>G.H[j]>G.H[i]+1;
-function autoRot(i,kind){
+export function autoRot(i,kind){
   const x=cxOf(i),z=czOf(i),at=(dx,dz)=>inb(x+dx,z+dz)&&higher(I(x+dx,z+dz),i);
   if(OBJ_KINDS[kind].door){
     if(at(0,1)&&at(0,-1))return Math.PI/2;
@@ -290,6 +290,7 @@ function autoRot(i,kind){
   }
   return Math.round(CAM.theta/(Math.PI/2))*(Math.PI/2);
 }
+export function canGrow(i){return G.autoGrow&&nearEdge(i,2)&&G.N+GROW_STEP*2<=MAXN;}
 export function addObj(i,kind,rot){
   const K=OBJ_KINDS[kind],a=ART.art.objs[kind],flat=!!K.flat,fixed=!!K.fixed;
   const tex=K.door?doorTex():ART.TEX.objs[kind];

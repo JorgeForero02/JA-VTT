@@ -3,7 +3,7 @@
    mount/unmount/… se exponen en window.D3. No toca el DOM fuera de su canvas. */
 import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, U } from './ctx.js';
-import { PROP_KINDS, loadPacks, disposeTex, ART } from './art.js';
+import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as ART_OBJ } from './art.js';
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
 import { initVision, refreshLights, composeLightmap, computeVision, blendVision } from './vision.js';
@@ -11,7 +11,7 @@ import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updat
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
 import { initWorld, loadScene, loadTerrain, applyTerrainOp, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
-import { initInput, setTool, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput } from './input.js';
+import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
 THREE.ColorManagement.enabled=false;
@@ -47,6 +47,7 @@ U.uDark.value=new T3.Color('#0E1316');U.uMistCol.value=new T3.Color('#dfe8ee');
 initTerrain(scene);
 initWater(scene);initFx(scene);scene.add(decor);scene.add(charsGroup);scene.add(propGroup); // los grupos de sprites viven en chars.js
 initWorld(scene);initInput(scene);
+onTerrainOp(op=>opts.onTerrainOp&&opts.onTerrainOp(op));
 
 /* ---------- lo que fx.js, chars.js y vision.js necesitan de otros módulos (sin importes circulares) ---------- */
 hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
@@ -111,7 +112,7 @@ async function start(){
   if(stopped)return; // stop() llegó mientras cargaba el arte: no montar nada
   restyle('packs'); // loadStyle + actualizar sprites y agua
   terrainMat.map=ART.TEX.atlas;terrainMat.needsUpdate=true; // el terreno se creó con map:null
-  resize();opts.terrain?loadTerrain(opts.terrain):loadScene('valle');setTool('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
+  resize();opts.terrain?loadTerrain(opts.terrain):loadScene('valle');setToolInput('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
 }
 function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
@@ -122,7 +123,7 @@ function setEnv(env,amb){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(false);
 }
-return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion };
+return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -146,4 +147,7 @@ export function isMounted() { return !!eng; }
 export function loadTerrainBlob(blob){if(eng)eng.loadTerrain(blob);}
 export function applyRemoteOp(op,version){return eng?eng.applyTerrainOp(op,version):false;}
 export function version(){return eng?eng.version():-1;}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version};
+export function setTool(id){if(eng)eng.setTool(id);}
+export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
+export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly}))};}
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog};

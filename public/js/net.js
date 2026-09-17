@@ -161,7 +161,7 @@ const Net=(()=>{
     flushFog,
     rename(name){send({t:'rename',name})},
     ping(){if(!send({t:'ping',at:Date.now()}))toast('No hay conexión con el servidor')},
-    terrain(op){if(!UI.scene||!window.D3)return;send({t:'terrain',scene:UI.scene.id,op:Object.assign({},op,{version:window.D3.version()})})},
+    terrain(op){if(!UI.scene||!window.D3)return;send({t:'terrain',scene:UI.scene.id,op:Object.assign({},op,{version:op.version!=null?op.version:window.D3.version()})})},
     requestImage(){},
     sendRaw:send
   };

@@ -81,7 +81,7 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(idx, /initTerrain\(scene\);[\s\S]*initWater\(scene\);initFx\(scene\);[\s\S]*initWorld\(scene\);initInput\(scene\);/);
   // los ganchos que evitan importes circulares no pueden quedar vacíos (la tarea 11 con GPT dejó removeLight como stub)
   for (const h of ['terrainChanged', 'removeObj', 'removeMount', 'removeLight', 'charAt', 'refreshTufts', 'envEm', 'blocksMove', 'closedDoor', 'blocksSight', 'flashLight', 'relayout', 'maybeGrow']) assert.match(idx, new RegExp('hooks\\.' + h + '=(?!\\(\\)=>\\{\\})'), 'hooks.' + h);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
   const dice = read('js/dice3d.js');
   assert.match(dice, /function withColorManagement\(fn\)/);
 });
@@ -291,11 +291,11 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(world, /export function applyTerrainOp\(op,version\)/m);
   assert.match(read('js/d3/ctx.js'), /terrainVersion:0/);
   const idx = read('js/d3/index.js');
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
   assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
-  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);
+  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\):not\(\.d3Only\),#app\.d3 #rail \.railsep:not\(\.d3Only\)\{display:none\}/);
 });
 
 test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara N ni H por su cuenta', () => {
@@ -339,4 +339,34 @@ test('catálogo 2.5D: catalog.js y server/terrain.js no divergen; art.js mantien
     }
   }
   assert.equal(Object.keys(artKinds).length, Object.keys(T.OBJ_KINDS).length);
+});
+
+test('herramientas 2.5D del director: rail, subbar, ops y puentes', () => {
+  const html = read('index.html');
+  for (const t of ['up', 'down', 'paint', 'object', 'water']) {
+    assert.match(html, new RegExp(`<button(?=[^>]*data-tool="${t}")(?=[^>]*class="[^"]*d3Only[^"]*")[^>]*>`), `botón ${t} con clase d3Only`);
+  }
+  const css = read('css/app.css');
+  assert.match(css, /#app:not\(\.d3\) #rail \.d3Only\{display:none\}/);
+
+  const editor = read('js/editor.js');
+  assert.match(editor, /const D3_TOOLS=\{[^}]*up:'subir'[^}]*water:'agua'/);
+  assert.match(editor, /D3\.setToolOption\('paintMat'/);
+  assert.match(editor, /\['select','up','down','paint','object','water'\]\[e\.key-1\]/);
+
+  const input = read('js/d3/input.js');
+  assert.match(input, /^export function onTerrainOp\(cb\)/m);
+  assert.match(input, /function sendOp\(op\)\{const v=G\.terrainVersion;/);
+  assert.match(input, /sendOp\(\{type:'grow',pad:8\}\)/);
+  assert.doesNotMatch(input, /G\.H\[i\]\+\+/);
+  assert.doesNotMatch(input, /G\.H\[i\]--/);
+  assert.doesNotMatch(input, /explode\(/);
+
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /onTerrainOp\(op=>opts\.onTerrainOp&&opts\.onTerrainOp\(op\)\)/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
+
+  assert.match(read('js/render.js'), /onTerrainOp:op=>Net\.terrain\(op\)/);
+  assert.match(read('js/net.js'), /version:op\.version!=null\?op\.version:window\.D3\.version\(\)/);
+  assert.match(read('js/core.js'), /paintMat:1,objKind:'arbol',waterMode:'verter'/);
 });

@@ -1,16 +1,15 @@
 /* Entrada del motor 2.5D: raycast sobre el tablero, cursor y anillo de selección,
    herramientas del director (sin interfaz: la UI la pone JA-VTT), punteros y teclado. */
 import * as THREE from '../vendor/three.module.min.js';
-import { G, R, MAXH, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
+import { G, S, R, MAXH, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
 import { mkCanvas, OBJ_KINDS, toTex } from './art.js';
 import { waterMesh, pours, WET } from './water.js';
-import { explode } from './fx.js';
-import { charsGroup, propGroup, select, moveTo, charAt, addLight, removeLight } from './chars.js';
-import { vh, getTerrainMeshes, buildTerrain } from './terrain.js';
-import { isDoor, toggleDoor, mountValid, addObj, removeObj, addMount, removeMount, relayout, refreshTufts, terrainChanged, updateMarks, maybeGrow } from './world.js';
+import { charsGroup, propGroup, select, moveTo, charAt } from './chars.js';
+import { vh, getTerrainMeshes } from './terrain.js';
+import { isDoor, mountValid, applyTerrainOp, autoRot, canGrow } from './world.js';
 import { CAM, panBy, focusOn, zoomMax } from './camera.js';
 const T3 = THREE;
-const objs=G.objs, lights=G.lights, mounts=G.mounts, springs=G.springs, sinks=G.sinks;
+const objs=G.objs, mounts=G.mounts, springs=G.springs, sinks=G.sinks;
 
 /* ---------- cursor y selección ---------- */
 function frameCanvas(){
@@ -32,6 +31,12 @@ export function initInput(scene){
    HERRAMIENTAS (sin interfaz: la UI del diorama no viene; fase B la hará JA-VTT)
    ===================================================================== */
 export function setTool(id){G.tool=id;}
+export function setToolOption(k,v){if(k==='paintMat')G.paintMat=v;else if(k==='objKind')G.objKind=v;else if(k==='waterMode')G.waterMode=v;}
+let emitOp=null;
+export function onTerrainOp(cb){emitOp=cb;}
+/* Edición del director: la op sale con la version actual y se aplica en local como version+1; el servidor confirma con ack o manda el terreno completo si hubo conflicto */
+function sendOp(op){const v=G.terrainVersion;if(emitOp)emitOp(Object.assign({},op,{version:v}));applyTerrainOp(op,v+1);}
+
 /* ---------- selección en el mapa ---------- */
 const ray=new T3.Raycaster(),ndc=new T3.Vector2();
 function faceDir(n){if(!n||Math.abs(n.y)>.5)return -1;if(n.x>.5)return 0;if(n.x<-.5)return 1;if(n.z>.5)return 2;return 3;}
@@ -63,7 +68,6 @@ export function showCursor(i){
   cursor.visible=true;
   cursor.position.set(wx(cxOf(i)),vh(i)+(G.Wr[i]>=WET?G.Wr[i]+.02:0)+.03,wz(czOf(i)));
 }
-const MOUNT_LIGHTS=['candle','torch','lantern','crystal','magic'];
 export function applyTool(p){
   if(!p)return;
   if(p.char){
@@ -71,59 +75,60 @@ export function applyTool(p){
     p={cell:p.char.cell};
   }
   if(p.mount){
-    if(G.tool==='objeto'){removeMount(p.mount);R.toast('Pieza quitada de la pared.');}
+    if(G.tool==='objeto'){sendOp({type:'mount',key:p.mount,kind:null});R.toast('Pieza quitada de la pared.');}
     return;
   }
   const i=p.cell;showCursor(i);
-  if(G.tool!=='mover'&&G.tool!=='boom')setTimeout(()=>maybeGrow(i),0);
   if(G.tool==='mover'){
-    if(p.obj&&isDoor(i)){toggleDoor(i);return;}
+    if(p.obj&&isDoor(i)){const o=objs.get(i);if(o.locked&&S.view!=='gm'){R.toast('La puerta está cerrada con llave.');return;}sendOp({type:'door',i,open:!o.open});return;}
     if(!G.selected){R.toast('Primero toca una ficha.');return;}
     moveTo(G.selected,i);
   }else if(G.tool==='subir'){
     if(G.H[i]>=MAXH){R.toast('Ese bloque ya está a la altura máxima.');return;}
     if(charAt(i,null)){R.toast('Hay una ficha en esa casilla.');return;}
-    G.H[i]++;terrainChanged();
+    sendOp({type:'cells',cells:[{i,h:G.H[i]+1}]});
+    if(canGrow(i))sendOp({type:'grow',pad:8});
   }else if(G.tool==='bajar'){
     if(G.H[i]<=1){R.toast('Ese bloque ya está al ras del pedestal.');return;}
-    G.H[i]--;terrainChanged();
+    if(charAt(i,null)){R.toast('Hay una ficha en esa casilla.');return;}
+    sendOp({type:'cells',cells:[{i,h:G.H[i]-1}]});
+    if(canGrow(i))sendOp({type:'grow',pad:8});
   }else if(G.tool==='pintar'){
-    G.M[i]=G.paintMat;buildTerrain();refreshTufts();
+    sendOp({type:'cells',cells:[{i,m:G.paintMat}]});
+    if(canGrow(i))sendOp({type:'grow',pad:8});
   }else if(G.tool==='agua'){
     if(G.waterMode==='verter')pours.push({cell:i,left:1.6});
     else if(G.waterMode==='manantial'){
       const k=springs.findIndex(sp=>sp.cell===i);
-      if(k>=0){springs.splice(k,1);R.toast('Manantial quitado.');}
-      else{springs.push({cell:i,rate:.05,cap:.5});R.toast('Manantial puesto: el agua brota y busca dónde caer.');}
-      updateMarks();
+      const springs2=springs.slice();
+      if(k>=0){springs2.splice(k,1);R.toast('Manantial quitado.');}
+      else{springs2.push({cell:i,rate:.05,cap:.5});R.toast('Manantial puesto: el agua brota y busca dónde caer.');}
+      sendOp({type:'water',springs:springs2,sinks:sinks.slice(),evap:G.evap,edgeDrain:G.edgeDrain});
+      if(canGrow(i))sendOp({type:'grow',pad:8});
     }else if(G.waterMode==='desague'){
       const k=sinks.findIndex(sk=>sk.cell===i);
-      if(k>=0){sinks.splice(k,1);R.toast('Desagüe quitado.');}
-      else{sinks.push({cell:i,level:G.H[i]+.12,user:true});R.toast('Desagüe puesto: se lleva el agua que llegue aquí.');}
-      updateMarks();
+      const sinks2=sinks.slice();
+      if(k>=0){sinks2.splice(k,1);R.toast('Desagüe quitado.');}
+      else{sinks2.push({cell:i,level:G.H[i]+.12,user:true});R.toast('Desagüe puesto: se lleva el agua que llegue aquí.');}
+      sendOp({type:'water',springs:springs.slice(),sinks:sinks2,evap:G.evap,edgeDrain:G.edgeDrain});
+      if(canGrow(i))sendOp({type:'grow',pad:8});
     }else{
       const x=cxOf(i),z=czOf(i);
       for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){if(inb(x+dx,z+dz)){const j=I(x+dx,z+dz);G.W[j]=0;G.Wprev[j]=0;G.FLX[j*4]=G.FLX[j*4+1]=G.FLX[j*4+2]=G.FLX[j*4+3]=0;}}
     }
   }else if(G.tool==='boom'){
-    const o=objs.get(i),K=o&&OBJ_KINDS[o.kind];
-    explode(i,K&&K.explosive?K.explosive:G.boomLevel);
+    R.toast('Las explosiones llegan en una fase posterior.');
   }else if(G.tool==='objeto'){
     const K=OBJ_KINDS[G.objKind];
-    if(p.obj&&objs.has(i)){removeObj(i);refreshTufts();G.visionDirty=true;return;}
-    if(p.wall&&(K.mount||K.mountOnly)){addMount(p.wall.wall,p.wall.dir,G.objKind);relayout();return;}
+    if(p.obj&&objs.has(i)){sendOp({type:'obj',i,kind:null});return;}
+    if(p.wall&&(K.mount||K.mountOnly)){if(mountValid(p.wall.wall,p.wall.dir))sendOp({type:'mount',key:p.wall.wall+':'+p.wall.dir,kind:G.objKind});return;}
     if(K.mountOnly){R.toast(K.name+' solo va en una pared: toca la cara de un muro.');return;}
-    if(objs.has(i)){removeObj(i);refreshTufts();G.visionDirty=true;return;}
+    if(objs.has(i)){sendOp({type:'obj',i,kind:null});return;}
     if(charAt(i,null)&&K.move){R.toast('Hay una ficha en esa casilla.');return;}
-    addObj(i,G.objKind);relayout();G.visionDirty=true;
+    sendOp({type:'obj',i,kind:G.objKind,rot:K.fixed?autoRot(i,G.objKind):0});
+    if(canGrow(i))sendOp({type:'grow',pad:8});
   }else if(G.tool==='luz'){
-    if(p.light){removeLight(p.light);R.toast('Luz quitada.');}
-    else if(p.wall&&MOUNT_LIGHTS.includes(G.lightPreset)){
-      const w=p.wall,floor=I(cxOf(w.wall)+DIRS[w.dir][0],czOf(w.wall)+DIRS[w.dir][1]);
-      const ex=lights.find(l=>l.mount&&l.mount.wall===w.wall&&l.mount.dir===w.dir);
-      if(ex){removeLight(ex);R.toast('Luz quitada.');}else addLight(G.lightPreset,floor,{wall:w.wall,dir:w.dir});
-    }
-    else{const ex=lights.find(l=>!l.carrier&&!l.mount&&l.cell===i);if(ex){removeLight(ex);R.toast('Luz quitada.');}else addLight(G.lightPreset,i);}
+    R.toast('Las luces del mapa 2.5D llegan en la fase C.');
   }
 }
 const pointers=new Map();let dragMoved=false,pinchD=0,pinchM=null,hoverXY=null;

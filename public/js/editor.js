@@ -172,11 +172,13 @@ function hitHandle(p){
 
 /* ---------- Puntero ---------- */
 function evScreen(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua'};
 function setTool(t){
   if(!isGM()&&!PLAYER_TOOLS.includes(t)){toast('Solo el Director puede editar la escena');return}
   finishChain();UI.curve=null;UI.arc=null;UI.zpoly=null;UI.tool=t;UI.act=null;
   $$('.tool').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));
-  stage.classList.toggle('crosshair',!['select','pan'].includes(t));
+  if(is25()&&window.D3)window.D3.setTool(D3_TOOLS[t]||'mover');
+  stage.classList.toggle('crosshair',!is25()&&!['select','pan'].includes(t));
   stage.style.cursor=t==='pan'?'grab':'';
   renderSubbar();requestRender();
 }
@@ -408,7 +410,7 @@ window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
   if(['input','select','textarea'].includes(tag))return;
   if(tag==='button'&&(e.code==='Space'||e.key==='Enter'))return;
-  if(is25()&&e.key!=='Escape')return;
+  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(e.key!=='Escape')return}
   const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
   if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
   if(mod&&k==='y'){e.preventDefault();redo();return}
@@ -769,9 +771,30 @@ function renderLayers(){
   }
   const lg=$('#wallLegend');if(!lg.childElementCount)for(const T of Object.values(WALL_TYPES)){const i=document.createElement('i');i.style.borderTopColor=T.color;if(T.dash)i.style.borderTopStyle='dashed';const s=document.createElement('span');s.textContent=`${T.name}: ${T.desc.toLowerCase()}`;lg.append(i,s)}
 }
-function render25Sub(){const bar=$('#subbar');bar.innerHTML='';
+function render25Sub(){
+  const bar=$('#subbar');bar.innerHTML='';
   const mk=(ic,title,fn)=>{const b=document.createElement('button');b.className='btn sq ghost';b.dataset.ic=ic;b.title=title;b.setAttribute('aria-label',title);b.onclick=fn;bar.appendChild(b)};
-  mk('rotate-ccw','Girar a la izquierda (Q)',()=>window.D3.rotate(-1));mk('rotate-cw','Girar a la derecha (E)',()=>window.D3.rotate(1));hydrate(bar)}
+  mk('rotate-ccw','Girar a la izquierda (Q)',()=>window.D3.rotate(-1));mk('rotate-cw','Girar a la derecha (E)',()=>window.D3.rotate(1));
+  const t=UI.tool;
+  const chips=document.createElement('div');chips.className='chipbar';
+  const hint=txt=>{const h=document.createElement('span');h.className='hint';h.textContent=txt;chips.appendChild(h)};
+  const chip=(ic,txt,pressed,fn,sw)=>{const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(pressed));b.innerHTML=svgIcon(ic);const s=document.createElement('span');s.textContent=txt;b.appendChild(s);if(sw){const i=document.createElement('i');i.className='sw';i.style.background=sw;b.appendChild(i)}b.onclick=fn;chips.appendChild(b);return b};
+  if(t==='paint'){
+    const cat=window.D3.catalog();
+    for(const m of cat.MATS){if(m.hidden)continue;chip('square',m.name,UI.paintMat===m.i,()=>{UI.paintMat=m.i;window.D3.setToolOption('paintMat',m.i);renderSubbar();},m.swatch);}
+    hint('Clic en un bloque para pintarlo.');
+  }else if(t==='object'){
+    const cat=window.D3.catalog();
+    for(const o of cat.OBJS){chip('box',o.name+(o.mountOnly?' · pared':''),UI.objKind===o.key,()=>{UI.objKind=o.key;window.D3.setToolOption('objKind',o.key);renderSubbar();});}
+    hint('Clic en una casilla para poner o quitar; en la cara de un muro para colgar.');
+  }else if(t==='water'){
+    for(const[k,n,ic]of[['verter','Verter','cloud-fog'],['manantial','Manantial','sparkles'],['desague','Desagüe','circle-off'],['secar','Secar','sun']])chip(ic,n,UI.waterMode===k,()=>{UI.waterMode=k;window.D3.setToolOption('waterMode',k);renderSubbar();});
+    hint('Manantial y desagüe se guardan; verter y secar son locales.');
+  }else if(t==='up'||t==='down'){
+    hint('Clic en un bloque.');
+  }
+  if(chips.childElementCount)bar.appendChild(chips);
+  hydrate(bar)}
 function renderSubbar(){
   if(is25()){render25Sub();return}
   const bar=$('#subbar');bar.innerHTML='';
