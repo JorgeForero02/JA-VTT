@@ -153,3 +153,13 @@ test('terrain: guardar, leer y borrar en cascada con la escena', async () => {
   await db.q.deleteScene(sceneId);
   assert.equal(await db.q.terrain(sceneId), null);
 });
+
+test('createBoard 2.5d inserta terreno para su escena; 2d no', async () => {
+  const gm = await db.createUser('Gm9', 'h');
+  const board25 = await db.createBoard('Valle', gm.id, '2.5d');
+  const row25 = await db.q.terrain(board25.active_scene);
+  assert.equal(row25.n, 22);
+  assert.equal(row25.version, 0);
+  const board2d = await db.createBoard('Plano', gm.id, '2d');
+  assert.equal(await db.q.terrain(board2d.active_scene), null);
+});

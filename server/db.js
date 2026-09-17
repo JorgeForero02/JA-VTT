@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const T = require('./terrain');
 const { Pool, types } = require('pg');
 
 // BIGINT (oid 20) llega como texto; todos nuestros valores caben en Number sin pérdida.
@@ -190,6 +191,7 @@ async function createBoard(name, ownerId, mode = '2d') {
     await t.insertScene(sceneId, id, 'Escena 1', {}, 0);
     await t.setActiveScene(sceneId, id);
     await t.addMember(id, ownerId, 'gm');
+    if (mode === '2.5d') await t.upsertTerrain(sceneId, T.encode(T.generate('valle')));
   });
   return q.board(id);
 }

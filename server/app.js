@@ -11,6 +11,7 @@ const { q, tx, randCode, newSceneId, createBoard } = db;
 const { hashPassword, verifyPassword, validPassword, MIN_PASSWORD } = require('./auth');
 const { acceptUpgrade } = require('./ws');
 const R = require('./rules');
+const T = require('./terrain');
 const dice = require('./dice');
 
 const PUBLIC = path.resolve(__dirname, '..', 'public');
@@ -87,21 +88,28 @@ const newObjId = () => { let v = Date.now() * 1000 + Math.floor(Math.random() * 
 
 function makeScene(row, objects) {
   const settings = R.splitSettings(row.settings || {}).scene;
-  return { id: row.id, name: row.name, sort: row.sort, settings: Object.assign({}, R.DEFAULT_SCENE, settings), objects, dirty: new Set(), removed: new Set(), settingsDirty: false };
+  return { id: row.id, name: row.name, sort: row.sort, settings: Object.assign({}, R.DEFAULT_SCENE, settings), objects, terrain: null, terrainDirty: false, dirty: new Set(), removed: new Set(), settingsDirty: false };
 }
-async function loadScene(row) {
+async function loadScene(row, mode) {
   const objects = new Map();
   for (const o of await q.sceneObjects(row.id)) objects.set(o.id, o);
-  return makeScene(row, objects);
+  const sc = makeScene(row, objects);
+  if (mode === '2.5d') {
+    const tr = await q.terrain(row.id);
+    sc.terrain = tr ? T.decode(tr) : T.generate('valle');
+    if (!tr) sc.terrainDirty = true;
+  }
+  return sc;
 }
 async function openBoard(id) {
   const cached = live.get(id);
   if (cached) return cached;
   const row = await q.board(id);
   if (!row) return null;
-  const scenes = new Map();
-  for (const sr of await q.scenes(id)) scenes.set(sr.id, await loadScene(sr));
   const boardSettings = R.splitSettings(row.settings || {}).board;
+  const mode = boardSettings.mode || '2d';
+  const scenes = new Map();
+  for (const sr of await q.scenes(id)) scenes.set(sr.id, await loadScene(sr, mode));
   const b = {
     id, name: row.name, owner_id: row.owner_id, invite_code: row.invite_code,
     active: scenes.has(row.active_scene) ? row.active_scene : [...scenes.keys()][0],
@@ -130,9 +138,9 @@ async function flush(b) {
   if (b.flushing) return;
   const pending = [];
   for (const sc of b.scenes.values()) {
-    if (!sc.dirty.size && !sc.removed.size && !sc.settingsDirty) continue;
-    pending.push({ sc, removed: [...sc.removed], dirty: [...sc.dirty].map((id) => sc.objects.get(id)).filter(Boolean), settings: sc.settingsDirty ? Object.assign({}, sc.settings) : null });
-    sc.dirty.clear(); sc.removed.clear(); sc.settingsDirty = false;
+    if (!sc.dirty.size && !sc.removed.size && !sc.settingsDirty && !sc.terrainDirty) continue;
+    pending.push({ sc, removed: [...sc.removed], dirty: [...sc.dirty].map((id) => sc.objects.get(id)).filter(Boolean), settings: sc.settingsDirty ? Object.assign({}, sc.settings) : null, terrain: sc.terrainDirty ? sc.terrain : null });
+    sc.dirty.clear(); sc.removed.clear(); sc.settingsDirty = false; sc.terrainDirty = false;
   }
   const boardSettings = b.settingsDirty ? Object.assign({}, b.settings) : null;
   b.settingsDirty = false;
@@ -144,13 +152,14 @@ async function flush(b) {
         for (const id of p.removed) await t.deleteObject(b.id, id);
         for (const o of p.dirty) await t.upsertObject(b.id, o.id, p.sc.id, o.type, o);
         if (p.settings) await t.setSceneSettings(p.settings, p.sc.id);
+        if (p.terrain) await t.upsertTerrain(p.sc.id, T.encode(p.terrain));
       }
       if (boardSettings) await t.setSettings(boardSettings, b.id);
       else await t.touchBoard(b.id);
     });
   } catch (e) {
     // se vuelve a marcar todo para reintentarlo en el siguiente ciclo
-    for (const p of pending) { for (const id of p.removed) p.sc.removed.add(id); for (const o of p.dirty) p.sc.dirty.add(o.id); if (p.settings) p.sc.settingsDirty = true; }
+    for (const p of pending) { for (const id of p.removed) p.sc.removed.add(id); for (const o of p.dirty) p.sc.dirty.add(o.id); if (p.settings) p.sc.settingsDirty = true; if (p.terrain) p.sc.terrainDirty = true; }
     if (boardSettings) b.settingsDirty = true;
     throw e;
   } finally {
@@ -193,6 +202,19 @@ const initiativeFor = (b, c) => R.initiativeFor(b.settings, { role: c.role }, b.
 function sendInitiative(b) { for (const c of b.clients) c.ws.send({ t: 'initiative', initiative: initiativeFor(b, c) }); }
 async function chatHistory(b) { return (await q.recentChat(b.id, CHAT_HISTORY)).reverse(); }
 
+function terrainFor(sc) {
+  const t = sc.terrain;
+  if (!t) return undefined;
+  return {
+    n: t.n,
+    h: Buffer.from(t.h).toString('base64'),
+    m: Buffer.from(t.m).toString('base64'),
+    chan: Buffer.from(t.chan).toString('base64'),
+    extras: t.extras,
+    version: t.version
+  };
+}
+
 async function stateFor(b, c) {
   const sc = b.scenes.get(c.sceneId);
   const member = { role: c.role, user_id: c.user.id };
@@ -208,6 +230,7 @@ async function stateFor(b, c) {
     members: b.members,
     online: onlineList(b),
     fog,
+    terrain: terrainFor(sc),
     chat: await chatHistory(b),
     initiative: initiativeFor(b, c),
   };
@@ -422,7 +445,9 @@ async function handleScene(b, c, d) {
       const sort = nextSort(b);
       const name = R.str(d.name, 60).trim() || `Escena ${b.scenes.size + 1}`;
       await q.insertScene(id, b.id, name, R.DEFAULT_SCENE, sort);
-      b.scenes.set(id, makeScene({ id, name, sort, settings: {} }, new Map()));
+      const sc = makeScene({ id, name, sort, settings: {} }, new Map());
+      if (b.settings.mode === '2.5d') { sc.terrain = T.blankTerrain(22); sc.terrainDirty = true; }
+      b.scenes.set(id, sc);
       if (d.open) { c.sceneId = id; await setMemberScene(b, c.user.id, id); await sendState(b, c, { created: true }); }
       break;
     }
@@ -450,7 +475,19 @@ async function handleScene(b, c, d) {
         await t.insertScene(id, b.id, name, src.settings, sort);
         for (const o of copy.values()) await t.upsertObject(b.id, o.id, id, o.type, o);
       });
-      b.scenes.set(id, makeScene({ id, name, sort, settings: src.settings }, copy));
+      const sc = makeScene({ id, name, sort, settings: src.settings }, copy);
+      if (b.settings.mode === '2.5d' && src.terrain) {
+        sc.terrain = {
+          n: src.terrain.n,
+          h: new Uint8Array(src.terrain.h),
+          m: new Uint8Array(src.terrain.m),
+          chan: new Uint8Array(src.terrain.chan),
+          extras: JSON.parse(JSON.stringify(src.terrain.extras)),
+          version: 0
+        };
+        sc.terrainDirty = true;
+      }
+      b.scenes.set(id, sc);
       break;
     }
     case 'delete': {
@@ -549,6 +586,21 @@ async function handleRename(b, c, d) {
   broadcast(b, { t: 'board', name }, c);
 }
 
+async function handleTerrain(b, c, d) {
+  const sc = b.scenes.get(d.scene);
+  if (!sc || !sc.terrain || d.scene !== c.sceneId) return;
+  if (d.want === 'full') { c.ws.send({ t: 'terrain', scene: sc.id, full: terrainFor(sc) }); return; }
+  const op = R.cleanTerrainOp(d.op);
+  const member = { role: c.role, user_id: c.user.id };
+  if (!op || !R.terrainOpAllowed(member, op, b.settings, sc.terrain)) { c.ws.send({ t: 'terrain', scene: sc.id, fix: true, full: terrainFor(sc) }); return; }
+  if (Number.isInteger(op.version) && op.version !== sc.terrain.version) { c.ws.send({ t: 'terrain', scene: sc.id, full: terrainFor(sc) }); return; }
+  try { T.applyTerrainOp(sc.terrain, op); } catch (e) { c.ws.send({ t: 'terrain', scene: sc.id, fix: true, error: e.message, full: terrainFor(sc) }); return; }
+  sc.terrainDirty = true;
+  delete op.version;
+  c.ws.send({ t: 'terrain', scene: sc.id, ack: true, version: sc.terrain.version });
+  broadcast(b, { t: 'terrain', scene: sc.id, op, version: sc.terrain.version }, c, sc.id);
+}
+
 function handleMessage(b, c, d) {
   switch (d.t) {
     case 'ops': return handleOps(b, c, d);
@@ -557,6 +609,7 @@ function handleMessage(b, c, d) {
     case 'travel': return handleTravel(b, c, d);
     case 'fog': return handleFog(b, c, d);
     case 'rename': return handleRename(b, c, d);
+    case 'terrain': return handleTerrain(b, c, d);
     case 'chat': return handleChat(b, c, d);
     case 'roll': return handleRoll(b, c, d);
     case 'initiative': return handleInitiative(b, c, d);

@@ -30,6 +30,7 @@ after(async () => { await app.stop(); });
 
 const isOps = (m) => m.t === 'ops';
 const isState = (m) => m.t === 'state';
+const isTerrain = (m) => m.t === 'terrain';
 
 test('sin cookie el WebSocket se rechaza; sin pertenecer al tablero, se expulsa', async () => {
   const anon = connect(base, boardId, '');
@@ -169,4 +170,137 @@ test('un jugador que gira su propia luz no recibe corrección (las claves vienen
   const stored = (await db.q.sceneObjects(sceneId)).find((o) => o.id === 1003);
   assert.equal(stored.light.rot, 45);
   await player.close();
+});
+
+test('un tablero 2.5D trae su terreno en el estado; un tablero 2D no', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Valle', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const gm = connect(base, board25, gmCookie);
+  await gm.opened;
+  const state = await gm.next(isState);
+  assert.equal(state.terrain.n, 22);
+  assert.equal(Buffer.from(state.terrain.h, 'base64').length, 484);
+  assert.equal(state.terrain.version, 0);
+  assert.equal(state.terrain.extras.springs.length, 1);
+  await gm.close();
+  const gm2d = connect(base, boardId, gmCookie);
+  await gm2d.opened;
+  const state2d = await gm2d.next(isState);
+  assert.equal(state2d.terrain, undefined);
+  await gm2d.close();
+});
+
+test('una op de terreno del director llega al jugador con version 1 y persiste', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Edicion', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const gm = connect(base, board25, gmCookie);
+  const player = connect(base, board25, playerCookie);
+  await gm.opened; await player.opened;
+  const state = await gm.next(isState);
+  await player.next(isState);
+  const scene = state.scene.id;
+  gm.send({ t: 'terrain', scene, op: { type: 'cells', cells: [{ i: 5, h: 7 }], version: 0 } });
+  const ack = await gm.next((m) => m.t === 'terrain' && m.ack);
+  assert.equal(ack.version, 1);
+  const got = await player.next((m) => m.t === 'terrain' && m.op);
+  assert.equal(got.op.type, 'cells');
+  assert.equal(got.version, 1);
+  await gm.close(); await player.close();
+  await app.flushAll();
+  const row = await db.q.terrain(scene);
+  assert.equal(row.version, 1);
+  assert.equal(row.h[5], 7);
+  const again = connect(base, board25, gmCookie);
+  await again.opened;
+  const state1 = await again.next(isState);
+  assert.equal(state1.terrain.version, 1);
+  await again.close();
+});
+
+test('un jugador no puede editar el terreno', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Protegido', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const gm = connect(base, board25, gmCookie);
+  const player = connect(base, board25, playerCookie);
+  await gm.opened; await player.opened;
+  const state = await gm.next(isState);
+  await player.next(isState);
+  const scene = state.scene.id;
+  player.send({ t: 'terrain', scene, op: { type: 'cells', cells: [{ i: 5, h: 7 }], version: 0 } });
+  const fix = await player.next((m) => m.t === 'terrain' && m.fix);
+  assert.ok(fix.full);
+  assert.ok(await gm.silence(isTerrain, 300));
+  await gm.close(); await player.close();
+});
+
+test('un jugador abre una puerta si el tablero lo permite', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Puertas', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const gm = connect(base, board25, gmCookie);
+  const player = connect(base, board25, playerCookie);
+  await gm.opened; await player.opened;
+  const state = await gm.next(isState);
+  await player.next(isState);
+  const scene = state.scene.id;
+  gm.send({ t: 'terrain', scene, op: { type: 'obj', i: 40, kind: 'puerta', rot: null, version: 0 } });
+  await gm.next((m) => m.t === 'terrain' && m.ack);
+  player.send({ t: 'terrain', scene, op: { type: 'door', i: 40, open: true, version: 1 } });
+  const got = await gm.next((m) => m.t === 'terrain' && m.op && m.op.type === 'door');
+  assert.equal(got.version, 2);
+  gm.send({ t: 'ops', scene, up: [], del: [], settings: { playersDoors: false } });
+  await player.next(isOps);
+  player.send({ t: 'terrain', scene, op: { type: 'door', i: 40, open: false, version: 2 } });
+  const fix = await player.next((m) => m.t === 'terrain' && m.fix);
+  assert.ok(fix.full);
+  await gm.close(); await player.close();
+});
+
+test('una op con version vieja devuelve el terreno completo sin aplicar', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Version', mode: '2.5d' });
+  const board25 = created.board.id;
+  const gm = connect(base, board25, gmCookie);
+  await gm.opened;
+  const state = await gm.next(isState);
+  const scene = state.scene.id;
+  gm.send({ t: 'terrain', scene, op: { type: 'cells', cells: [{ i: 5, h: 7 }], version: 99 } });
+  const full = await gm.next((m) => m.t === 'terrain' && m.full);
+  assert.equal(full.full.n, 22);
+  assert.ok(await gm.silence((m) => m.t === 'terrain' && m.ack, 300));
+  const row = await db.q.terrain(scene);
+  assert.equal(row.version, 0);
+  await gm.close();
+});
+
+test('want:full devuelve el terreno completo', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Solicitud', mode: '2.5d' });
+  const board25 = created.board.id;
+  const gm = connect(base, board25, gmCookie);
+  await gm.opened;
+  const state = await gm.next(isState);
+  const scene = state.scene.id;
+  gm.send({ t: 'terrain', scene, want: 'full' });
+  const full = await gm.next((m) => m.t === 'terrain' && m.full);
+  assert.equal(full.full.n, 22);
+  await gm.close();
+});
+
+test('la escena nueva de un tablero 2.5D nace con terreno vacío', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Nueva', mode: '2.5d' });
+  const board25 = created.board.id;
+  const gm = connect(base, board25, gmCookie);
+  await gm.opened;
+  await gm.next(isState);
+  gm.send({ t: 'scene', op: 'create', name: 'Vacía', open: true });
+  const state = await gm.next(isState);
+  assert.equal(state.terrain.extras.springs.length, 0);
+  assert.equal(Buffer.from(state.terrain.h, 'base64').every((v) => v === 1), true);
+  await gm.close();
 });
