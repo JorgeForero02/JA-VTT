@@ -40,15 +40,19 @@ test('todos los scripts del cliente compilan', () => {
 });
 
 test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
-  const eng = read('js/d3/engine.js');
-  assert.match(eng, /^import \* as THREE from '\.\.\/vendor\/three\.module\.min\.js';$/m);
-  assert.match(eng, /import \{ mkCanvas, rng, pick, AC, PROP_KINDS, OBJ_KINDS, MATS, slotOf, loadPacks, toTex, disposeTex, ART \} from '\.\/art\.js'/);
-  assert.match(eng, /export function createEngine\(stage,opts\)/);
-  for (const bad of ['WebGLMultisampleRenderTarget', "getElementById('view')", "getElementById('hint')", 'localStorage', 'PACK_SRC', 'renderPanel(', 'window.innerWidth']) assert.ok(!eng.includes(bad), 'no debe quedar: ' + bad);
-  assert.match(eng, /samples:4/);
-  assert.match(eng, /outputColorSpace=THREE\.LinearSRGBColorSpace/);
-  assert.match(eng, /ColorManagement\.enabled=false/);
-  assert.match(eng, /sun\.intensity=envCur\.si\*Math\.PI/);
+  // T11: engine.js se disolvió en 12 módulos; index.js crea el motor y expone window.D3
+  const d3 = path.join(__dirname, '..', 'public', 'js', 'd3');
+  for (const f of ['ctx', 'art', 'water', 'fx', 'vision', 'chars', 'camera', 'input', 'terrain', 'world', 'index', 'packmap']) assert.ok(fs.existsSync(path.join(d3, f + '.js')), f + '.js');
+  assert.ok(!fs.existsSync(path.join(d3, 'engine.js')), 'engine.js ya no existe');
+  const idx = read('js/d3/index.js'), cam = read('js/d3/camera.js');
+  assert.match(idx, /^import \* as THREE from '\.\.\/vendor\/three\.module\.min\.js';$/m);
+  assert.match(idx, /export function createEngine\(stage,opts\)/);
+  const all = ['ctx', 'art', 'water', 'fx', 'vision', 'chars', 'camera', 'input', 'terrain', 'world', 'index'].map((f) => read('js/d3/' + f + '.js')).join('\n');
+  for (const bad of ['WebGLMultisampleRenderTarget', "getElementById('view')", "getElementById('hint')", 'localStorage', 'PACK_SRC', 'renderPanel(', 'window.innerWidth', "from './engine.js'"]) assert.ok(!all.includes(bad), 'no debe quedar: ' + bad);
+  assert.match(cam, /WebGLRenderTarget\(1,1,\{format:T3\.RGBAFormat,samples:4\}\)/);
+  assert.match(idx, /outputColorSpace=THREE\.LinearSRGBColorSpace/);
+  assert.match(idx, /ColorManagement\.enabled=false/);
+  assert.match(cam, /sun\.intensity=envCur\.si\*Math\.PI/);
   // sombras suaves: onBeforeCompile recibe la plantilla sin expandir, así que se parchea el chunk
   const vis = read('js/d3/vision.js');
   assert.match(vis, /ShaderChunk\.lights_fragment_begin/);
@@ -59,18 +63,24 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(chunk, shadowRe, 'el regex de sombras debe casar con el chunk real de r170');
   assert.match(chunk.replace(shadowRe, (m) => 'mix(1.0,' + m.slice(0, -7) + ',uShadow) : 1.0;'), /\? mix\(1\.0,getShadow\( directionalShadowMap\[ i \][^;]*\),uShadow\) : 1\.0;/);
   // setEnv rehace niebla, bruma y visión; stop() es seguro mientras start() aún carga
-  assert.match(eng, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(false\);/);
-  assert.match(eng, /function stop\(\)\{stopped=true;/);
-  assert.match(eng, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
+  assert.match(idx, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(false\);/);
+  assert.match(idx, /function stop\(\)\{stopped=true;/);
+  assert.match(idx, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
   assert.match(read('js/d3/art.js'), /^export function loadStyle\(key\)/m);
-  assert.doesNotMatch(eng, /function pixelAtlas\(|function drawnAtlas\(/);
   assert.match(read('js/d3/water.js'), /^export function simWater\(\)/m);
   assert.match(read('js/d3/fx.js'), /^export function explode\(cell,levelKey,chained\)/m);
-  assert.match(read('js/d3/vision.js'), /^export function computeVision\(\)/m);
+  assert.match(vis, /^export function computeVision\(\)/m);
   assert.match(read('js/d3/chars.js'), /^export function addChar\(s\)/m);
-  assert.match(eng, /scene\.add\(decor\);scene\.add\(charsGroup\);scene\.add\(propGroup\)/, 'los grupos de sprites de chars.js deben añadirse a la escena (se perdió en la tarea 10)');
-  const idx = read('js/d3/index.js');
-  assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
+  assert.match(read('js/d3/terrain.js'), /^export function buildTerrain\(\)/m);
+  assert.match(read('js/d3/world.js'), /^export function loadScene\(key\)/m);
+  assert.match(read('js/d3/input.js'), /^export function pickAt\(px,py\)/m);
+  assert.match(cam, /^export function stepEnv\(dt\)/m);
+  // todo lo que se crea en un módulo y vive en la escena se registra en ella (se perdió una vez en la tarea 10)
+  assert.match(idx, /scene\.add\(decor\);scene\.add\(charsGroup\);scene\.add\(propGroup\)/);
+  assert.match(idx, /initTerrain\(scene\);[\s\S]*initWater\(scene\);initFx\(scene\);[\s\S]*initWorld\(scene\);initInput\(scene\);/);
+  // los ganchos que evitan importes circulares no pueden quedar vacíos (la tarea 11 con GPT dejó removeLight como stub)
+  for (const h of ['terrainChanged', 'removeObj', 'removeMount', 'removeLight', 'charAt', 'refreshTufts', 'envEm', 'blocksMove', 'closedDoor', 'blocksSight', 'flashLight', 'relayout', 'maybeGrow']) assert.match(idx, new RegExp('hooks\\.' + h + '=(?!\\(\\)=>\\{\\})'), 'hooks.' + h);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted\}/);
   const dice = read('js/dice3d.js');
   assert.match(dice, /function withColorManagement\(fn\)/);
 });
@@ -279,10 +289,10 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);
 });
 
-test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; engine.js ya no declara N ni H', () => {
+test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara N ni H por su cuenta', () => {
   const ctx = read('js/d3/ctx.js');
   assert.match(ctx, /export const G=\{/); assert.match(ctx, /export const I=\(x,z\)=>z\*G\.N\+x/);
-  const eng = read('js/d3/engine.js');
-  assert.match(eng, /import \{ G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb \} from '\.\/ctx\.js'/);
-  assert.doesNotMatch(eng, /^\s*let N=|^\s*let H,M,W|^\s*const S=\{env:/m);
+  const world = read('js/d3/world.js');
+  assert.match(world, /import \{ G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb \} from '\.\/ctx\.js'/);
+  for (const f of ['art', 'water', 'fx', 'vision', 'chars', 'camera', 'input', 'terrain', 'world', 'index']) assert.doesNotMatch(read('js/d3/' + f + '.js'), /^\s*let N=|^\s*let H,M,W|^\s*const S=\{env:/m, f);
 });
