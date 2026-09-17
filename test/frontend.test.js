@@ -81,7 +81,7 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(idx, /initTerrain\(scene\);[\s\S]*initWater\(scene\);initFx\(scene\);[\s\S]*initWorld\(scene\);initInput\(scene\);/);
   // los ganchos que evitan importes circulares no pueden quedar vacíos (la tarea 11 con GPT dejó removeLight como stub)
   for (const h of ['terrainChanged', 'removeObj', 'removeMount', 'removeLight', 'charAt', 'refreshTufts', 'envEm', 'blocksMove', 'closedDoor', 'blocksSight', 'flashLight', 'relayout', 'maybeGrow']) assert.match(idx, new RegExp('hooks\\.' + h + '=(?!\\(\\)=>\\{\\})'), 'hooks.' + h);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
   const dice = read('js/dice3d.js');
   assert.match(dice, /function withColorManagement\(fn\)/);
 });
@@ -291,7 +291,7 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(world, /export function applyTerrainOp\(op,version\)/m);
   assert.match(read('js/d3/ctx.js'), /terrainVersion:0/);
   const idx = read('js/d3/index.js');
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
   assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
@@ -364,9 +364,27 @@ test('herramientas 2.5D del director: rail, subbar, ops y puentes', () => {
 
   const idx = read('js/d3/index.js');
   assert.match(idx, /onTerrainOp\(op=>opts\.onTerrainOp&&opts\.onTerrainOp\(op\)\)/);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
 
   assert.match(read('js/render.js'), /onTerrainOp:op=>Net\.terrain\(op\)/);
   assert.match(read('js/net.js'), /version:op\.version!=null\?op\.version:window\.D3\.version\(\)/);
   assert.match(read('js/core.js'), /paintMat:1,objKind:'arbol',waterMode:'verter'/);
+});
+
+test('fichas y luces 2.5D: sync desde el estado clásico y presets sin duplicar', () => {
+  const chars = read('js/d3/chars.js');
+  assert.match(chars, /export function syncTokens\(/);
+  assert.match(chars, /export function syncLights\(/);
+  assert.match(chars, /export const defOf =/);
+  assert.match(chars, /export function cellFromPx\(/);
+  const vision = read('js/d3/vision.js');
+  assert.ok(!/LIGHT_PRESETS\[l\.preset\]/.test(vision), 'vision.js debe usar defOf(l)');
+  assert.match(vision, /defOf\(l\)/);
+  const index = read('js/d3/index.js');
+  assert.match(index, /syncObjects/);
+  assert.match(index, /location\.hostname==='localhost'/);
+  const net = read('js/net.js');
+  assert.match(net, /D3\.syncObjects\(\)/);
+  const ctx = read('js/d3/ctx.js');
+  assert.match(ctx, /cellPx:\s*50/);
 });

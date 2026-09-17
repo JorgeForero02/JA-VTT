@@ -5,6 +5,7 @@ import { ART, CHAR_INFO, OBJ_KINDS, loadStyle } from './art.js';
 import { WU } from './water.js';
 import { patchMat } from './vision.js';
 import { hooks } from './fx.js';
+import { defFor } from './light-map.js';
 const T3 = THREE;
 
 export const decor = new T3.Group(), charsGroup = new T3.Group(), propGroup = new T3.Group();
@@ -74,6 +75,8 @@ export const LIGHT_PRESETS = {
   darkness: { name: 'Oscuridad mágica', bright: 15, dim: 0, color: '#000000', intensity: 1, anim: 'none', darkness: true, sprite: 'orb', lh: 1.2, scale: 1.1, tint: '#3a2a55' },
 };
 export const TOKEN_LIGHTS = ['none', 'candle', 'torch', 'lantern', 'bullseye', 'magic', 'crystal'];
+/* La definición efectiva de una luz: la que trae del tablero (`def`) o la del preset del diorama. */
+export const defOf = (l) => l.def || LIGHT_PRESETS[l.preset];
 export const ENVS = {
   interior: { name: 'Interior', desc: 'Oscuro. Solo ven las luces y la visión en la oscuridad.', ambient: 0, dark: '#0B0E11', fogA: .82,
     sun: '#000000', si: 0, sp: [-8, 20, 10], sky: '#5a6478', gnd: '#141414', hi: .07, top: '#0b0e11', bot: '#1c222a', em: .05, gain: 1.05, fly: 0, flat: .15, mist: .25, mistCol: '#3a3530' },
@@ -90,22 +93,24 @@ export function addChar(s) {
   const a = { t: 'char', k: s.kind };
   const mesh = makeSprite(a, ca.w, ca.h, true);
   const info = CHAR_INFO[s.kind];
-  const c = { id: s.kind + '-' + (G.chars.length + 1), kind: s.kind, name: s.name || info.name, pc: s.pc, dv: s.dv, sight: s.sight || 0, hidden: !!s.hidden,
+  const c = { id: s.kind + '-' + (G.chars.length + 1), vid: s.vid != null ? s.vid : null, kind: s.kind, name: s.name || info.name, pc: s.pc,
+    owner: s.owner != null ? s.owner : null, dv: s.dv, sight: s.sight || 0, hidden: !!s.hidden,
     cell: I(s.at[0], s.at[1]), mesh, tex: mesh.userData.tex, art: ca, path: [], seg: null, ft: Math.random() * .1, fi: 0, dir: 1, carried: null,
     seed: Math.random() * 6, float: info.float || 0, gy: G.H[I(s.at[0], s.at[1])] };
   mesh.userData.char = c; charsGroup.add(mesh); G.chars.push(c);
   setCarried(c, s.light); setFrame(c);
+  return c;
 }
 export function setFrame(c) { const list = c.seg ? c.art.run : c.art.idle; c.tex.offset.x = list[c.fi % list.length] / c.art.n; }
 function setCarried(c, preset) {
   if (c.carried) { G.lights.splice(G.lights.indexOf(c.carried), 1); c.carried = null; }
-  if (preset && preset !== 'none') { const l = { id: G.lightId++, preset, cell: c.cell, on: true, carrier: c, mesh: null, cache: null, seed: Math.random() * 6 }; G.lights.push(l); c.carried = l; }
+  if (preset && preset !== 'none') { const l = { id: G.lightId++, preset, def: null, cell: c.cell, on: true, carrier: c, mesh: null, cache: null, seed: Math.random() * 6 }; G.lights.push(l); c.carried = l; }
   G.lightsDirty = true;
 }
-export function addLight(preset, cell, mount) {
-  const P = LIGHT_PRESETS[preset], sc = P.scale * (mount ? .78 : 1);
+export function addLight(preset, cell, mount, def) {
+  const P = def || LIGHT_PRESETS[preset], sc = P.scale * (mount ? .78 : 1);
   const mesh = makeSprite({ t: 'prop', k: P.sprite }, .55 * sc, 1.1 * sc, true, null, P.sprite === 'orb' ? (P.tint || P.color) : null);
-  const l = { id: G.lightId++, preset, cell, on: true, carrier: null, mesh, cache: null, seed: Math.random() * 6, mount: mount || null };
+  const l = { id: G.lightId++, preset, def: def || null, cell, on: true, carrier: null, mesh, cache: null, seed: Math.random() * 6, mount: mount || null };
   if (mount) { mesh.userData.fixed = true; mesh.rotation.set(0, Math.atan2(DIRS[mount.dir][0], DIRS[mount.dir][1]), 0); mesh.castShadow = false; l.mh = 1.1 * sc; }
   mesh.userData.light = l; propGroup.add(mesh); G.lights.push(l);
   G.lightsDirty = true; hooks.relayout();
@@ -167,4 +172,105 @@ export function updateChars(dt, now, theta) {
     c.ft += dt; if (c.ft > step) { c.ft = 0; c.fi = (c.fi + 1) % list.length; }
     c.tex.offset.x = list[c.fi % list.length] / c.art.n;
   }
+}
+
+function removeChar(c) {
+  charsGroup.remove(c.mesh);
+  c.mesh.geometry.dispose();
+  spriteMats.delete(c.mesh.material);
+  c.mesh.material.dispose();
+  setCarried(c, null);
+  const k = G.chars.indexOf(c);
+  if (k >= 0) G.chars.splice(k, 1);
+}
+
+export function cellFromPx(x, y) {
+  const cx = Math.floor(x / G.cellPx) + G.OFF, cz = Math.floor(y / G.cellPx) + G.OFF;
+  return inb(cx, cz) ? I(cx, cz) : null;
+}
+export const pxOfCell = (i) => ({ x: (cxOf(i) - G.OFF) * G.cellPx + G.cellPx / 2, y: (czOf(i) - G.OFF) * G.cellPx + G.cellPx / 2 });
+
+/* Refleja S.tokens de JA-VTT en G.chars. Crea, actualiza y borra por `vid`.
+   Si la ficha cambió de casilla, camina hasta allí; si no hay camino, salta. */
+export function syncTokens(list) {
+  let changed = false;
+  const ids = new Set();
+  for (const t of list || []) {
+    ids.add(t.id);
+    const cell = cellFromPx(t.x, t.y);
+    if (cell == null) {
+      const old = G.chars.find(c => c.vid === t.id);
+      if (old) { removeChar(old); changed = true; }
+      continue;
+    }
+    const kind = CHAR_INFO[t.art] ? t.art : (t.kind === 'enemy' ? 'goblin' : 'guerrera');
+    let c = G.chars.find(x => x.vid === t.id);
+    if (c && c.kind !== kind) { removeChar(c); c = null; changed = true; }
+    if (!c) {
+      c = addChar({ vid: t.id, kind, name: t.name, at: [cxOf(cell), czOf(cell)], pc: t.kind === 'player',
+        dv: (t.darkvision || 0), sight: t.sight || 0, hidden: !!t.hidden, owner: t.owner, light: null });
+      changed = true;
+    }
+    if (c.name !== (t.name || '')) { c.name = t.name || ''; changed = true; }
+    if (c.pc !== (t.kind === 'player')) { c.pc = t.kind === 'player'; changed = true; }
+    if (c.owner !== (t.owner != null ? t.owner : null)) { c.owner = t.owner != null ? t.owner : null; changed = true; }
+    if (c.hidden !== !!t.hidden) { c.hidden = !!t.hidden; if (c.pc) G.visionDirty = true; changed = true; }
+    if (c.sight !== (t.sight || 0)) { c.sight = t.sight || 0; if (c.pc) G.visionDirty = true; changed = true; }
+    if (c.dv !== (t.darkvision || 0)) { c.dv = t.darkvision || 0; if (c.pc) G.visionDirty = true; changed = true; }
+    const lightKey = JSON.stringify(t.light || null);
+    if (c.lightKey !== lightKey) {
+      c.lightKey = lightKey;
+      const on = t.light && t.light.on && t.light.preset !== 'none';
+      setCarried(c, on ? t.light.preset : null);
+      if (c.carried) { c.carried.def = defFor(t.light, LIGHT_PRESETS); }
+      G.lightsDirty = true; changed = true;
+    }
+    if (c.cell !== cell && !c.seg && !c.path.length) {
+      const p = findPath(c, cell);
+      if (p && p.length > 0 && p.length <= 6) { c.path = p; }
+      else { c.cell = cell; c.path = []; c.seg = null; if (c.pc) G.visionDirty = true; }
+      changed = true;
+    }
+  }
+  for (let i = G.chars.length - 1; i >= 0; i--) {
+    const c = G.chars[i];
+    if (c.vid != null && !ids.has(c.vid)) { removeChar(c); changed = true; }
+  }
+  if (changed) { G.lightsDirty = true; G.visionDirty = true; }
+}
+
+/* Refleja S.lights de JA-VTT en G.lights. Crea, actualiza y borra por `vid`.
+   Las luces que llevan fichas las gobierna syncTokens. */
+export function syncLights(list) {
+  let changed = false;
+  const ids = new Set();
+  for (const l of list || []) {
+    ids.add(l.id);
+    const def = defFor(l, LIGHT_PRESETS);
+    let cell = null, mount = null;
+    if (l.mount) {
+      const wallX = cxOf(l.mount.cell), wallZ = czOf(l.mount.cell);
+      const nx = wallX + DIRS[l.mount.dir][0], nz = wallZ + DIRS[l.mount.dir][1];
+      if (inb(wallX, wallZ) && inb(nx, nz)) { cell = I(nx, nz); mount = { wall: l.mount.cell, dir: l.mount.dir }; }
+    }
+    if (cell == null) cell = cellFromPx(l.x, l.y);
+    if (cell == null) continue;
+    let light = G.lights.find(x => x.vid === l.id);
+    if (light && (light.cell !== cell || JSON.stringify(light.mount) !== JSON.stringify(mount) || light.def.sprite !== def.sprite)) {
+      removeLight(light); light = null; changed = true;
+    }
+    if (!light) {
+      light = addLight(l.preset, cell, mount, def);
+      light.vid = l.id; light.on = !!l.on;   // addLight la enciende siempre; manda el tablero
+      changed = true;
+    } else {
+      if (light.on !== !!l.on) { light.on = !!l.on; changed = true; }
+      if (JSON.stringify(light.def) !== JSON.stringify(def)) { light.def = def; light.cache = null; changed = true; }
+    }
+  }
+  for (let i = G.lights.length - 1; i >= 0; i--) {
+    const light = G.lights[i];
+    if (light.vid != null && !light.carrier && !ids.has(light.vid)) { removeLight(light); changed = true; }
+  }
+  if (changed) G.lightsDirty = true;
 }

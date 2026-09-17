@@ -2,7 +2,7 @@
    nada de THREE aquí para evitar dependencias circulares. */
 const C0=22*22;
 export const G={
-  N:22, CELLS:484, OFF:0, autoGrow:true,
+  N:22, CELLS:484, OFF:0, autoGrow:true, cellPx:50,
   H:new Uint8Array(C0), M:new Uint8Array(C0), W:new Float32Array(C0), chan:new Uint8Array(C0),
   springs:[], sinks:[], evap:.0012, edgeDrain:true, cutOn:false, cutH:3,
   objs:new Map(), tufts:[], lights:[], chars:[], mounts:new Map(),

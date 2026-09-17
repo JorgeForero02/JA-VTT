@@ -58,7 +58,7 @@ function blankState(){return{
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
 }}
-Object.assign(S,blankState());
+Object.assign(S,blankState());window.S=S;
 const UI={role:'player',realRole:'player',me:null,board:null,scene:null,scenes:[],where:{},tool:'select',wallType:'wall',wallShape:'chain',zoneShape:'poly',zpoly:null,arc:null,curve:null,libCat:'all',upCat:'board',lightPreset:'torch',planShape:'line',viewAs:'party',preview:true,paintMat:1,objKind:'arbol',waterMode:'verter',
   cam:{x:800,y:550,zoom:.8},selected:[],act:null,chain:null,hover:null,space:false,pointers:new Map(),pinch:null,tab:'scene'};
 let _lastId=0;

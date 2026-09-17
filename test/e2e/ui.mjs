@@ -195,6 +195,18 @@ try {
   await pl.waitForFunction(() => window.D3.version() === 2, null, { timeout: 15000 });
   step('2.5D: el material pintado llega al jugador (version 2)', true);
 
+  await gm.evaluate(() => {
+    const t = { id: S.nextId++, type: 'token', kind: 'player', name: 'Prueba', x: 11 * 50 + 25, y: 11 * 50 + 25,
+      color: '#7FB2E5', hidden: false, vision: true, sight: 0, darkvision: 0, size: 1, art: 'guerrera',
+      light: { preset: 'torch', on: true, bright: 20, dim: 20, color: '#FFA652', intensity: 1, anim: 'flicker', angle: 360, rot: 0 },
+      img: null, owner: null };
+    S.tokens.push(t); Net.tick();
+  });
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 15000 });
+  const seen = await pl.evaluate(() => window.D3.debug());
+  step('2.5D: la ficha del director aparece como sprite en la pantalla del jugador', seen.chars >= 1 && seen.lights >= 1, JSON.stringify(seen));
+  await shot(pl, '11-ficha-25d-jugador');
+
   await pl.evaluate(() => Net.terrain({ type: 'cells', cells: [{ i: 1, h: 9 }] }));
   await pl.waitForTimeout(1000);
   const plVersion = await pl.evaluate(() => window.D3.version());

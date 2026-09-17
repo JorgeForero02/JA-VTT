@@ -7,7 +7,7 @@ import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as 
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
 import { initVision, refreshLights, composeLightmap, computeVision, blendVision } from './vision.js';
-import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars } from './chars.js';
+import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
 import { initWorld, loadScene, loadTerrain, applyTerrainOp, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
@@ -17,6 +17,7 @@ const T3 = THREE;
 THREE.ColorManagement.enabled=false;
 export function createEngine(stage,opts) {
   R.toast = opts && opts.toast ? opts.toast : () => {};
+  G.cellPx = (opts && opts.cell) || 50;
   R.stage = stage;
 
 /* =====================================================================
@@ -105,6 +106,10 @@ function frame(now){
   raf=requestAnimationFrame(frame);
 }
 
+// El estado del tablero vive en los scripts clásicos (window.S); el motor sólo lo refleja.
+function syncObjects(){const St=window.S;if(!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);}
+function debug(){return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null)};}
+
 /* ---------- API interna: lo que expone createEngine ---------- */
 let stopped=false;
 async function start(){
@@ -123,7 +128,7 @@ function setEnv(env,amb){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(false);
 }
-return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput };
+return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -150,4 +155,6 @@ export function version(){return eng?eng.version():-1;}
 export function setTool(id){if(eng)eng.setTool(id);}
 export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
 export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly}))};}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog};
+export function syncObjects(){if(eng)eng.syncObjects();}
+export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo};
