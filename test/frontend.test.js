@@ -306,6 +306,13 @@ test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara 
   for (const f of ['art', 'water', 'fx', 'vision', 'chars', 'camera', 'input', 'terrain', 'world', 'index']) assert.doesNotMatch(read('js/d3/' + f + '.js'), /^\s*let N=|^\s*let H,M,W|^\s*const S=\{env:/m, f);
 });
 
+test('world.js: escena blank, carga escena/off desde blob y delega grow a growWorld', () => {
+  const world = read('js/d3/world.js');
+  assert.match(world, /blank:\{name:'Vacío'/);
+  assert.match(world, /case 'grow':growWorld\(op\.pad,true\)/);
+  assert.match(world, /G\.sceneKey=SCENES\[X\.scene\]\?X\.scene:'valle';G\.OFF=X\.off\|\|0;/);
+});
+
 test('catálogo 2.5D: catalog.js y server/terrain.js no divergen; art.js mantiene las mismas banderas', async () => {
   const T = require('../server/terrain');
   const cat = await import(pathToFileURL(path.join(__dirname, '..', 'public', 'js', 'd3', 'catalog.js')).href);

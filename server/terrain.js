@@ -49,6 +49,18 @@ const OBJ_KINDS = {
   pinchos: { move: 0, flat: 1 }
 };
 
+const BORDERS = {
+  valle: (ax, az) => ({ h: Math.max(1, Math.min(6, Math.round(2.6 + .55 * Math.sin(ax * .33 + .5) + .55 * Math.cos(az * .29) + .4 * Math.sin((ax - az) * .17)))), m: 0 }),
+  cripta: () => ({ h: 5, m: 1 }),
+  blank: () => ({ h: 1, m: 0 })
+};
+
+const SCENE_INFO = {
+  valle: { randomTrees: true, tufts: true },
+  cripta: { randomTrees: false, tufts: false },
+  blank: { randomTrees: false, tufts: false }
+};
+
 function rng(seed) {
   let s = (seed >>> 0) || 1;
   return function () {
@@ -82,7 +94,9 @@ function blankTerrain(n, h = 1, m = 0) {
       evap: 0.0012,
       edgeDrain: true,
       cutOn: false,
-      cutH: 3
+      cutH: 3,
+      scene: 'blank',
+      off: 0
     },
     version: 0
   };
@@ -325,8 +339,18 @@ function finalize(cfg) {
 }
 
 function generate(kind) {
-  if (kind === 'valle') return finalize(buildValle(TERRAIN_LIMITS.N_MIN));
-  if (kind === 'cripta') return finalize(buildCripta(TERRAIN_LIMITS.N_MIN));
+  if (kind === 'valle') {
+    const t = finalize(buildValle(TERRAIN_LIMITS.N_MIN));
+    t.extras.scene = 'valle';
+    t.extras.off = 0;
+    return t;
+  }
+  if (kind === 'cripta') {
+    const t = finalize(buildCripta(TERRAIN_LIMITS.N_MIN));
+    t.extras.scene = 'cripta';
+    t.extras.off = 0;
+    return t;
+  }
   throw new Error('Escena desconocida');
 }
 
@@ -550,6 +574,32 @@ function applyTerrainOp(t, op) {
       t.extras.springs = t.extras.springs.map(s => ({ ...s, cell: re(s.cell) }));
       t.extras.sinks = t.extras.sinks.map(s => ({ ...s, cell: re(s.cell) }));
       t.extras.pools = t.extras.pools.map(p => ({ ...p, cell: re(p.cell) }));
+      const scene = t.extras.scene || 'valle';
+      const oldOff = t.extras.off || 0;
+      const off = oldOff + pad;
+      t.extras.off = off;
+      for (let z = 0; z < nN; z++) {
+        for (let x = 0; x < nN; x++) {
+          const ox = x - pad, oz = z - pad;
+          if (ox >= 0 && oz >= 0 && ox < oN && oz < oN) continue;
+          const i = z * nN + x;
+          const b = BORDERS[scene](x - off, z - off);
+          t.h[i] = b.h;
+          t.m[i] = b.m;
+        }
+      }
+      const info = SCENE_INFO[scene];
+      const r = rng(oldOff * 131 + nN);
+      for (let z = 0; z < nN; z++) {
+        for (let x = 0; x < nN; x++) {
+          const ox = x - pad, oz = z - pad;
+          if (ox >= 0 && oz >= 0 && ox < oN && oz < oN) continue;
+          const i = z * nN + x;
+          if (t.m[i] !== 0) continue;
+          if (info.randomTrees && r() < .06) t.extras.objs[i] = { kind: r() < .5 ? 'arbol' : 'pino', rot: null };
+          else if (info.tufts && r() < .4) { r(); r(); }
+        }
+      }
       break;
     }
     case 'obj': {
@@ -603,6 +653,8 @@ module.exports = {
   TERRAIN_LIMITS,
   MATS,
   OBJ_KINDS,
+  BORDERS,
+  SCENE_INFO,
   rng,
   blankTerrain,
   generate,

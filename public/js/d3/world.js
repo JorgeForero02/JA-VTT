@@ -188,6 +188,12 @@ export const SCENES={
       ],
     };
   }},
+  blank:{name:'Vacío',randomTrees:false,tufts:false,
+    border:()=>({h:1,m:0}),
+    build(){
+      blank(1,0);
+      return{springs:[],sinks:[],evap:.0012,edgeDrain:true,cut:false,cutH:3,mistBase:.9,env:'day',view:'gm',target:2.2,objs:[],mounts:[],randomTrees:false,tufts:false,lights:[],wallLights:[],chars:[]};
+    }},
 };
 
 function clearGroup(g){g.children.slice().forEach(m=>{g.remove(m);m.geometry.dispose();});}
@@ -234,9 +240,10 @@ export function applyView(){
 
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 export function loadTerrain(blob){
-  G.sceneKey='valle';G.OFF=0;if(G.N!==blob.n)allocWorld(blob.n);
+  if(G.N!==blob.n)allocWorld(blob.n);
   G.H=b64(blob.h);G.M=b64(blob.m);G.chan=b64(blob.chan);G.W=new Float32Array(G.CELLS);
   const X=blob.extras||{};
+  G.sceneKey=SCENES[X.scene]?X.scene:'valle';G.OFF=X.off||0;
   G.springs.length=0;G.springs.push(...(X.springs||[]));G.sinks.length=0;G.sinks.push(...(X.sinks||[]));
   (X.pools||[]).forEach(p=>{if(p.cell<G.CELLS)G.W[p.cell]=p.level;});
   G.evap=X.evap??.0012;G.edgeDrain=X.edgeDrain!==false;G.cutOn=!!X.cutOn;G.cutH=X.cutH||3;
@@ -265,7 +272,7 @@ export function applyTerrainOp(op,version){
     case 'mount':{if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
     case 'water':G.springs.length=0;G.springs.push(...op.springs);G.sinks.length=0;G.sinks.push(...op.sinks);G.evap=op.evap;G.edgeDrain=op.edgeDrain;updateMarks();resetWater();break;
     case 'settings':if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
-    case 'grow':return false;
+    case 'grow':growWorld(op.pad,true);G.terrainVersion=version;return true;
   }
   G.terrainVersion=version;return true;
 }

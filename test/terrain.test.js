@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { blankTerrain, generate, encode, decode, cleanTerrainOp, applyTerrainOp } = require('../server/terrain');
+const { blankTerrain, generate, encode, decode, cleanTerrainOp, applyTerrainOp, BORDERS, SCENE_INFO } = require('../server/terrain');
 
 function arraysEqual(a, b) {
   return assert.deepEqual(Array.from(a), Array.from(b));
@@ -123,4 +123,72 @@ test('encode/decode es ida y vuelta idéntica', () => {
   const row = encode(t);
   const d = decode(row);
   terrainEqual(t, d);
+});
+
+test('SCENE_INFO describe qué escenas generan decorado', () => {
+  assert.equal(SCENE_INFO.valle.randomTrees, true);
+  assert.equal(SCENE_INFO.valle.tufts, true);
+  assert.equal(SCENE_INFO.cripta.randomTrees, false);
+  assert.equal(SCENE_INFO.blank.randomTrees, false);
+});
+
+test('generate y blankTerrain guardan la escena y el offset', () => {
+  const v = generate('valle');
+  assert.equal(v.extras.scene, 'valle');
+  assert.equal(v.extras.off, 0);
+  const c = generate('cripta');
+  assert.equal(c.extras.scene, 'cripta');
+  assert.equal(c.extras.off, 0);
+  const b = blankTerrain(22);
+  assert.equal(b.extras.scene, 'blank');
+  assert.equal(b.extras.off, 0);
+});
+
+test('grow reproduce el borde y los árboles del cliente', () => {
+  const t = generate('valle');
+  const oldH = t.h[0];
+  const oldM = t.m[0];
+  applyTerrainOp(t, cleanTerrainOp({ type: 'grow', pad: 8 }));
+  assert.equal(t.n, 38);
+  assert.equal(t.extras.off, 8);
+  const N = t.n;
+  const inRing = (i) => {
+    const x = i % N, z = Math.floor(i / N);
+    return x < 8 || z < 8 || x >= 30 || z >= 30;
+  };
+  assert.equal(t.h[0], BORDERS.valle(0 - 8, 0 - 8).h);
+  assert.equal(t.m[0], 0);
+  assert.equal(t.h[8 * N + 8], oldH);
+  assert.equal(t.m[8 * N + 8], oldM);
+  const grownObjs = Object.keys(t.extras.objs).map(Number);
+  assert.ok(grownObjs.some(i => inRing(i) && ['arbol', 'pino'].includes(t.extras.objs[i].kind)));
+  const t2 = generate('valle');
+  applyTerrainOp(t2, cleanTerrainOp({ type: 'grow', pad: 8 }));
+  assert.deepEqual(Object.keys(t.extras.objs).sort(), Object.keys(t2.extras.objs).sort());
+});
+
+test('cleanTerrainOp(settings) no acepta scene ni off', () => {
+  const op = cleanTerrainOp({ type: 'settings', scene: 'cripta', off: 9, mist: 0.5 });
+  assert.equal(op.type, 'settings');
+  assert.equal(op.mist, 0.5);
+  assert.equal('scene' in op, false);
+  assert.equal('off' in op, false);
+});
+
+test('grow en blank deja el anillo plano y sin objetos', () => {
+  const t = blankTerrain(22);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'grow', pad: 8 }));
+  assert.equal(t.extras.scene, 'blank');
+  assert.equal(t.extras.off, 8);
+  const N = t.n;
+  for (let z = 0; z < N; z++) {
+    for (let x = 0; x < N; x++) {
+      const ox = x - 8, oz = z - 8;
+      if (ox >= 0 && oz >= 0 && ox < 22 && oz < 22) continue;
+      const i = z * N + x;
+      assert.equal(t.h[i], 1, `h en (${x},${z})`);
+      assert.equal(t.m[i], 0, `m en (${x},${z})`);
+    }
+  }
+  assert.deepEqual(Object.keys(t.extras.objs), []);
 });
