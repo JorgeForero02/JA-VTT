@@ -2,6 +2,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { db, resetSchema } = require('./helpers/db');
+const { encode, generate } = require('../server/terrain');
 
 before(async () => { await resetSchema(); });
 after(async () => { await db.close(); });
@@ -10,7 +11,7 @@ test('migrate es idempotente: segunda pasada no aplica nada', async () => {
   const again = await db.migrate();
   assert.deepEqual(again, []);
   const { rows } = await db.pool.query('SELECT version FROM schema_migrations ORDER BY version');
-  assert.deepEqual(rows.map((r) => r.version), [1, 2, 3, 4]);
+  assert.deepEqual(rows.map((r) => r.version), [1, 2, 3, 4, 5]);
 });
 
 test('usuarios: crear, buscar sin distinguir mayúsculas, nombre duplicado falla', async () => {
@@ -131,4 +132,24 @@ test('borrar tablero limpia miembros, escenas, objetos e imágenes', async () =>
   assert.deepEqual(await db.q.scenes(board.id), []);
   assert.equal(await db.q.imageMeta('img-del'), null);
   assert.deepEqual(await db.q.sceneObjects(board.active_scene), []);
+});
+
+test('terrain: guardar, leer y borrar en cascada con la escena', async () => {
+  const gm = await db.createUser('Gm8', 'h');
+  const board = await db.createBoard('Terreno', gm.id);
+  const sceneId = board.active_scene;
+  const original = encode(generate('valle'));
+  await db.q.upsertTerrain(sceneId, original);
+  let row = await db.q.terrain(sceneId);
+  assert.equal(row.n, 22);
+  assert.equal(row.version, 0);
+  assert.ok(Buffer.compare(row.h, original.h) === 0);
+  assert.ok(Buffer.compare(row.m, original.m) === 0);
+  assert.ok(Buffer.compare(row.chan, original.chan) === 0);
+  assert.deepEqual(row.extras, original.extras);
+  await db.q.upsertTerrain(sceneId, { ...original, version: 3 });
+  row = await db.q.terrain(sceneId);
+  assert.equal(row.version, 3);
+  await db.q.deleteScene(sceneId);
+  assert.equal(await db.q.terrain(sceneId), null);
 });

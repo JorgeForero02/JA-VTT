@@ -128,6 +128,11 @@ function makeQueries(exec) {
       ON CONFLICT (scene_id, user_id, cx, cy) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`, [sceneId, userId, cx, cy, data, now()]),
     clearFog: (sceneId) => run('DELETE FROM fog WHERE scene_id = $1', [sceneId]),
 
+    terrain: (sceneId) => one('SELECT scene_id, n, h, m, chan, extras, version FROM terrain WHERE scene_id = $1', [sceneId]),
+    upsertTerrain: (sceneId, t) => run(`INSERT INTO terrain (scene_id, n, h, m, chan, extras, version, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (scene_id) DO UPDATE SET n = EXCLUDED.n, h = EXCLUDED.h, m = EXCLUDED.m, chan = EXCLUDED.chan, extras = EXCLUDED.extras, version = EXCLUDED.version, updated_at = EXCLUDED.updated_at`, [sceneId, t.n, t.h, t.m, t.chan, JSON.stringify(t.extras), t.version, now()]),
+    deleteTerrain: (sceneId) => run('DELETE FROM terrain WHERE scene_id = $1', [sceneId]),
+
     imagesForBoard: (boardId) => all(`SELECT ${IMAGE_META} FROM images WHERE board_id = $1 OR board_id IS NULL ORDER BY created_at DESC`, [boardId]),
     imageMeta: (id) => one(`SELECT ${IMAGE_META} FROM images WHERE id = $1`, [id]),
     imageData: (id) => one('SELECT mime, data, board_id FROM images WHERE id = $1', [id]),
