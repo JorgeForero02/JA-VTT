@@ -199,7 +199,9 @@ export function computeVision() {
       if (v.mode[j] === 1) lit = true; else if (v.mode[j] === 2) dv = true;
       if (v.strong[j]) strong = true; if (e[j]) mem = true;
     }
-    G.tVis[j] = lit || dv ? 1 : 0; G.tDv[j] = !lit && dv ? 1 : 0; G.tMem[j] = S.fogMemory && mem ? 1 : 0; G.strongView[j] = strong ? 1 : 0;
+    G.tVis[j] = lit || dv ? 1 : 0; G.tDv[j] = !lit && dv ? 1 : 0; G.strongView[j] = strong ? 1 : 0;
+    if ((lit || dv) && !G.exploredUser[j]) { G.exploredUser[j] = 255; G.exploredDirty = true; }
+    G.tMem[j] = S.fogMemory && (mem || G.exploredUser[j] > 0) ? 1 : 0;
   }
   // quién ve a quién
   G.chars.forEach(c => {
@@ -213,6 +215,18 @@ export function computeVision() {
   });
   G.visionDirty = false;
 }
+
+/* Lo explorado por este usuario, un byte por casilla, tal como se guarda en el servidor. */
+export function exploredBytes() { G.exploredDirty = false; return G.exploredUser.slice(); }
+export function exploredDirty() { return G.exploredDirty; }
+/* Carga lo explorado que venía guardado. Si el mundo ya no mide lo mismo, se descarta:
+   el jugador vuelve a explorar en vez de ver la niebla descolocada. */
+export function loadExplored(bytes) {
+  G.exploredUser.fill(0);
+  if (bytes && bytes.length === G.CELLS) G.exploredUser.set(bytes);
+  G.exploredDirty = false; G.visionDirty = true;
+}
+export function resetExplored() { G.exploredUser.fill(0); G.explored.clear(); G.exploredDirty = false; G.visionDirty = true; }
 
 export function fxOk(i) { return S.view === 'gm' || G.cVis[i] > .5; }
 
@@ -236,6 +250,7 @@ export function resizeVision(cells) {
   G.illum = new Float32Array(cells); G.darkMask = new Uint8Array(cells); G.lightAcc = new Float32Array(cells * 3);
   G.tVis = new Float32Array(cells); G.tMem = new Float32Array(cells); G.tDv = new Float32Array(cells);
   G.cVis = new Float32Array(cells); G.cMem = new Float32Array(cells); G.cDv = new Float32Array(cells); G.strongView = new Uint8Array(cells);
+  G.exploredUser = new Uint8Array(cells);
 }
 
 export function initVision() {

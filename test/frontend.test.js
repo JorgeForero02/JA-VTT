@@ -433,3 +433,22 @@ test('ver como en 2.5D: observadores por dueño, aviso de ciego y vista del dire
   const chars = read('js/d3/chars.js');
   assert.match(chars, /vision: s\.vision !== false/);
 });
+
+test('niebla 2.5D: lo explorado se guarda por celda y se recupera', () => {
+  const vision = read('js/d3/vision.js');
+  assert.match(vision, /export function exploredBytes\(\)/);
+  assert.match(vision, /export function loadExplored\(bytes\)/);
+  assert.match(vision, /export function resetExplored\(\)/);
+  assert.match(vision, /G\.exploredUser\[j\] = 255/);
+  assert.match(read('js/d3/ctx.js'), /exploredUser:new Uint8Array\(C0\)/);
+  assert.match(read('js/d3/world.js'), /G\.exploredUser\[re\(i\)\]/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /exploredBytes/);
+  assert.match(idx, /resetExplored:resetExplored25/);
+  const rnd = read('js/render.js');
+  assert.match(rnd, /'base64:'\+bytesToB64/);
+  assert.match(rnd, /b64ToBytes\(f\.data\.slice\(7\)\)/);
+  assert.match(rnd, /window\.D3\.resetExplored\(\)/);
+  // el 2D no cambia: sigue subiendo PNG por bloques
+  assert.match(rnd, /toDataURL\('image\/png'\)/);
+});

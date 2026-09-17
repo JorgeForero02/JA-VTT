@@ -245,6 +245,21 @@ try {
   step('2.5D: con una ficha propia el jugador ve con ella', dbg.view === 'party' && dbg.viewers.length >= 1, JSON.stringify(dbg));
   await shot(pl, '14-vista-jugador-25d');
 
+  // el jugador explora moviendo su ficha, recarga la página y la niebla sigue ahí
+  const posPl = (await pl.evaluate(() => window.D3.debug().screen.find((s) => s.vid === S.tokens[0].id)));
+  await pl.mouse.click(posPl.x, posPl.y);
+  await pl.mouse.click(posPl.x + 60, posPl.y - 35);
+  await pl.waitForTimeout(2500);
+  const exp0 = await pl.evaluate(() => window.D3.debug().explored);
+  await pl.evaluate(() => Net.flushFog());
+  await pl.waitForTimeout(800);
+  await pl.reload();
+  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug(), null, { timeout: 20000 });
+  await pl.waitForFunction((n) => window.D3.debug().explored >= n, Math.max(1, exp0 - 2), { timeout: 20000 });
+  const exp1 = await pl.evaluate(() => window.D3.debug().explored);
+  step('2.5D: la niebla explorada sigue ahí tras recargar', exp0 > 0 && exp1 >= exp0 - 2, `${exp0} → ${exp1}`);
+  await shot(pl, '16-niebla-25d');
+
   // el director alterna Director / Vista de jugador
   const gmView0 = await gm.evaluate(() => window.D3.debug().view);
   await gm.click('#rolePlayer');
@@ -281,6 +296,7 @@ try {
   step('sin errores de consola', realErrors.length === 0, realErrors.slice(0, 5).join(' | '));
 } catch (e) {
   step('excepción en la prueba', false, e.message);
+  if (errors.length) console.log('errores de consola hasta el fallo:\n  ' + errors.slice(0, 10).join('\n  '));
 } finally {
   await browser.close();
 }

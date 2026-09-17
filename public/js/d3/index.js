@@ -6,7 +6,7 @@ import { G, S, R, U } from './ctx.js';
 import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as ART_OBJ } from './art.js';
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
-import { initVision, refreshLights, composeLightmap, computeVision, blendVision, viewers } from './vision.js';
+import { initVision, refreshLights, composeLightmap, computeVision, blendVision, viewers, exploredBytes as visionExploredBytes, exploredDirty as visionExploredDirty, loadExplored as visionLoadExplored, resetExplored as visionResetExplored } from './vision.js';
 import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights, pxOfCell } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
@@ -111,6 +111,7 @@ function frame(now){
 // Quién mira y con qué fichas. `view`: 'gm' (director), 'party' (el grupo) o el id de una ficha.
 function setView(cfg){
   const c=cfg||{};
+  if(!ready){pendingView=cfg;return;}
   S.view=c.view==null?S.view:c.view;
   S.uid=c.uid==null?S.uid:c.uid;
   S.gm=!!c.gm;S.shared=c.shared!==false;
@@ -118,13 +119,15 @@ function setView(cfg){
   computeVision();           // recalcula ya, sin esperar al frame
   reportBlind();
 }
-let lastBlind=null;
+let lastBlind=null,pendingView=null;
 function reportBlind(){
   const b=S.view!=='gm'&&!viewers().length;
   if(b===lastBlind)return;
   lastBlind=b;if(opts.onBlind)opts.onBlind(b);
 }
-function syncObjects(){const St=window.S;if(!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);reportBlind();}
+// `ready` evita tocar el arte antes de que loadPacks() termine: montar es inmediato, pero start() es asíncrono.
+let ready=false;
+function syncObjects(){const St=window.S;if(!ready||!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);reportBlind();}
 function debug(){
   const rect=R.stage.getBoundingClientRect();
   const screen=G.chars.filter(c=>c.vid!=null).map(c=>{
@@ -132,12 +135,13 @@ function debug(){
     return {vid:c.vid,x:rect.left+(v.x+1)/2*rect.width,y:rect.top+(1-v.y)/2*rect.height};
   });
   return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen,
-    view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid)};
+    view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid), explored:G.exploredUser.reduce((n,v)=>n+(v?1:0),0)};
 }
 // Qué casilla del tablero hay bajo un punto de la pantalla, en píxeles de JA-VTT.
 function pickCell(px,py){const p=pickAt(px,py);const i=p?(p.char?p.char.cell:p.cell):null;return i==null?null:pxOfCell(i);}
 
 /* ---------- API interna: lo que expone createEngine ---------- */
+function exploredOut(){return visionExploredBytes();}
 let stopped=false;
 async function start(){
   try{await loadPacks();}catch(e){throw new Error('No se pudo cargar el arte 2.5D',{cause:e});}
@@ -148,6 +152,7 @@ async function start(){
   // el entorno del tablero manda desde el primer fotograma: sin esto se ve un destello de la escena de muestra (día) mientras la transición de 3 s llega al entorno real
   if(opts.env)setEnv(opts.env,opts.ambient||0,true);
   setToolInput('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
+  ready=true;syncObjects();if(pendingView){const v=pendingView;pendingView=null;setView(v);}
 }
 function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
@@ -158,7 +163,7 @@ function setEnv(env,amb,snap){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored:visionLoadExplored, resetExplored:visionResetExplored };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -189,4 +194,8 @@ export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatc
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell};
+export function exploredBytes(){return eng?eng.exploredBytes():null;}
+export function exploredDirty(){return eng?eng.exploredDirty():false;}
+export function loadExplored(bytes){if(eng)eng.loadExplored(bytes);}
+export function resetExplored25(){if(eng)eng.resetExplored();}
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25};

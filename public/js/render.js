@@ -31,16 +31,36 @@ function resize(){
   for(const c of[...Object.values(cv),maskC,losC,expC]){const d=light.has(c)?ldpr:dpr;c.__s=d;c.width=Math.round(W*d);c.height=Math.round(H*d)}
   requestRender();
 }
-function resetExplored(){EXP.chunks.clear()}
+/* La niebla del 2.5D es un byte por casilla, no una imagen: viaja en base64 crudo. */
+function bytesToB64(a){let s='';for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode.apply(null,a.subarray(i,i+8192));return btoa(s)}
+function b64ToBytes(s){const bin=atob(s),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+function resetExplored(){EXP.chunks.clear();if(is25()&&window.D3&&window.D3.isMounted())window.D3.resetExplored()}
 /* Niebla guardada: se carga al entrar en una escena y se sube por bloques */
 function loadFog(list){
+  if(is25()){
+    const f=(list||[]).find(x=>typeof x.data==='string'&&x.data.startsWith('base64:'));
+    if(!f||!window.D3)return;
+    // el motor puede estar aún montándose: se reintenta en vez de perder la niebla
+    function tryLoad(retries){
+      if(window.D3.isMounted()){window.D3.loadExplored(b64ToBytes(f.data.slice(7)));return;}
+      if(retries>0)setTimeout(()=>tryLoad(retries-1),150);
+    }
+    tryLoad(20);
+    return;
+  }
   for(const f of list||[]){
     const ch=expChunk(f.cx,f.cy,true);const im=new Image();
     im.onload=()=>{ch.x.setTransform(1,0,0,1,0,0);ch.x.globalCompositeOperation='source-over';ch.x.imageSmoothingEnabled=true;ch.x.drawImage(im,0,0,ch.c.width,ch.c.height);requestRender()}; // se escala: la niebla guardada puede venir de otra resolución
     im.src=f.data;
   }
 }
-function takeDirtyFog(){const out=[];for(const[k,ch]of EXP.chunks)if(ch.dirty){ch.dirty=false;const[cx,cy]=k.split(',').map(Number);out.push({cx,cy,data:ch.c.toDataURL('image/png')})}return out}
+function takeDirtyFog(){
+  if(is25()){
+    if(!window.D3||!window.D3.isMounted()||!window.D3.exploredDirty())return[];
+    return[{cx:0,cy:0,data:'base64:'+bytesToB64(window.D3.exploredBytes())}];
+  }
+  const out=[];for(const[k,ch]of EXP.chunks)if(ch.dirty){ch.dirty=false;const[cx,cy]=k.split(',').map(Number);out.push({cx,cy,data:ch.c.toDataURL('image/png')})}return out
+}
 const toWorld=sp=>({x:(sp.x-W/2)/UI.cam.zoom+UI.cam.x,y:(sp.y-H/2)/UI.cam.zoom+UI.cam.y});
 const toScreen=p=>({x:(p.x-UI.cam.x)*UI.cam.zoom+W/2,y:(p.y-UI.cam.y)*UI.cam.zoom+H/2});
 function setWorld(ctx){const z=UI.cam.zoom,d=scaleOf(ctx);ctx.setTransform(d*z,0,0,d*z,d*(W/2-UI.cam.x*z),d*(H/2-UI.cam.y*z))}
