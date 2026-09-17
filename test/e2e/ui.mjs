@@ -161,8 +161,26 @@ try {
   const distinct = new Set(buf.slice(100, 4000)).size;
   step('tablero 2.5D: canvas WebGL con imagen (captura no plana)', distinct > 16, String(distinct));
   await shot(gm, '08-tablero-25d');
+  const v0 = await gm.evaluate(() => window.D3.version());
+  step('2.5D: terreno cargado del servidor (version 0)', v0 === 0, String(v0));
   const railTools = await gm.$$eval('#rail .tool', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.dataset.tool));
   step('rail 2.5D: sólo seleccionar y desplazar', railTools.join(',') === 'select,pan', railTools.join(','));
+
+  // el jugador abre el mismo tablero 2.5D y recibe una op de terreno del director
+  const invite25 = (await gm.textContent('#inviteCode')).trim();
+  await pl.goto(BASE + '/#/');
+  await pl.waitForSelector('#dashView:not([hidden])');
+  await pl.fill('#joinCode', invite25);
+  await pl.click('#joinForm button[type=submit]');
+  await pl.waitForFunction(() => {
+    const c = document.querySelector('#stage canvas.d3');
+    return !!c && c.width > 0 && c.height > 0 && !c.hidden;
+  }, null, { timeout: 15000 });
+  await pl.waitForTimeout(3000);
+  await gm.evaluate(() => Net.sendRaw({ t: 'terrain', scene: UI.scene.id, op: { type: 'cells', cells: [{ i: 0, h: 9 }], version: 0 } }));
+  await pl.waitForFunction(() => window.D3.version() === 1, null, { timeout: 15000 });
+  step('2.5D: la op del director llega al jugador (version 1)', true);
+  await shot(pl, '09-tablero-25d-jugador');
 
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';

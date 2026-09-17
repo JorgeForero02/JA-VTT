@@ -81,7 +81,7 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(idx, /initTerrain\(scene\);[\s\S]*initWater\(scene\);initFx\(scene\);[\s\S]*initWorld\(scene\);initInput\(scene\);/);
   // los ganchos que evitan importes circulares no pueden quedar vacíos (la tarea 11 con GPT dejó removeLight como stub)
   for (const h of ['terrainChanged', 'removeObj', 'removeMount', 'removeLight', 'charAt', 'refreshTufts', 'envEm', 'blocksMove', 'closedDoor', 'blocksSight', 'flashLight', 'relayout', 'maybeGrow']) assert.match(idx, new RegExp('hooks\\.' + h + '=(?!\\(\\)=>\\{\\})'), 'hooks.' + h);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted\}/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version\}/);
   const dice = read('js/dice3d.js');
   assert.match(dice, /function withColorManagement\(fn\)/);
 });
@@ -275,16 +275,24 @@ test('modo 2.5D: atlas CC0 y mapa de piezas presentes', () => {
 
 test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', () => {
   const render = read('js/render.js');
-  assert.match(render, /function syncStageMode\(\)/);
+  assert.match(render, /function syncStageMode\(terrain\)/);
   assert.match(render, /if\(is25\(\)\)\{if\(ts-lastNet>40\)\{lastNet=ts;Net\.tick\(\)\}return\}/);
   assert.match(render, /if\(is25\(\)&&window\.D3\)window\.D3\.resize\(\)/);
   const editor = read('js/editor.js');
   assert.ok((editor.match(/if\(is25\(\)\)return/g) || []).length >= 6, 'punteros, rueda, dblclick, contextmenu, drop y teclado');
   assert.match(editor, /D3\.rotate\(-1\)/); assert.match(editor, /D3\.rotate\(1\)/);
-  assert.match(read('js/net.js'), /loadState\(st\);syncStageMode\(\)/);
+  assert.match(read('js/net.js'), /loadState\(st\);syncStageMode\(d\.terrain\)/);
   assert.match(read('js/main.js'), /loadState\(blankState\(\)\);syncStageMode\(\)/);
   assert.match(render, /#blindNote'\)\.style\.display='none'/, 'el aviso de ceguera 2D no debe quedar visible sobre el diorama');
   assert.match(read('js/net.js'), /D3\.setEnv\(S\.env,S\.ambient\)/, 'un cambio de entorno remoto también debe llegar al motor montado');
+  assert.match(read('js/net.js'), /case 'terrain':/);
+  const world = read('js/d3/world.js');
+  assert.match(world, /export function loadTerrain\(blob\)/m);
+  assert.match(world, /export function applyTerrainOp\(op,version\)/m);
+  assert.match(read('js/d3/ctx.js'), /terrainVersion:0/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version\}/);
+  assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
   assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\),#app\.d3 #rail \.railsep\{display:none\}/);

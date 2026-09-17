@@ -16,7 +16,7 @@ export const G={
   tVis:new Float32Array(C0), tMem:new Float32Array(C0), tDv:new Float32Array(C0),
   cVis:new Float32Array(C0), cMem:new Float32Array(C0), cDv:new Float32Array(C0),
   strongView:new Uint8Array(C0), pcVis:new Map(), explored:new Map(),
-  boomLevel:'media', shake:0,
+  boomLevel:'media', shake:0, terrainVersion:0,
   tool:'mover', waterMode:'verter', paintMat:1, objKind:'arbol', lightPreset:'torch'
 };
 export const S={

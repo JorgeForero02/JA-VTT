@@ -10,7 +10,7 @@ import { initVision, refreshLights, composeLightmap, computeVision, blendVision 
 import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
-import { initWorld, loadScene, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
+import { initWorld, loadScene, loadTerrain, applyTerrainOp, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
 import { initInput, setTool, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
@@ -111,7 +111,7 @@ async function start(){
   if(stopped)return; // stop() llegó mientras cargaba el arte: no montar nada
   restyle('packs'); // loadStyle + actualizar sprites y agua
   terrainMat.map=ART.TEX.atlas;terrainMat.needsUpdate=true; // el terreno se creó con map:null
-  resize();loadScene('valle');setTool('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
+  resize();opts.terrain?loadTerrain(opts.terrain):loadScene('valle');setTool('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
 }
 function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
@@ -122,7 +122,7 @@ function setEnv(env,amb){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(false);
 }
-return { start, stop, resize, rotate, setEnv };
+return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -143,4 +143,7 @@ export function resizeEngine() { if (eng) eng.resize(); }
 export function rotateEngine(dir) { if (eng) eng.rotate(dir); }
 export function setEnv(env, ambient) { if (eng) eng.setEnv(env, ambient); }
 export function isMounted() { return !!eng; }
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted};
+export function loadTerrainBlob(blob){if(eng)eng.loadTerrain(blob);}
+export function applyRemoteOp(op,version){return eng?eng.applyTerrainOp(op,version):false;}
+export function version(){return eng?eng.version():-1;}
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version};

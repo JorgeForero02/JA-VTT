@@ -40,6 +40,7 @@ const Net=(()=>{
       case 'images':Store.refresh();break;
       case 'pong':toast(`El servidor respondió en ${Date.now()-d.at} ms`);break;
       case 'kicked':onKicked(!!d.deleted);break;
+      case 'terrain':if(!UI.scene||d.scene!==UI.scene.id||!window.D3)break;if(d.full)window.D3.loadTerrain(d.full);else if(d.op&&!window.D3.applyRemoteOp(d.op,d.version))Net.sendRaw({t:'terrain',scene:UI.scene.id,want:'full'});if(d.fix)toast('No puedes editar el terreno de esta escena');break;
       case 'error':toast(d.error||'Error del servidor',2600);break;
     }
   }
@@ -57,7 +58,7 @@ const Net=(()=>{
     for(const k of COLL_KEYS)st[k]=[];
     for(const o of d.objects||[])if(COLL[o.type])st[COLL[o.type]].push(o);
     const keepHist=!first;if(newScene){hist.undo.length=0;hist.redo.length=0}const prevUndo=hist.undo.slice(),prevRedo=hist.redo.slice();
-    loadState(st);syncStageMode();
+    loadState(st);syncStageMode(d.terrain);
     if(newScene){N.cursors.clear();UI.act=null;UI.chain=null;UI.curve=null;UI.arc=null;UI.zpoly=null;closePops()}
     if(first)loadFog(d.fog);
     if(keepHist&&UI.realRole==='gm'){hist.undo.push(...prevUndo);hist.redo.push(...prevRedo);syncUndo()}
@@ -160,6 +161,7 @@ const Net=(()=>{
     flushFog,
     rename(name){send({t:'rename',name})},
     ping(){if(!send({t:'ping',at:Date.now()}))toast('No hay conexión con el servidor')},
+    terrain(op){if(!UI.scene||!window.D3)return;send({t:'terrain',scene:UI.scene.id,op:Object.assign({},op,{version:window.D3.version()})})},
     requestImage(){},
     sendRaw:send
   };

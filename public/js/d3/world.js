@@ -231,6 +231,45 @@ export function applyView(){
   U.uFogOn.value=S.view==='gm'?0:1;
   G.visionDirty=true;
 }
+
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+export function loadTerrain(blob){
+  G.sceneKey='valle';G.OFF=0;if(G.N!==blob.n)allocWorld(blob.n);
+  G.H=b64(blob.h);G.M=b64(blob.m);G.chan=b64(blob.chan);G.W=new Float32Array(G.CELLS);
+  const X=blob.extras||{};
+  G.springs.length=0;G.springs.push(...(X.springs||[]));G.sinks.length=0;G.sinks.push(...(X.sinks||[]));
+  (X.pools||[]).forEach(p=>{if(p.cell<G.CELLS)G.W[p.cell]=p.level;});
+  G.evap=X.evap??.0012;G.edgeDrain=X.edgeDrain!==false;G.cutOn=!!X.cutOn;G.cutH=X.cutH||3;
+  if(X.fogAlpha!=null)S.fogAlpha=X.fogAlpha;if(X.mist!=null)S.mist=X.mist;if(X.focus!=null)S.focus=X.focus;if(X.autoGrow!=null)G.autoGrow=X.autoGrow;
+  CAM.target.set(0,2.2,0);CAM.targetT.copy(CAM.target);
+  clearGroup(decor);clearGroup(charsGroup);clearGroup(propGroup);
+  spriteMats.forEach(m=>m.dispose());spriteMats.clear();sharedSpriteMats();
+  objs.clear();mounts.clear();G.tufts.length=0;lights.length=0;chars.length=0;clearParts();
+  for(const [k,o] of Object.entries(X.objs||{})){const i=Number(k);if(!OBJ_KINDS[o.kind]||i>=G.CELLS)continue;addObj(i,o.kind,o.rot);const w=objs.get(i);if(o.locked)w.locked=true;if(o.open&&OBJ_KINDS[o.kind].door){w.open=true;w.mesh.userData.tex.offset.x=.5;}}
+  for(const o of Object.values(X.mounts||{})){if(OBJ_KINDS[o.kind]&&o.wall<G.CELLS)addMount(o.wall,o.dir,o.kind);}
+  const r=rng(2027);
+  for(let i=0;i<G.CELLS;i++){if(G.M[i]!==0||G.chan[i]||objs.has(i))continue;if(r()<.45){const m=makeSprite({t:'tuft'},.42,.42,false,tuftMat);m.userData.cell=i;m.userData.ox=(r()-.5)*.6;m.userData.oz=(r()-.5)*.6;decor.add(m);tufts.push(m);}}
+  explored.clear();pcVis.clear();undoStack.length=0;boomQueue.length=0;
+  updateMarks();buildTerrain();
+  resetWater();if(springs.length)for(let k=0;k<260;k++)simWater();
+  G.Wprev.set(G.W);buildWater(1,0,0,false);relayout();
+  G.selected=null;U.uMistBase.value=.9;
+  G.terrainVersion=blob.version||0;
+  G.lightsDirty=true;G.visionDirty=true;applyView();
+}
+export function applyTerrainOp(op,version){
+  switch(op.type){
+    case 'cells':for(const c of op.cells){if(c.i>=G.CELLS)continue;if(c.h!=null)G.H[c.i]=c.h;if(c.m!=null)G.M[c.i]=c.m;}terrainChanged();refreshTufts();break;
+    case 'obj':{if(objs.has(op.i))removeObj(op.i);if(op.kind){addObj(op.i,op.kind,op.rot);const w=objs.get(op.i);if(op.locked)w.locked=true;}refreshTufts();relayout();G.visionDirty=true;break;}
+    case 'door':{const o=objs.get(op.i);if(!o||!OBJ_KINDS[o.kind].door)break;o.open=!!op.open;o.mesh.userData.tex.offset.x=o.open?.5:0;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;break;}
+    case 'mount':{if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
+    case 'water':G.springs.length=0;G.springs.push(...op.springs);G.sinks.length=0;G.sinks.push(...op.sinks);G.evap=op.evap;G.edgeDrain=op.edgeDrain;updateMarks();resetWater();break;
+    case 'settings':if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
+    case 'grow':return false;
+  }
+  G.terrainVersion=version;return true;
+}
+
 export const isDoor=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].door;
 export const closedDoor=j=>isDoor(j)&&!objs.get(j).open;
 export const blocksMove=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].move&&!(isDoor(j)&&objs.get(j).open);
