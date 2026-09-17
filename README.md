@@ -36,7 +36,10 @@ Las tablas se crean solas al arrancar (migraciones en `server/migrations/`).
    un **código de recuperación**: guárdalo. Lo tienes siempre en **Perfil** (oculto, con botón
    para copiarlo o generar otro) y con él puedes poner una contraseña nueva desde «¿Olvidaste la
    contraseña?». No hay correo.
-2. **Panel:** crea un tablero o únete a uno con un código de invitación.
+2. **Panel:** crea un tablero o únete a uno con un código de invitación. Al crearlo eliges el
+   **tipo de mapa**: **2D** (plano con luz dinámica, todo lo descrito abajo) o **2.5D** (bloques
+   con desniveles y cámara que gira; en construcción: hoy muestra un valle de ejemplo — arrastrar
+   gira, rueda acerca, Q/E giran 90°, WASD desplazan). El tipo no se puede cambiar después.
 3. **Invitar:** dentro del tablero, pestaña **Mesa**. Comparte el código o el enlace,
    o añade a alguien que ya tenga cuenta por su nombre de usuario. Desde ahí también puedes
    quitar miembros.
@@ -162,6 +165,8 @@ docs/                  Documentación técnica y operativa
 public/index.html      Interfaz
 public/css/app.css     Estilos
 public/js/             Cliente (núcleo, dibujo, editor, red, dados 3D)
+public/js/d3/          Motor del modo 2.5D (módulos ES sobre three.js)
+public/img/            Atlas de arte del modo 2.5D (CC0)
 public/fonts/          Tipografías Alegreya (licencia SIL OFL)
 ```
 

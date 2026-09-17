@@ -39,7 +39,7 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
-## Modo 2.5D (en curso, rama `modo-25d-fase-a`)
+## Modo 2.5D (rama `modo-25d-fase-a`; fase A cerrada)
 
 - Al crear un tablero se elige **Tipo de mapa: 2D / 2.5D**; la tarjeta muestra la etiqueta `2.5D`.
   El tipo no se puede cambiar después. `POST /api/boards {name, mode}`; `mode` viaja en la lista y
@@ -48,9 +48,6 @@ intenta algo que no puede.
   (aún sin persistir), cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
   desplazan, F centra), entorno y luz ambiental de la pestaña Escena aplicados al 3D (también los
   cambios remotos del director). Sin fichas, edición ni niebla por jugador todavía.
-- Refactor interno (tarea 7): el estado del motor vive en `public/js/d3/ctx.js` (`G` mundo, `S` escena,
-  `R` renderer, `U` uniforms). No cambia el comportamiento visible; prepara el troceo en módulos
-  independientes (tareas 8–11).
 - Fases siguientes y estado: [08](08-traspaso-opencode.md).
 
 ## Arte del modo 2.5D

@@ -65,21 +65,30 @@ Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
-## Modo 2.5D (rama `modo-25d-fase-a`, en curso)
+## Modo 2.5D (rama `modo-25d-fase-a`; fase A cerrada, B–E en curso)
 
 Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones: [08](08-traspaso-opencode.md).
 
 - `boards.settings.mode` ∈ {`2d`, `2.5d`}, fijado en `createBoard` e **inmutable**: `rules.boardSettingsPatch()`
   lo elimina de cualquier `settings` que llegue por `ops` o `replace`. Los tableros anteriores no lo
   tienen y se leen como `2d` (`COALESCE` en `boardsForUser`).
-- Motor: `public/js/d3/engine.js` (módulo ES sobre el mismo three r170 de los dados; port del
-  prototipo `diorama-jav/`, gitignorado). `public/js/d3/index.js` expone `window.D3 =
-  {mount, unmount, resize, rotate, setEnv, isMounted}` para los scripts clásicos.
-- Estado compartido (fase A, tarea 7): `public/js/d3/ctx.js` exporta `G` (estado del mundo por celda),
-  `S` (ajustes de escena), `R` (renderer/escena/cámara/luces) y `U` (uniformes), más helpers de índice
-  (`I`, `cxOf`, `czOf`, `wx`, `wz`, `inb`) y constantes (`MAXH`, `MAXN`, `BASE_N`, `DIRS`). `engine.js`
-  los importa; las variables de módulo mutables pasaron a `G.*`/`S.*`/`R.*`/`U.*` para preparar el
-  troceo en módulos independientes (tareas 8–11).
+- **Motor** en `public/js/d3/` (módulos ES sobre el mismo three r170 de los dados; port del prototipo
+  `diorama-jav/`, gitignorado). Sin bundler: `index.html` carga `js/d3/index.js` como `type="module"`.
+
+| Módulo | Responsabilidad |
+|---|---|
+| `ctx.js` | Estado compartido: `G` (mundo por celda: alturas `H`, materiales `M`, agua `W`, objetos, luces, fichas…), `S` (ajustes de escena), `R` (renderer, escena, cámara, luces, `stage`, `toast`), `U` (uniforms), constantes y helpers de índice |
+| `art.js` | Atlas (`packs25.png` + `packmap.js`), cuatro estilos, catálogos `CHAR_INFO`/`OBJ_KINDS`/`MATS`, texturas (`ART.TEX`), arte propio (vacío hasta la fase D) |
+| `terrain.js` | Pedestal y bloques instanciados por material (`initTerrain`, `buildTerrain`, `vh`) |
+| `world.js` | Escenas de muestra, crecimiento del tablero, objetos, piezas de pared, puertas, marcas de agua, `relayout` |
+| `water.js` | Shader, malla, simulación por tuberías y partículas del agua |
+| `vision.js` | Parche de shader (niebla, luz, sombras suaves), LOS por alturas, mapa de luz, visión y explorado |
+| `chars.js` | Sprites, fichas, luces portadas, pathfinding y movimiento; tablas `ENVS`/`LIGHT_PRESETS` |
+| `fx.js` | Bruma, luciérnagas, explosiones; objeto `hooks` que `index.js` rellena para evitar importes circulares |
+| `camera.js` | Cámara orbital (estado en `CAM`), entorno (`stepEnv`), posproceso |
+| `input.js` | Raycast, cursor y anillo, herramientas del director (sin UI), punteros y teclado |
+| `index.js` | `createEngine(stage, opts)`: renderer, escena, luces, enlace de módulos, bucle; `window.D3 = {mount, unmount, resize, rotate, setEnv, isMounted}` para los scripts clásicos |
+
 - Look fiel a r128: `THREE.ColorManagement.enabled = false` (global al módulo three) + salida
   `LinearSRGBColorSpace`; luces ×π (r170 quitó el modo legado); sombras suaves parcheando
   `ShaderChunk.lights_fragment_begin` (en r170 `onBeforeCompile` ve el template sin expandir). Los
@@ -87,7 +96,7 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
 - Shell: `render.syncStageMode()` monta/desmonta según `is25()`; en 2.5D los canvas 2D se ocultan,
   `loop` sólo hace `Net.tick()`, los handlers de puntero/teclado de `editor.js` devuelven pronto y el
   rail muestra sólo Seleccionar/Desplazar. `#stage canvas{pointer-events:none}` ⇒ el motor escucha en
-  `#stage`.
+  `#stage`. El entorno y la luz ambiental de la escena llegan al motor por `D3.setEnv` (local y remoto).
 - Pendiente (fases B–E): terreno persistente (`terrain`), ops `terrain`, fichas/luces/niebla, panel,
   arte propio, agua/explosiones. Planes en `superpowers/plans/`.
 

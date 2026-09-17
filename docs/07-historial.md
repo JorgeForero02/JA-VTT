@@ -2,6 +2,19 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-16 — Modo 2.5D, fase A cerrada (tareas 6–12): test:ui, motor en 12 módulos
+
+**Qué** — `test:ui` con GPU por software y paso «tablero 2.5D» (19/19). Refactor sin cambio de
+comportamiento de `engine.js` (2266 líneas) a 12 módulos en `public/js/d3/` (`ctx`, `art`, `water`,
+`fx`, `vision`, `chars`, `camera`, `input`, `terrain`, `world`, `index`, `packmap`); `engine.js`
+desaparece. Tareas 6–10 con OpenCode (kimi-k3) y revisión aquí; la 11 la hizo Claude Code tras
+descartar un intento con GPT que perdía código. Correcciones halladas en revisión: grupos de sprites
+sin añadir a la escena, errata `wz(cxOf)`, tildes perdidas al reescribir módulos, imports muertos.
+**Por qué** — fase A del modo 2.5D (spec `superpowers/specs/2026-09-16-modo-25d-design.md`).
+**Evidencia** — `npm run check` 70/70; `npm run test:ui` 19/19; captura `08-tablero-25d.png` idéntica
+antes y después de cada troceo (comparación píxel a píxel); sonda de cámara y desmontaje sin errores.
+**Revertir** — `git revert` de `3972904..428fe88` (vuelve al motor monolítico de `c3a5753`).
+
 ## 2026-09-16 — Modo 2.5D, fase A: estado del motor en `ctx.js` (tarea 7)
 
 **Qué** — Refactor mecánico de `public/js/d3/engine.js`: se crea `public/js/d3/ctx.js` con el estado

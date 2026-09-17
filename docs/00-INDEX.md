@@ -13,7 +13,7 @@ abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
 
-Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D `public/js/d3/engine.js` (~2250, módulo ES; en `main` no existe) + `ctx.js` (estado compartido G/S/R/U)
+Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (12 módulos ES, ~2500 líneas)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
 Estado de calidad verificado el 2026-09-16: `npm run lint` limpio · `npm test` →
@@ -25,8 +25,8 @@ portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad abso
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
-Trabajo en curso: **modo 2.5D** (rama `modo-25d-fase-a`, fase A: tareas 1–7 de 12 completadas el
-2026-09-16; se continúa con OpenCode). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
+Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`, **fase A terminada** el 2026-09-16 (12/12 tareas);
+sigue la fase B (terreno persistente). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
 Resto: [06-pendientes.md](06-pendientes.md).
 
 ## Mapa de la documentación
@@ -41,7 +41,7 @@ Resto: [06-pendientes.md](06-pendientes.md).
 | [05-runbook.md](05-runbook.md) | Comandos, tests, gotchas | Cuando cambia un comando |
 | [06-pendientes.md](06-pendientes.md) | **Tareas abiertas** | En cada sesión |
 | [07-historial.md](07-historial.md) | **Changelog**: qué, por qué, cómo revertir | Tras cada cambio relevante |
-| [08-traspaso-opencode.md](08-traspaso-opencode.md) | **Traspaso del modo 2.5D**: estado exacto, decisiones, cómo seguir con OpenCode, qué instalar | Mientras dure la fase A; después se archiva |
+| [08-traspaso-opencode.md](08-traspaso-opencode.md) | **Traspaso del modo 2.5D**: estado exacto, decisiones, cómo seguir con OpenCode, qué instalar | Mientras dure el modo 2.5D (fases B–E); después se archiva |
 
 ### Subcarpetas
 
@@ -63,4 +63,4 @@ Resto: [06-pendientes.md](06-pendientes.md).
 
 **Un hecho vive en un solo sitio.** Estado (`01`–`05`) ≠ historial (`07`) ≠ pendientes (`06`).
 
-> **Números vacantes:** ninguno (08 es temporal: se archiva al cerrar la fase A).
+> **Números vacantes:** ninguno (08 es temporal: se archiva al cerrar el modo 2.5D).

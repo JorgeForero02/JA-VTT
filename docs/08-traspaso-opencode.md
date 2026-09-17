@@ -13,11 +13,11 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | Planes fases B, C, D, E (**a nivel de tarea, sin líneas ni regexes: expandir cada uno al detalle del plan A leyendo el código real antes de empezar esa fase**) | [`…-fase-b.md`](superpowers/plans/2026-09-16-modo-25d-fase-b.md) · [`…-fase-c.md`](superpowers/plans/2026-09-16-modo-25d-fase-c.md) · [`…-fase-d.md`](superpowers/plans/2026-09-16-modo-25d-fase-d.md) · [`…-fase-e.md`](superpowers/plans/2026-09-16-modo-25d-fase-e.md) |
 | Rama de trabajo | `modo-25d-fase-a` (desde `main` en `e0d0ffa`). **No está en `origin`.** |
 | Prototipo fuente (sólo lectura, gitignorado) | `diorama-jav/` — `index.html` de 2935 líneas es el original r128 del que se porta todo |
-| Motor portado | `public/js/d3/engine.js` (~2250 líneas, un módulo) + `index.js` (puente `window.D3`) + `packmap.js` + `ctx.js` (estado compartido G/S/R/U) |
+| Motor | `public/js/d3/` — 12 módulos ES (ver tabla en `01`); `index.js` crea el motor y expone `window.D3` |
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
 | Cómo se trabajó (briefs, informes, revisiones) | `.superpowers/sdd/2026-09-16-modo-25d-fase-a/` — gitignorado; el resumen útil está en §3 |
 
-## 2. Estado exacto (rama `modo-25d-fase-a`, 10 commits, 70 tests verdes)
+## 2. Estado exacto (rama `modo-25d-fase-a`, fase A cerrada, 70 tests, `test:ui` 19/19)
 
 | Commit | Qué |
 |---|---|
@@ -34,16 +34,13 @@ Verificado en Edge headless (swiftshader): el valle renderiza dentro del shell; 
 **Limitaciones de la fase A (por diseño):** sin fichas, luces, edición ni niebla por jugador; vista
 = director para todos; terreno = escena de muestra «Valle del arroyo» del diorama (no persiste).
 
-### Pendiente de la fase A (tareas 6–12 del plan)
+### Fase A cerrada — qué sigue
 
-| # | Tarea | Nota |
-|---|---|---|
-| 6 | `test:ui`: flags swiftshader + paso «tablero 2.5D» | Hecho; 19/19 pasos |
-| 7 | Estado en `ctx.js` (`G/S/R/U`) | Hecho; variables mutables migradas, arrays inicializados en `ctx.js`, captura idéntica |
-| 8–9 | Troceo en `art/water/fx` | Hecho |
-| 10 | Troceo en `vision.js` y `chars.js` | Hecho; `npm run check` 70/70, `test:ui` 19/19 |
-| 11 | Troceo restante (`camera/input/terrain/world`); `engine.js` desaparece | Pendiente |
-| 12 | Docs 00–07, README, despliegue por API de Coolify, `test:e2e` | Pendiente |
+1. Expandir el plan B (`superpowers/plans/2026-09-16-modo-25d-fase-b.md`) al detalle del plan A leyendo el
+   código ya troceado (con Claude Code: «expande el plan B»).
+2. Ejecutar B tarea a tarea con el mismo flujo: OpenCode (Kimi) implementa sin commitear; Claude Code
+   revisa con captura + comparación píxel a píxel y commitea. Kimi siguió bien las instrucciones en 6–10;
+   GPT no sirvió para el troceo (reescribió con pérdidas): usar Kimi.
 
 ## 3. Decisiones tomadas en marcha (rulings) — revisar si algo chirría
 
