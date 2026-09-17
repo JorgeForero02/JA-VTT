@@ -21,7 +21,8 @@ export const G={
 };
 export const S={
   env:'day', amb:1, dark:null, fogAlpha:.3, mist:.12, view:'gm',
-  fogMemory:true, shared:true, animLights:true, grid:false, focus:true
+  uid:null, gm:false, shared:true,
+  fogMemory:true, animLights:true, grid:false, focus:true
 };
 export const R={
   renderer:null, scene:null, cam:null, sun:null, hemi:null,

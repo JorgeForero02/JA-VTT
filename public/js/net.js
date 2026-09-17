@@ -65,6 +65,7 @@ const Net=(()=>{
       if(retries>0)setTimeout(()=>sync25(retries-1),150);
     }
     sync25(20);
+    if(typeof view25==='function')view25();
     if(newScene){N.cursors.clear();UI.act=null;UI.chain=null;UI.curve=null;UI.arc=null;UI.zpoly=null;closePops()}
     if(first)loadFog(d.fog);
     if(keepHist&&UI.realRole==='gm'){hist.undo.push(...prevUndo);hist.redo.push(...prevRedo);syncUndo()}
@@ -133,6 +134,7 @@ const Net=(()=>{
     if(walls)touchWalls();
     remoteChanged(scene);
     if(is25()&&window.D3&&window.D3.isMounted())window.D3.syncObjects();
+    if(typeof view25==='function')view25();
   }
   function onKicked(deleted){
     closedByUs=true;synced=false;

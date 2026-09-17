@@ -6,11 +6,11 @@ import { G, S, R, U } from './ctx.js';
 import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as ART_OBJ } from './art.js';
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
-import { initVision, refreshLights, composeLightmap, computeVision, blendVision } from './vision.js';
+import { initVision, refreshLights, composeLightmap, computeVision, blendVision, viewers } from './vision.js';
 import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights, pxOfCell } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
-import { initWorld, loadScene, loadTerrain, applyTerrainOp, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
+import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
 import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
@@ -108,14 +108,31 @@ function frame(now){
 }
 
 // El estado del tablero vive en los scripts clásicos (window.S); el motor sólo lo refleja.
-function syncObjects(){const St=window.S;if(!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);}
+// Quién mira y con qué fichas. `view`: 'gm' (director), 'party' (el grupo) o el id de una ficha.
+function setView(cfg){
+  const c=cfg||{};
+  S.view=c.view==null?S.view:c.view;
+  S.uid=c.uid==null?S.uid:c.uid;
+  S.gm=!!c.gm;S.shared=c.shared!==false;
+  applyView();               // uFogOn + visionDirty (world.js)
+  computeVision();           // recalcula ya, sin esperar al frame
+  reportBlind();
+}
+let lastBlind=null;
+function reportBlind(){
+  const b=S.view!=='gm'&&!viewers().length;
+  if(b===lastBlind)return;
+  lastBlind=b;if(opts.onBlind)opts.onBlind(b);
+}
+function syncObjects(){const St=window.S;if(!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);reportBlind();}
 function debug(){
   const rect=R.stage.getBoundingClientRect();
   const screen=G.chars.filter(c=>c.vid!=null).map(c=>{
     const v=c.mesh.position.clone();v.y+=.5;v.project(R.cam);
     return {vid:c.vid,x:rect.left+(v.x+1)/2*rect.width,y:rect.top+(1-v.y)/2*rect.height};
   });
-  return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen};
+  return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen,
+    view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid)};
 }
 // Qué casilla del tablero hay bajo un punto de la pantalla, en píxeles de JA-VTT.
 function pickCell(px,py){const p=pickAt(px,py);const i=p?(p.char?p.char.cell:p.cell):null;return i==null?null:pxOfCell(i);}
@@ -127,18 +144,21 @@ async function start(){
   if(stopped)return; // stop() llegó mientras cargaba el arte: no montar nada
   restyle('packs'); // loadStyle + actualizar sprites y agua
   terrainMat.map=ART.TEX.atlas;terrainMat.needsUpdate=true; // el terreno se creó con map:null
-  resize();opts.terrain?loadTerrain(opts.terrain):loadScene('valle');setToolInput('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
+  resize();opts.terrain?loadTerrain(opts.terrain):loadScene('valle');
+  // el entorno del tablero manda desde el primer fotograma: sin esto se ve un destello de la escena de muestra (día) mientras la transición de 3 s llega al entorno real
+  if(opts.env)setEnv(opts.env,opts.ambient||0,true);
+  setToolInput('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
 }
 function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
 const ENV_MAP={interior:'interior',day:'day',dusk:'dusk',night:'night'};
 // Como el cambio de entorno del panel del diorama: niebla, bruma y visión se rehacen con el entorno.
-function setEnv(env,amb){
+function setEnv(env,amb,snap){
   if(ENVS[ENV_MAP[env]]){S.env=ENV_MAP[env];}
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
-  applyEnv(false);
+  applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -158,6 +178,7 @@ export function unmount() { if (!eng) return; eng.stop(); eng = null; starting =
 export function resizeEngine() { if (eng) eng.resize(); }
 export function rotateEngine(dir) { if (eng) eng.rotate(dir); }
 export function setEnv(env, ambient) { if (eng) eng.setEnv(env, ambient); }
+export function setView(cfg) { if (eng) eng.setView(cfg); }
 export function isMounted() { return !!eng; }
 export function loadTerrainBlob(blob){if(eng)eng.loadTerrain(blob);}
 export function applyRemoteOp(op,version){return eng?eng.applyTerrainOp(op,version):false;}
@@ -168,4 +189,4 @@ export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatc
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell};
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell};

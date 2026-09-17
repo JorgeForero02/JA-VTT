@@ -178,11 +178,14 @@ function computeFor(c) {
   }
 }
 
+/* Observadores: los mismos que en 2D (core.js viewers()), pero con las fichas del motor.
+   Director en vista Director: nadie (lo ve todo, sin niebla). */
 export function viewers() {
   if (S.view === 'gm') return [];
-  const pcs = G.chars.filter(c => c.pc);
-  if (S.view === 'party' || S.shared) return pcs;
-  const c = G.chars.find(x => x.id === S.view); return c ? [c] : pcs;
+  let party = G.chars.filter(c => c.pc && c.vision !== false && !c.hidden);
+  if (!S.gm && !S.shared && S.uid != null) { const mine = party.filter(c => c.owner === S.uid); party = mine.length ? mine : []; }
+  if (S.view !== 'party') { const one = party.find(c => c.vid === S.view); if (one) return [one]; }
+  return party;
 }
 
 export function computeVision() {

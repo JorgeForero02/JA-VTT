@@ -63,8 +63,10 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   const chunk = JSON.parse('"' + three.match(/lights_fragment_begin:"((?:[^"\\]|\\.)*)"/)[1] + '"');
   assert.match(chunk, shadowRe, 'el regex de sombras debe casar con el chunk real de r170');
   assert.match(chunk.replace(shadowRe, (m) => 'mix(1.0,' + m.slice(0, -7) + ',uShadow) : 1.0;'), /\? mix\(1\.0,getShadow\( directionalShadowMap\[ i \][^;]*\),uShadow\) : 1\.0;/);
-  // setEnv rehace niebla, bruma y visión; stop() es seguro mientras start() aún carga
-  assert.match(idx, /function setEnv\(env,amb\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(false\);/);
+  // setEnv rehace niebla, bruma y visión; el entorno del tablero se aplica de golpe al montar
+  assert.match(idx, /function setEnv\(env,amb,snap\)\{[\s\S]*?S\.fogAlpha=P\.fogA;S\.mist=P\.mist;S\.dark=null;G\.visionDirty=true;[\s\S]*?applyEnv\(!!snap\);/);
+  assert.match(idx, /if\(opts\.env\)setEnv\(opts\.env,opts\.ambient\|\|0,true\)/);
+  assert.match(read('js/render.js'), /env:S\.env,ambient:S\.ambient/);
   assert.match(idx, /function stop\(\)\{stopped=true;/);
   assert.match(idx, /await loadPacks\(\);[\s\S]*?if\(stopped\)return;/);
   assert.match(read('js/d3/art.js'), /^export function loadStyle\(key\)/m);
@@ -81,7 +83,7 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(idx, /initTerrain\(scene\);[\s\S]*initWater\(scene\);initFx\(scene\);[\s\S]*initWorld\(scene\);initInput\(scene\);/);
   // los ganchos que evitan importes circulares no pueden quedar vacíos (la tarea 11 con GPT dejó removeLight como stub)
   for (const h of ['terrainChanged', 'removeObj', 'removeMount', 'removeLight', 'charAt', 'refreshTufts', 'envEm', 'blocksMove', 'closedDoor', 'blocksSight', 'flashLight', 'relayout', 'maybeGrow']) assert.match(idx, new RegExp('hooks\\.' + h + '=(?!\\(\\)=>\\{\\})'), 'hooks.' + h);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
   const dice = read('js/dice3d.js');
   assert.match(dice, /function withColorManagement\(fn\)/);
 });
@@ -283,7 +285,7 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(editor, /D3\.rotate\(-1\)/); assert.match(editor, /D3\.rotate\(1\)/);
   assert.match(read('js/net.js'), /loadState\(st\);syncStageMode\(d\.terrain\)/);
   assert.match(read('js/main.js'), /loadState\(blankState\(\)\);syncStageMode\(\)/);
-  assert.match(render, /#blindNote'\)\.style\.display='none'/, 'el aviso de ceguera 2D no debe quedar visible sobre el diorama');
+  assert.match(render, /onBlind:b=>.*blindNote.*style\.display=b\?'grid':'none'/, 'el motor avisa al shell cuando el jugador está ciego');
   assert.match(read('js/net.js'), /D3\.setEnv\(S\.env,S\.ambient\)/, 'un cambio de entorno remoto también debe llegar al motor montado');
   assert.match(read('js/net.js'), /case 'terrain':/);
   const world = read('js/d3/world.js');
@@ -291,7 +293,7 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(world, /export function applyTerrainOp\(op,version\)/m);
   assert.match(read('js/d3/ctx.js'), /terrainVersion:0/);
   const idx = read('js/d3/index.js');
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
   assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
@@ -364,7 +366,7 @@ test('herramientas 2.5D del director: rail, subbar, ops y puentes', () => {
 
   const idx = read('js/d3/index.js');
   assert.match(idx, /onTerrainOp\(op=>opts\.onTerrainOp&&opts\.onTerrainOp\(op\)\)/);
-  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
+  assert.match(idx, /window\.D3=\{mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog[,}]/);
 
   assert.match(read('js/render.js'), /onTerrainOp:op=>Net\.terrain\(op\)/);
   assert.match(read('js/net.js'), /version:op\.version!=null\?op\.version:window\.D3\.version\(\)/);
@@ -409,4 +411,25 @@ test('fichas 2.5D: selección, movimiento por ops y creación desde el rail', ()
   assert.match(ed, /window\.D3\.pickCell\(/);
   assert.match(read('js/render.js'), /onMove:onToken25Move/);
   assert.match(read('css/app.css'), /#app\.d3 #rail \.tool[^\n]*data-tool="player"/);
+});
+
+test('ver como en 2.5D: observadores por dueño, aviso de ciego y vista del director', () => {
+  const vision = read('js/d3/vision.js');
+  assert.match(vision, /S\.view === 'gm'\) return \[\]/);
+  assert.match(vision, /c\.owner === S\.uid/);
+  assert.match(vision, /c\.vid === S\.view/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /function setView\(/);
+  assert.ok(idx.includes('applyView();') && !idx.includes('// applyView();'), 'setView llama a applyView sin estar comentado');
+  assert.match(idx, /onBlind/);
+  assert.match(read('js/d3/ctx.js'), /uid:\s*null/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function view25\(/);
+  assert.match(ed, /shared:S\.sharedVision!==false/);
+  const rnd = read('js/render.js');
+  assert.match(rnd, /onBlind:/);
+  assert.ok(!/if\(want\)\{\$\('#blindNote'\)\.style\.display='none'/.test(rnd), 'el aviso de ciego lo decide el motor');
+  assert.match(read('js/net.js'), /view25\(\)/);
+  const chars = read('js/d3/chars.js');
+  assert.match(chars, /vision: s\.vision !== false/);
 });

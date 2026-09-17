@@ -94,7 +94,7 @@ export function addChar(s) {
   const mesh = makeSprite(a, ca.w, ca.h, true);
   const info = CHAR_INFO[s.kind];
   const c = { id: s.kind + '-' + (G.chars.length + 1), vid: s.vid != null ? s.vid : null, kind: s.kind, name: s.name || info.name, pc: s.pc,
-    owner: s.owner != null ? s.owner : null, dv: s.dv, sight: s.sight || 0, hidden: !!s.hidden,
+    owner: s.owner != null ? s.owner : null, dv: s.dv, sight: s.sight || 0, hidden: !!s.hidden, vision: s.vision !== false,
     cell: I(s.at[0], s.at[1]), mesh, tex: mesh.userData.tex, art: ca, path: [], seg: null, ft: Math.random() * .1, fi: 0, dir: 1, carried: null,
     seed: Math.random() * 6, float: info.float || 0, gy: G.H[I(s.at[0], s.at[1])] };
   mesh.userData.char = c; charsGroup.add(mesh); G.chars.push(c);
@@ -208,13 +208,14 @@ export function syncTokens(list) {
     if (c && c.kind !== kind) { removeChar(c); c = null; changed = true; }
     if (!c) {
       c = addChar({ vid: t.id, kind, name: t.name, at: [cxOf(cell), czOf(cell)], pc: t.kind === 'player',
-        dv: (t.darkvision || 0), sight: t.sight || 0, hidden: !!t.hidden, owner: t.owner, light: null });
+        dv: (t.darkvision || 0), sight: t.sight || 0, hidden: !!t.hidden, vision: t.vision !== false, owner: t.owner, light: null });
       changed = true;
     }
     if (c.name !== (t.name || '')) { c.name = t.name || ''; changed = true; }
     if (c.pc !== (t.kind === 'player')) { c.pc = t.kind === 'player'; changed = true; }
     if (c.owner !== (t.owner != null ? t.owner : null)) { c.owner = t.owner != null ? t.owner : null; changed = true; }
     if (c.hidden !== !!t.hidden) { c.hidden = !!t.hidden; if (c.pc) G.visionDirty = true; changed = true; }
+    if (c.vision !== (t.vision !== false)) { c.vision = t.vision !== false; if (c.pc) G.visionDirty = true; changed = true; }
     if (c.sight !== (t.sight || 0)) { c.sight = t.sight || 0; if (c.pc) G.visionDirty = true; changed = true; }
     if (c.dv !== (t.darkvision || 0)) { c.dv = t.darkvision || 0; if (c.pc) G.visionDirty = true; changed = true; }
     const lightKey = JSON.stringify(t.light || null);

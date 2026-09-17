@@ -85,8 +85,8 @@ function loop(ts){
 function syncStageMode(terrain){
   const want=is25(),has=!!(window.D3&&window.D3.isMounted());
   stage.classList.toggle('d3',want);$('#app').classList.toggle('d3',want);
-  if(want){$('#blindNote').style.display='none';$('#status').textContent=''}
-  if(want&&!has&&window.D3){window.D3.mount(stage,{toast,terrain,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
+  if(want)$('#status').textContent='';
+  if(want&&!has&&window.D3){window.D3.mount(stage,{toast,terrain,env:S.env,ambient:S.ambient,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25,onBlind:b=>{$('#blindNote').style.display=b?'grid':'none'}}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).then(()=>view25()).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
   else if(want&&has&&terrain)window.D3.loadTerrain(terrain);
   else if(!want&&has)window.D3.unmount();
   if(!want)$('#subbar').innerHTML='';

@@ -633,6 +633,13 @@ $('#importFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)
 
 /* ---------- Paneles ---------- */
 function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',ms||1600)}
+/* Traduce el rol y el selector «Ver como» a la vista del motor 2.5D. */
+function view25(){
+  if(!is25()||!window.D3||!window.D3.isMounted())return;
+  const view=UI.role==='gm'?'gm':(UI.viewAs==='party'?'party':UI.viewAs);
+  window.D3.setView({view,uid:UI.me&&UI.me.id,gm:UI.realRole==='gm',shared:S.sharedVision!==false});
+}
+
 function setRole(r){
   if(UI.realRole!=='gm')r='player';
   UI.role=r;finishChain();UI.act=null;closePops();
@@ -654,10 +661,11 @@ function setRole(r){
   if(r!=='gm'&&['lights','library','scene'].includes(UI.tab))selectTab('tokens');
   Net.roleChanged();
   frame={};refreshAll();requestRender();
+  view25();
 }
 $('#roleGm').onclick=()=>setRole('gm');
 $('#rolePlayer').onclick=()=>setRole('player');
-$('#viewAs').onchange=e=>{UI.viewAs=e.target.value==='party'?'party':+e.target.value;requestRender()};
+$('#viewAs').onchange=e=>{UI.viewAs=e.target.value==='party'?'party':+e.target.value;requestRender();view25()};
 $('#previewBtn').onclick=()=>{UI.preview=!UI.preview;$('#previewBtn').classList.toggle('on',UI.preview);requestRender()};
 $('#undoBtn').onclick=undo;$('#redoBtn').onclick=redo;
 /* Panel lateral: en pantallas anchas se pliega la columna (y se recuerda); en estrechas se abre como capa */

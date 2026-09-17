@@ -227,6 +227,33 @@ try {
   step('2.5D: el director crea una ficha tocando una casilla', true);
   await gm.click('#rail [data-tool="select"]');
 
+  // el tablero nuevo nace con visión compartida; la desactivamos para probar el caso ciego
+  await gm.evaluate(() => { $('#sharedVision').checked = false; $('#sharedVision').dispatchEvent(new Event('change')); Net.tick(); });
+  await pl.waitForFunction(() => S.sharedVision === false, null, { timeout: 10000 });
+
+  // el jugador no controla ninguna ficha: ve el aviso de ciego y nada del mapa
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === true, null, { timeout: 15000 });
+  const blindShown = await pl.evaluate(() => getComputedStyle(document.getElementById('blindNote')).display !== 'none');
+  step('2.5D: el jugador sin fichas ve el aviso de ciego', blindShown);
+  await shot(pl, '13-ciego-25d');
+
+  // el director le asigna la ficha: deja de estar ciego y ve con ella
+  const plId = await gm.evaluate(() => Net.members.find((m) => m.role === 'player').id);
+  await gm.evaluate((uid) => { S.tokens[0].owner = uid; changed(); Net.tick(); }, plId);
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === false, null, { timeout: 15000 });
+  const dbg = await pl.evaluate(() => window.D3.debug());
+  step('2.5D: con una ficha propia el jugador ve con ella', dbg.view === 'party' && dbg.viewers.length >= 1, JSON.stringify(dbg));
+  await shot(pl, '14-vista-jugador-25d');
+
+  // el director alterna Director / Vista de jugador
+  const gmView0 = await gm.evaluate(() => window.D3.debug().view);
+  await gm.click('#rolePlayer');
+  await gm.waitForFunction(() => window.D3.debug().view !== 'gm', null, { timeout: 10000 });
+  await shot(gm, '15-director-vista-jugador-25d');
+  await gm.click('#roleGm');
+  await gm.waitForFunction(() => window.D3.debug().view === 'gm', null, { timeout: 10000 });
+  step('2.5D: el director alterna entre su vista y la del grupo', gmView0 === 'gm');
+
   await pl.evaluate(() => Net.terrain({ type: 'cells', cells: [{ i: 1, h: 9 }] }));
   await pl.waitForTimeout(1000);
   const plVersion = await pl.evaluate(() => window.D3.version());
