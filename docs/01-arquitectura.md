@@ -97,8 +97,26 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
   `loop` sólo hace `Net.tick()`, los handlers de puntero/teclado de `editor.js` devuelven pronto y el
   rail muestra sólo Seleccionar/Desplazar. `#stage canvas{pointer-events:none}` ⇒ el motor escucha en
   `#stage`. El entorno y la luz ambiental de la escena llegan al motor por `D3.setEnv` (local y remoto).
-- Pendiente (fases B–E): terreno persistente (`terrain`), ops `terrain`, fichas/luces/niebla, panel,
-  arte propio, agua/explosiones. Planes en `superpowers/plans/`.
+- **Terreno persistente (fase B).** Tabla `terrain` (migración 005): una fila por escena 2.5D con
+  `n`, `h`/`m`/`chan` (un byte por celda: altura 0..9, material 0..6, cauce), `extras` jsonb
+  (objetos por celda con `kind/rot/locked/open`, piezas de pared `'wall:dir'`, manantiales, desagües,
+  agua inicial `pools`, ajustes, `scene` y `off` del borde) y `version`. `server/terrain.js` es un
+  **módulo puro** (sin three, sin red) con el formato, los límites, los catálogos de juego (`MATS`,
+  `OBJ_KINDS`), la generación de las escenas de muestra (`valle`, `cripta`, `blank`), `cleanTerrainOp`
+  y `applyTerrainOp`; `public/js/d3/catalog.js` repite los catálogos y un test impide que diverjan
+  (también con las banderas de `art.js`). El agua (`W`) no se guarda ni viaja: cada cliente la simula
+  desde las fuentes.
+- **Protocolo `terrain`.** El estado (`t:'state'`) incluye `terrain` (base64). Mensaje
+  `{t:'terrain', scene, op:{type, …, version}}` con `type` ∈ cells · grow · obj · door · mount · water ·
+  settings. El servidor: `cleanTerrainOp` → `terrainOpAllowed` (director todo; jugador sólo `door` con
+  `playersDoors` y puerta sin `locked`) → si `op.version ≠ version` responde `full` sin aplicar →
+  `applyTerrainOp` → `terrainDirty` (lo vuelca `flush()` con `upsertTerrain`) → `ack` al emisor y
+  `{op, version}` al resto de la escena. Op inválida o sin permiso → `{fix:true, full}`. `want:'full'`
+  devuelve el blob. El cliente aplica en local con `version+1` antes de enviar (`input.sendOp`); un
+  conflicto se resuelve recargando el `full`. `grow` se aplica con el mismo borde y los mismos árboles
+  aleatorios en servidor y cliente (misma semilla `rng(off*131+n)`).
+- Pendiente (fases C–E): fichas/luces/niebla por jugador, panel completo y arte propio,
+  agua/explosiones sincronizadas. Planes en `superpowers/plans/`.
 
 ## Decisiones y trampas
 

@@ -17,7 +17,7 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
 | Cómo se trabajó (briefs, informes, revisiones) | `.superpowers/sdd/2026-09-16-modo-25d-fase-a/` — gitignorado; el resumen útil está en §3 |
 
-## 2. Estado exacto (rama `modo-25d-fase-a`, fase A cerrada, 70 tests, `test:ui` 19/19)
+## 2. Estado exacto (rama `modo-25d-fase-a`, fases A y B cerradas, 101 tests, `test:ui` 23/23)
 
 | Commit | Qué |
 |---|---|
@@ -34,13 +34,15 @@ Verificado en Edge headless (swiftshader): el valle renderiza dentro del shell; 
 **Limitaciones de la fase A (por diseño):** sin fichas, luces, edición ni niebla por jugador; vista
 = director para todos; terreno = escena de muestra «Valle del arroyo» del diorama (no persiste).
 
-### Fase A cerrada — qué sigue
+### Fases A y B cerradas — qué sigue (2026-09-17)
 
-1. Expandir el plan B (`superpowers/plans/2026-09-16-modo-25d-fase-b.md`) al detalle del plan A leyendo el
-   código ya troceado (con Claude Code: «expande el plan B»).
-2. Ejecutar B tarea a tarea con el mismo flujo: OpenCode (Kimi) implementa sin commitear; Claude Code
-   revisa con captura + comparación píxel a píxel y commitea. Kimi siguió bien las instrucciones en 6–10;
-   GPT no sirvió para el troceo (reescribió con pérdidas): usar Kimi.
+Fase B en la rama: commits `b6a0590` (B1) … `558aebe` (B5b) + docs. Lo que hay ahora está en `01`
+(«Terreno persistente», «Protocolo terrain») y `02` («El director edita»).
+
+Siguiente: **fase C** (`superpowers/plans/2026-09-16-modo-25d-fase-c.md`): fichas y luces de JA-VTT
+como sprites, movimiento por `ops`, «ver como», niebla por celda persistente. El plan está a nivel
+de tarea: antes de cada tarea, Claude Code escribe la guía exacta (ficheros, interfaces, código,
+tests) como hizo en B, y la ejecuta OpenCode (Kimi) sin commitear, o la hace Claude Code directamente.
 
 ## 3. Decisiones tomadas en marcha (rulings) — revisar si algo chirría
 

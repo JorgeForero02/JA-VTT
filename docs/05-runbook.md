@@ -16,7 +16,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 | Qué | Comando |
 |---|---|
 | Lint | `npm run lint` |
-| Tests (70) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
+| Tests (101) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
 | Lint + tests | `npm run check` |
 | Pila local | `docker compose up -d --build` · `docker compose logs -f app` · `docker compose down` |
 | E2E contra la pila | `npm run test:e2e` (`BASE_URL` para otra URL; `E2E_RESTART=no` si no puede reiniciar el contenedor) |
@@ -29,7 +29,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 ```bash
 docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
-npm run test:ui          # 19 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D, recuperación; capturas en test/e2e/capturas
+npm run test:ui          # 23 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director vista por el jugador), recuperación; capturas en test/e2e/capturas
 # Edge headless con GPU por software (--use-angle=swiftshader …) para que el WebGL del 2.5D renderice (~6 fps); el paso 2.5D va ANTES de la recuperación porque ésta cierra las sesiones del director
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 ```
@@ -37,6 +37,8 @@ npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.
 
 ## Añadir una migración
+
+Migraciones aplicadas: 001 inicial · 002 chat/recuperación · 003 sin muestras · 004 niebla limpia · 005 terreno 2.5D.
 
 1. Crear `server/migrations/002-<nombre>.sql` (tres dígitos, orden alfabético).
 2. Arrancar la app (o `npm test`): se aplica y se anota en `schema_migrations`.

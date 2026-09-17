@@ -47,7 +47,18 @@ intenta algo que no puede.
 - Abrir un tablero 2.5D monta el motor en el escenario: pedestal con el «Valle del arroyo» de muestra
   (aún sin persistir), cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
   desplazan, F centra), entorno y luz ambiental de la pestaña Escena aplicados al 3D (también los
-  cambios remotos del director). Sin fichas, edición ni niebla por jugador todavía.
+  cambios remotos del director).
+- **El terreno se guarda** (fase B): cada escena 2.5D tiene su relieve, materiales, objetos, piezas de
+  pared y fuentes de agua en la base; la primera escena de un tablero 2.5D nace con el «Valle del
+  arroyo», las siguientes vacías (22×22 a ras) y las duplicadas copian el terreno.
+- **El director edita** con el rail: **Subir (2)**, **Bajar (3)**, **Pintar (4)** con material en la
+  subbarra, **Objeto (5)** (poner/quitar en casilla; en la cara de un muro cuelga estandartes, fuentes,
+  grietas, limo) y **Agua (6)** (verter y secar son locales; manantial y desagüe se guardan). El
+  tablero crece 8 casillas por lado al editar cerca del borde (hasta 118). Todo llega al instante a los
+  demás; un jugador no puede editar (recibe corrección). Las **puertas** las abre y cierra cualquiera
+  con Seleccionar si el director lo permite (`playersDoors`) y no están cerradas con llave.
+- Sin fichas, luces ni niebla por jugador todavía (fase C): con «Interior» el mapa se ve oscuro,
+  como manda el entorno; usar «Exterior de día» mientras tanto.
 - Fases siguientes y estado: [08](08-traspaso-opencode.md).
 
 ## Arte del modo 2.5D
@@ -67,6 +78,6 @@ Los packs de arte del modo 2.5D (atlas y mapa de piezas) son CC0: Kenney Tiny Du
 | `POST /api/boards/:id/invite` | gm | nuevo código |
 | `GET /api/boards/:id/scenes/:sid/portals` | miembro | portales de una escena |
 | `GET/POST /api/boards/:id/images` · `GET/PATCH/DELETE /api/images/:id[/thumb]` | miembro / gm | imágenes |
-| `GET /ws?board=<id>` | miembro | tiempo real: `ops`, `scene`, `travel`, `fog`, `cursor`, `rename`, `chat`, `roll`, `initiative` |
+| `GET /ws?board=<id>` | miembro | tiempo real: `ops`, `scene`, `travel`, `fog`, `cursor`, `rename`, `chat`, `roll`, `initiative`, `terrain` (2.5D) |
 
 Errores siempre como `{ "error": "texto en castellano" }` con el código HTTP que toca.

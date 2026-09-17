@@ -2,6 +2,21 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-17 — Modo 2.5D, fase B cerrada: terreno persistente y editable
+
+**Qué** — Migración 005 (`terrain`), módulo puro `server/terrain.js`, catálogo compartido
+`public/js/d3/catalog.js`, permisos `rules.terrainOpAllowed`, mensaje WS `terrain` (validación,
+control de `version`, reenvío, volcado con `flush`), cliente que construye el mapa desde el blob y
+aplica ops remotas, `grow` con paridad servidor/cliente, y herramientas del director en el rail
+(Subir, Bajar, Pintar, Objeto, Agua) con subbarra. Tareas B1–B5b con OpenCode (kimi-k3) y revisión
+aquí; una corrección (Regla/Plano visibles en 2.5D). Aclarado que «Interior» oscuro sin luces es
+correcto (la demo de la fase A tenía 7 antorchas).
+**Por qué** — fase B de la spec del modo 2.5D.
+**Evidencia** — `npm run check` 101/101 · `npm run test:ui` 23/23 (dos navegadores: la edición del
+director llega al jugador con `version` 1 y 2; el jugador no puede editar).
+**Revertir** — `git revert` de `b6a0590..558aebe`; la migración 005 es aditiva (`DROP TABLE terrain`
+si se quiere limpiar).
+
 ## 2026-09-16 — Modo 2.5D, fase A cerrada (tareas 6–12): test:ui, motor en 12 módulos
 
 **Qué** — `test:ui` con GPU por software y paso «tablero 2.5D» (19/19). Refactor sin cambio de

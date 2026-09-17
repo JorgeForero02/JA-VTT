@@ -16,17 +16,17 @@ Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) 
 Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (12 módulos ES, ~2500 líneas)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
-Estado de calidad verificado el 2026-09-16: `npm run lint` limpio · `npm test` →
-**70 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
-· `npm run test:ui` (Playwright + Edge, GPU por software) → **19/19** con capturas.
+Estado de calidad verificado el 2026-09-17 (rama `modo-25d-fase-a`): `npm run lint` limpio · `npm test` →
+**101 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge, GPU por software) → **23/23** con capturas.
 
 Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
 portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
-Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`, **fase A terminada** el 2026-09-16 (12/12 tareas);
-sigue la fase B (terreno persistente). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
+Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`; **fases A y B cerradas** (2026-09-17: el
+terreno se guarda y el director lo edita). Sigue la fase C (fichas, luces, niebla). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
 Resto: [06-pendientes.md](06-pendientes.md).
 
 ## Mapa de la documentación
