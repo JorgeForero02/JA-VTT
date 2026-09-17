@@ -35,6 +35,10 @@ function cleanLight(L) {
 }
 const noLight = () => ({ preset: 'none', on: false, bright: 0, dim: 0, color: '#FFFFFF', intensity: 1, anim: 'none', angle: 360, rot: 0 });
 
+/* Luz «colgada» de una celda del terreno 2.5D: pared o poste. `dir` 0..3 = cara N/E/S/O. */
+const cleanMount = (m) => (m && typeof m === 'object' && Number.isInteger(m.cell) && m.cell >= 0 && m.cell <= 1e6
+  ? { cell: m.cell, dir: [0, 1, 2, 3].includes(m.dir) ? m.dir : 0 } : null);
+
 function sanitize(o) {
   if (!o || typeof o !== 'object' || !TYPES.includes(o.type) || !fin(o.id) || !Number.isInteger(o.id)) return null;
   const c = { id: o.id, type: o.type };
@@ -64,6 +68,8 @@ function sanitize(o) {
   c.x = p.x; c.y = p.y;
   if (o.type === 'light') {
     Object.assign(c, cleanLight(o), { name: str(o.name, 40), darkness: !!o.darkness });
+    const m = cleanMount(o.mount);
+    if (m) c.mount = m;
     return c;
   }
   if (o.type === 'zone') {
@@ -87,12 +93,15 @@ function sanitize(o) {
     return c;
   }
   if (o.type === 'token') {
-    return Object.assign(c, {
+    Object.assign(c, {
       kind: o.kind === 'enemy' ? 'enemy' : 'player', name: str(o.name, 40), size: [1, 2, 3, 4].includes(o.size) ? o.size : 1,
       color: col(o.color, '#7FB2E5'), hidden: !!o.hidden, vision: o.vision !== false,
       sight: fin(o.sight) ? clamp(o.sight, 0, 5000) : 0, darkvision: fin(o.darkvision) ? clamp(o.darkvision, 0, 300) : 0,
       light: cleanLight(o.light) || noLight(), img: imgId(o.img), owner: Number.isInteger(o.owner) ? o.owner : null,
     });
+    const art = str(o.art, 40);   // clave de CHAR_INFO (fase C2) o id de images
+    if (art) c.art = art;
+    return c;
   }
   return null;
 }

@@ -304,3 +304,69 @@ test('la escena nueva de un tablero 2.5D nace con terreno vacío', async () => {
   assert.equal(Buffer.from(state.terrain.h, 'base64').every((v) => v === 1), true);
   await gm.close();
 });
+
+const bytes25 = (n) => { const b = Buffer.alloc(n * n); b[0] = 255; b[1] = 128; return b; };
+const settle = async (c) => { c.send({ t: 'ping', at: 1 }); await c.next((m) => m.t === 'pong'); };
+
+test('2.5D: el jugador guarda niebla binaria por celda y la recupera al reconectar', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Niebla', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const player = connect(base, board25, playerCookie);
+  await player.opened;
+  const state = await player.next(isState);
+  assert.deepEqual(state.fog, []);
+  const data = bytes25(22);
+  player.send({ t: 'fog', scene: state.scene.id, cx: 0, cy: 0, data: 'base64:' + data.toString('base64') });
+  await settle(player);
+  await player.close();
+  const again = connect(base, board25, playerCookie);
+  await again.opened;
+  const back = await again.next(isState);
+  assert.equal(back.fog.length, 1);
+  assert.ok(back.fog[0].data.startsWith('base64:'));
+  assert.deepEqual(Buffer.from(back.fog[0].data.slice('base64:'.length), 'base64'), data);
+  await again.close();
+});
+
+test('2.5D: se rechaza la niebla en PNG y la de una celda distinta de 0,0', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'NieblaMala', mode: '2.5d' });
+  const board25 = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board25}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const player = connect(base, board25, playerCookie);
+  await player.opened;
+  const state = await player.next(isState);
+  const b64 = bytes25(22).toString('base64');
+  player.send({ t: 'fog', scene: state.scene.id, cx: 0, cy: 0, data: 'data:image/png;base64,' + b64 });
+  player.send({ t: 'fog', scene: state.scene.id, cx: 1, cy: 0, data: 'base64:' + b64 });
+  await settle(player);
+  await player.close();
+  const again = connect(base, board25, playerCookie);
+  await again.opened;
+  assert.deepEqual((await again.next(isState)).fog, []);
+  await again.close();
+});
+
+test('2D: la niebla sigue siendo PNG y se rechaza el formato crudo', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Niebla2D' });
+  const board2d = created.board.id;
+  const detail = await json(gmCookie, 'GET', `/api/boards/${board2d}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail.board.invite_code });
+  const player = connect(base, board2d, playerCookie);
+  await player.opened;
+  const state = await player.next(isState);
+  const b64 = bytes25(4).toString('base64');
+  player.send({ t: 'fog', scene: state.scene.id, cx: 0, cy: 0, data: 'base64:' + b64 });
+  await settle(player);
+  player.send({ t: 'fog', scene: state.scene.id, cx: 0, cy: 0, data: 'data:image/png;base64,' + b64 });
+  await settle(player);
+  await player.close();
+  const again = connect(base, board2d, playerCookie);
+  await again.opened;
+  const back = await again.next(isState);
+  assert.equal(back.fog.length, 1);
+  assert.ok(back.fog[0].data.startsWith('data:image/png;base64,'));
+  await again.close();
+});

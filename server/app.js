@@ -28,6 +28,8 @@ const SESSION_COOKIE = 'jav_session';
 const SESSION_MAX_AGE = 31536000;
 const IMAGE_CATEGORIES = ['board', 'prop', 'pc', 'npc'];
 const CHAT_HISTORY = 100;
+const FOG_PNG = 'data:image/png;base64,';
+const FOG_RAW = 'base64:';   // 2.5D: bytes crudos por celda, no imagen
 const CHAT_KEEP = 200;
 const CHAT_MAX_TEXT = 500;
 
@@ -218,7 +220,8 @@ function terrainFor(sc) {
 async function stateFor(b, c) {
   const sc = b.scenes.get(c.sceneId);
   const member = { role: c.role, user_id: c.user.id };
-  const fog = c.role === 'gm' ? [] : (await q.fogFor(sc.id, c.user.id)).map((r) => ({ cx: r.cx, cy: r.cy, data: 'data:image/png;base64,' + r.data.toString('base64') }));
+  const pre = b.settings.mode === '2.5d' ? FOG_RAW : FOG_PNG;
+  const fog = c.role === 'gm' ? [] : (await q.fogFor(sc.id, c.user.id)).map((r) => ({ cx: r.cx, cy: r.cy, data: pre + r.data.toString('base64') }));
   return {
     t: 'state',
     me: publicUser(c.user), role: c.role,
@@ -571,10 +574,12 @@ async function handleTravel(b, c, d) {
 async function handleFog(b, c, d) {
   if (c.role === 'gm' || d.scene !== c.sceneId) return;
   if (!Number.isInteger(d.cx) || !Number.isInteger(d.cy) || Math.abs(d.cx) > 1e6 || Math.abs(d.cy) > 1e6) return;
-  const m = /^data:image\/png;base64,/.exec(d.data || '');
-  if (!m) return;
-  const buf = Buffer.from(d.data.slice(m[0].length), 'base64');
-  if (buf.length > 400 * 1024) return;
+  const raw = b.settings.mode === '2.5d';
+  if (raw && (d.cx !== 0 || d.cy !== 0)) return;   // en 2.5D hay una sola fila por escena y usuario
+  const pre = raw ? FOG_RAW : FOG_PNG;
+  if (typeof d.data !== 'string' || !d.data.startsWith(pre)) return;
+  const buf = Buffer.from(d.data.slice(pre.length), 'base64');
+  if (!buf.length || buf.length > 400 * 1024) return;
   await q.upsertFog(c.sceneId, c.user.id, d.cx, d.cy, buf);
 }
 

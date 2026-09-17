@@ -65,3 +65,20 @@ test('terrainOpAllowed: el director puede todo; el jugador solo puertas no bloqu
 test('cleanTerrainOp se reexporta desde terrain.js', () => {
   assert.equal(R.cleanTerrainOp, T.cleanTerrainOp);
 });
+
+test('sanitize: token.art se guarda recortado a 40 y no aparece si viene vacío', () => {
+  const base = { id: 1, type: 'token', x: 0, y: 0 };
+  assert.equal(R.sanitize(Object.assign({}, base, { art: 'knight_f' })).art, 'knight_f');
+  assert.equal(R.sanitize(Object.assign({}, base, { art: 'x'.repeat(41) })).art.length, 40);
+  assert.equal(R.sanitize(base).art, undefined);
+  assert.equal(R.sanitize(Object.assign({}, base, { art: 7 })).art, undefined);
+});
+
+test('sanitize: light.mount cuelga la luz de una celda; celda inválida = sin mount', () => {
+  const base = { id: 2, type: 'light', x: 0, y: 0 };
+  assert.deepEqual(R.sanitize(Object.assign({}, base, { mount: { cell: 5, dir: 2 } })).mount, { cell: 5, dir: 2 });
+  assert.deepEqual(R.sanitize(Object.assign({}, base, { mount: { cell: 5 } })).mount, { cell: 5, dir: 0 });
+  assert.deepEqual(R.sanitize(Object.assign({}, base, { mount: { cell: 5, dir: 9 } })).mount, { cell: 5, dir: 0 });
+  assert.equal(R.sanitize(Object.assign({}, base, { mount: { cell: -1 } })).mount, undefined);
+  assert.equal(R.sanitize(base).mount, undefined);
+});
