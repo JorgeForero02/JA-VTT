@@ -409,6 +409,7 @@ function cleanTerrainOp(op) {
       out.i = op.i;
       out.kind = kind;
       out.rot = typeof op.rot === 'number' ? op.rot : null;
+      if ('locked' in op && typeof op.locked === 'boolean') out.locked = op.locked;
       return out;
     }
     case 'door': {
@@ -555,7 +556,9 @@ function applyTerrainOp(t, op) {
       if (op.kind === null) {
         delete t.extras.objs[op.i];
       } else {
-        t.extras.objs[op.i] = { kind: op.kind, rot: op.rot };
+        const o = { kind: op.kind, rot: op.rot };
+        if ('locked' in op) o.locked = op.locked;
+        t.extras.objs[op.i] = o;
       }
       break;
     }

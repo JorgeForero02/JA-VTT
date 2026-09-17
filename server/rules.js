@@ -199,4 +199,16 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, boardSettingsPatch, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };
+const T = require('./terrain');
+
+/* Quién puede enviar cada op de terreno: el director todo; un jugador sólo abrir/cerrar una puerta
+   no bloqueada, y sólo si el tablero lo permite (playersDoors). */
+function terrainOpAllowed(member, op, boardSettings, terrain) {
+  if (member.role === 'gm') return true;
+  if (op.type !== 'door') return false;
+  if (boardSettings && boardSettings.playersDoors === false) return false;
+  const o = terrain && terrain.extras && terrain.extras.objs ? terrain.extras.objs[op.i] : null;
+  return !!(o && T.OBJ_KINDS[o.kind] && T.OBJ_KINDS[o.kind].door && !o.locked);
+}
+
+module.exports = { sanitize, cleanSettings, splitSettings, boardSettingsPatch, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor, terrainOpAllowed, cleanTerrainOp: T.cleanTerrainOp };

@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const R = require('../server/rules');
+const T = require('../server/terrain');
 
 test('sameObject ignora el orden de las claves, también anidadas', () => {
   assert.equal(R.sameObject({ a: 1, b: { x: 1, y: 2 } }, { b: { y: 2, x: 1 }, a: 1 }), true);
@@ -43,4 +44,24 @@ test('boardSettingsPatch: descarta mode (inmutable) pero conserva el resto de aj
   assert.equal(board.mode, undefined);
   assert.equal(board.sharedVision, false);
   assert.equal(scene.env, 'night');
+});
+
+test('terrainOpAllowed: el director puede todo; el jugador solo puertas no bloqueadas si el tablero lo permite', () => {
+  const gm = { role: 'gm' };
+  const player = { role: 'player' };
+  const terrain = T.generate('cripta');
+  const doorCell = Number(Object.keys(terrain.extras.objs).find((i) => terrain.extras.objs[i].kind === 'puerta'));
+  assert.equal(R.terrainOpAllowed(gm, { type: 'cells', cells: [{ i: 0, h: 5 }] }, {}, terrain), true);
+  assert.equal(R.terrainOpAllowed(player, { type: 'cells', cells: [{ i: 0, h: 5 }] }, {}, terrain), false);
+  assert.equal(R.terrainOpAllowed(player, { type: 'door', i: doorCell, open: true }, {}, terrain), true);
+  assert.equal(R.terrainOpAllowed(player, { type: 'door', i: doorCell, open: true }, { playersDoors: false }, terrain), false);
+  terrain.extras.objs[doorCell].locked = true;
+  assert.equal(R.terrainOpAllowed(player, { type: 'door', i: doorCell, open: true }, {}, terrain), false);
+  assert.equal(R.terrainOpAllowed(player, { type: 'door', i: 12345, open: true }, {}, terrain), false);
+  const barrelCell = Number(Object.keys(terrain.extras.objs).find((i) => terrain.extras.objs[i].kind === 'barril'));
+  assert.equal(R.terrainOpAllowed(player, { type: 'door', i: barrelCell, open: true }, {}, terrain), false);
+});
+
+test('cleanTerrainOp se reexporta desde terrain.js', () => {
+  assert.equal(R.cleanTerrainOp, T.cleanTerrainOp);
 });

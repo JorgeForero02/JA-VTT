@@ -4,6 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const read = (p) => fs.readFileSync(path.join(__dirname, '..', 'public', p), 'utf8');
 
@@ -295,4 +296,32 @@ test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara 
   const world = read('js/d3/world.js');
   assert.match(world, /import \{ G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb \} from '\.\/ctx\.js'/);
   for (const f of ['art', 'water', 'fx', 'vision', 'chars', 'camera', 'input', 'terrain', 'world', 'index']) assert.doesNotMatch(read('js/d3/' + f + '.js'), /^\s*let N=|^\s*let H,M,W|^\s*const S=\{env:/m, f);
+});
+
+test('catálogo 2.5D: catalog.js y server/terrain.js no divergen; art.js mantiene las mismas banderas', async () => {
+  const T = require('../server/terrain');
+  const cat = await import(pathToFileURL(path.join(__dirname, '..', 'public', 'js', 'd3', 'catalog.js')).href);
+  assert.deepEqual(cat.MATS, T.MATS);
+  assert.deepEqual(cat.OBJ_KINDS, T.OBJ_KINDS);
+
+  const art = read('js/d3/art.js');
+  const extract = (start, end) => {
+    const i = art.indexOf(start);
+    if (i < 0) throw new Error('No se encontró ' + start);
+    const j = art.indexOf(end, i + start.length);
+    if (j < 0) throw new Error('No se encontró el cierre de ' + start);
+    return art.slice(i + start.length, j + 1);
+  };
+  const artMats = new Function('TL', 'return ' + extract('const MATS=', '];'))(new Proxy({}, { get: () => 0 }));
+  assert.deepEqual(artMats.map((m) => ({ name: m.name })), T.MATS.map((m) => ({ name: m.name })));
+
+  const artKinds = new Function('return ' + extract('const OBJ_KINDS=', '};'))();
+  const flags = ['move', 'sight', 'door', 'fixed', 'mount', 'mountOnly', 'explosive', 'flat'];
+  for (const k of Object.keys(T.OBJ_KINDS)) {
+    assert.ok(artKinds[k], 'falta ' + k + ' en art.js');
+    for (const f of flags) {
+      assert.equal(artKinds[k][f] || 0, T.OBJ_KINDS[k][f] || 0, `diferencia en ${k}.${f}`);
+    }
+  }
+  assert.equal(Object.keys(artKinds).length, Object.keys(T.OBJ_KINDS).length);
 });

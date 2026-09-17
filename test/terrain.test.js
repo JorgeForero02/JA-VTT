@@ -105,6 +105,19 @@ test('applyTerrainOp(door) abre una puerta existente', () => {
   assert.equal(t.extras.objs[doorCell].open, true);
 });
 
+test('cleanTerrainOp(obj) conserva locked sólo si es booleano', () => {
+  let op = cleanTerrainOp({ type: 'obj', i: 3, kind: 'puerta', rot: null, locked: true });
+  assert.equal(op.locked, true);
+  op = cleanTerrainOp({ type: 'obj', i: 3, kind: 'puerta', rot: null, locked: 'si' });
+  assert.equal('locked' in op, false);
+});
+
+test('applyTerrainOp(obj) guarda locked cuando viene', () => {
+  const t = blankTerrain(22);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 3, kind: 'puerta', rot: null, locked: true }));
+  assert.equal(t.extras.objs[3].locked, true);
+});
+
 test('encode/decode es ida y vuelta idéntica', () => {
   const t = generate('valle');
   const row = encode(t);
