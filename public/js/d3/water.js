@@ -1,7 +1,7 @@
 /* Agua 2.5D: shader, malla, partículas y simulación de tuberías virtuales. */
 import * as THREE from '../vendor/three.module.min.js';
 import { G, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
-import { patchMat, fxOk } from './engine.js';
+import { patchMat, fxOk } from './vision.js';
 const T3 = THREE;
 
 export const WU = { uTime: { value: 0 }, uPix: { value: 16 } };

@@ -42,7 +42,7 @@ test('todos los scripts del cliente compilan', () => {
 test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   const eng = read('js/d3/engine.js');
   assert.match(eng, /^import \* as THREE from '\.\.\/vendor\/three\.module\.min\.js';$/m);
-  assert.match(eng, /import \{ mkCanvas, rng, pick, AC, PROP_KINDS, CHAR_INFO, OBJ_KINDS, MATS, slotOf, loadPacks, loadStyle, toTex, disposeTex, ART \} from '\.\/art\.js'/);
+  assert.match(eng, /import \{ mkCanvas, rng, pick, AC, PROP_KINDS, OBJ_KINDS, MATS, slotOf, loadPacks, toTex, disposeTex, ART \} from '\.\/art\.js'/);
   assert.match(eng, /export function createEngine\(stage,opts\)/);
   for (const bad of ['WebGLMultisampleRenderTarget', "getElementById('view')", "getElementById('hint')", 'localStorage', 'PACK_SRC', 'renderPanel(', 'window.innerWidth']) assert.ok(!eng.includes(bad), 'no debe quedar: ' + bad);
   assert.match(eng, /samples:4/);
@@ -50,9 +50,10 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.match(eng, /ColorManagement\.enabled=false/);
   assert.match(eng, /sun\.intensity=envCur\.si\*Math\.PI/);
   // sombras suaves: onBeforeCompile recibe la plantilla sin expandir, así que se parchea el chunk
-  assert.match(eng, /ShaderChunk\.lights_fragment_begin/);
+  const vis = read('js/d3/vision.js');
+  assert.match(vis, /ShaderChunk\.lights_fragment_begin/);
   const shadowRe = /getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/;
-  assert.match(eng, /lights_fragment_begin\.replace\(\/getShadow\\\( directionalShadowMap/);
+  assert.match(vis, /lights_fragment_begin\.replace\(\/getShadow\\\( directionalShadowMap/);
   const three = read('js/vendor/three.module.min.js');
   const chunk = JSON.parse('"' + three.match(/lights_fragment_begin:"((?:[^"\\]|\\.)*)"/)[1] + '"');
   assert.match(chunk, shadowRe, 'el regex de sombras debe casar con el chunk real de r170');
@@ -65,6 +66,9 @@ test('motor 2.5D: módulos ES sobre three r170, sin DOM del diorama', () => {
   assert.doesNotMatch(eng, /function pixelAtlas\(|function drawnAtlas\(/);
   assert.match(read('js/d3/water.js'), /^export function simWater\(\)/m);
   assert.match(read('js/d3/fx.js'), /^export function explode\(cell,levelKey,chained\)/m);
+  assert.match(read('js/d3/vision.js'), /^export function computeVision\(\)/m);
+  assert.match(read('js/d3/chars.js'), /^export function addChar\(s\)/m);
+  assert.match(eng, /scene\.add\(decor\);scene\.add\(charsGroup\);scene\.add\(propGroup\)/, 'los grupos de sprites de chars.js deben añadirse a la escena (se perdió en la tarea 10)');
   const idx = read('js/d3/index.js');
   assert.match(idx, /window\.D3=\{mount,unmount,resize,rotate,setEnv,isMounted\}/);
   const dice = read('js/dice3d.js');
