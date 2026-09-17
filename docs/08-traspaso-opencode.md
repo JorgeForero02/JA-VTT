@@ -11,7 +11,7 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | Diseño aprobado (autoridad) | [`superpowers/specs/2026-09-16-modo-25d-design.md`](superpowers/specs/2026-09-16-modo-25d-design.md) |
 | Plan fase A (tareas 1–12; **1–10 hechas**) | [`superpowers/plans/2026-09-16-modo-25d-fase-a.md`](superpowers/plans/2026-09-16-modo-25d-fase-a.md) |
 | Planes fases B, C, D, E (**a nivel de tarea, sin líneas ni regexes: expandir cada uno al detalle del plan A leyendo el código real antes de empezar esa fase**) | [`…-fase-b.md`](superpowers/plans/2026-09-16-modo-25d-fase-b.md) · [`…-fase-c.md`](superpowers/plans/2026-09-16-modo-25d-fase-c.md) · [`…-fase-d.md`](superpowers/plans/2026-09-16-modo-25d-fase-d.md) · [`…-fase-e.md`](superpowers/plans/2026-09-16-modo-25d-fase-e.md) |
-| Rama de trabajo | `modo-25d-fase-a` (desde `main` en `e0d0ffa`). **No está en `origin`.** |
+| Rama de trabajo | `modo-25d-fase-a` (desde `main` en `e0d0ffa`). **No está en `origin` ni desplegada**: decisión del usuario (2026-09-16) — se sigue en la rama y se despliega cuando el terreno persista (fase B). |
 | Prototipo fuente (sólo lectura, gitignorado) | `diorama-jav/` — `index.html` de 2935 líneas es el original r128 del que se porta todo |
 | Motor | `public/js/d3/` — 12 módulos ES (ver tabla en `01`); `index.js` crea el motor y expone `window.D3` |
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
