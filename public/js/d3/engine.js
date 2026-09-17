@@ -4,8 +4,86 @@ import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
 const T3 = THREE;
 import { mkCanvas, rng, pick, AC, PROP_KINDS, CHAR_INFO, OBJ_KINDS, MATS, slotOf, loadPacks, loadStyle, toTex, disposeTex, ART } from './art.js';
+import { WU, waterMat, waterMesh, curtMat, initWater, resetWater, simWater, buildWater, updateParts, clearParts, resizeWater, TICK, WET, pours } from './water.js';
+import { initFx, updateMist, updateFireflies, explode, updateBooms, flashLight, shakeOff, hooks, boomQueue, undoStack } from './fx.js';
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
 THREE.ColorManagement.enabled=false;
+export function fxOk(i){return S.view==='gm'||G.cVis[i]>.5;}
+const MIST_NOISE=`
+float mh(vec2 p){p=fract(p*vec2(233.34,851.73));p+=dot(p,p+23.45);return fract(p.x*p.y);}
+float mvn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(mh(i),mh(i+vec2(1.0,0.0)),f.x),mix(mh(i+vec2(0.0,1.0)),mh(i+vec2(1.0,1.0)),f.x),f.y);}
+`;
+const FOG_FRAG=`
+{
+  vec2 fuv=(vFogXZ+vec2(uHalf))/(2.0*uHalf);
+  vec4 Lt=texture2D(uLight,fuv);
+  #ifdef FOG_ORIGIN
+  vec3 lit=Lt.rgb*1.7*uGain;
+  #else
+  vec3 lit=Lt.rgb*2.4*uGain;
+  #endif
+  lit=lit/(1.0+lit*0.3);
+  gl_FragColor.rgb+=diffuseColor.rgb*(lit+vec3(uFloor));
+  gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*0.32+vec3(0.045,0.02,0.08),Lt.a*0.8);
+  #ifdef FOG_GRID
+  if(uGrid>0.5&&vUp>0.5){
+    vec2 gd=abs(fract(vFogXZ+0.5)-0.5);
+    float gline=1.0-smoothstep(0.012,0.035,min(gd.x,gd.y));
+    gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*0.5,gline*0.85);
+  }
+  #endif
+  float hidden=0.0;
+  if(uFogOn>0.5){
+    vec4 V=texture2D(uVis,fuv);
+    float lum=dot(diffuseColor.rgb,vec3(0.299,0.587,0.114));
+    vec3 dvc=vec3(lum)*vec3(0.58,0.63,0.7);
+    vec3 nowc=mix(gl_FragColor.rgb,max(gl_FragColor.rgb*0.35,dvc),V.b);
+    vec3 fcol=mix(vec3(lum),diffuseColor.rgb,0.45)*uAmbFlat;
+    vec3 tint=mix(fcol,fcol*vec3(0.78,0.86,1.0),0.6);
+    vec3 mem=mix(tint,uDark,uFogAlpha*0.5);
+    vec3 hid=mix(tint,uDark,uFogAlpha);
+    gl_FragColor.rgb=mix(mix(hid,mem,V.g),nowc,V.r);
+    hidden=(1.0-V.r)*(1.0-0.5*V.g);
+  }
+  if(uMist>0.001){
+    vec2 mp=vFogXZ*0.55+vec2(uMistT*0.05,uMistT*0.03);
+    float nz=mvn(mp)*0.6+mvn(mp*2.3+vec2(uMistT*-0.04,5.1))*0.4;
+    float hgt=1.0-smoothstep(uMistBase,uMistBase+uMistTop*(0.7+nz*0.6),vFogY);
+    float m=clamp(hgt*uMist*(0.45+0.75*nz),0.0,0.82);
+    vec3 mc=uMistCol+Lt.rgb*uGain*0.45;
+    mc*=1.0-hidden*uFogAlpha*0.75;
+    gl_FragColor.rgb=mix(gl_FragColor.rgb,mc,m);
+  }
+}
+`;
+export function patchMat(mat,opt){
+  mat.defines=Object.assign({},mat.defines||{});
+  if(opt.origin)mat.defines.FOG_ORIGIN='';
+  if(opt.grid)mat.defines.FOG_GRID='';
+  mat.onBeforeCompile=function(sh){
+    Object.assign(sh.uniforms,U);
+    sh.vertexShader='varying vec2 vFogXZ;\nvarying float vUp;\nvarying float vFogY;\n'+sh.vertexShader.replace('#include <project_vertex>',
+`#include <project_vertex>
+  vec4 fwp=vec4(transformed,1.0);
+  #ifdef USE_INSTANCING
+    fwp=instanceMatrix*fwp;
+  #endif
+  fwp=modelMatrix*fwp;
+  vFogY=fwp.y;
+#ifdef FOG_ORIGIN
+  vFogXZ=(modelMatrix*vec4(0.0,0.0,0.0,1.0)).xz;vUp=0.0;
+#else
+  vFogXZ=fwp.xz+objectNormal.xz*0.45;vUp=objectNormal.y;
+#endif`);
+    let fs=sh.fragmentShader;
+    const lfb=T3.ShaderChunk.lights_fragment_begin.replace(/getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/,m=>'mix(1.0,'+m.slice(0,-7)+',uShadow) : 1.0;');
+    fs=fs.replace('#include <lights_fragment_begin>',lfb);
+    sh.fragmentShader='varying vec2 vFogXZ;\nvarying float vUp;\nvarying float vFogY;\nuniform sampler2D uVis;\nuniform sampler2D uLight;\nuniform float uHalf;\nuniform float uGain;\nuniform float uFloor;\nuniform float uFogOn;\nuniform float uGrid;\nuniform float uFogAlpha;\nuniform vec3 uDark;\nuniform float uShadow;\nuniform float uAmbFlat;\nuniform float uMist;\nuniform vec3 uMistCol;\nuniform float uMistBase;\nuniform float uMistTop;\nuniform float uMistT;\n'
+      +MIST_NOISE+fs.replace('#include <fog_fragment>',FOG_FRAG+'\n#include <fog_fragment>');
+  };
+  return mat;
+}
 export function createEngine(stage,opts) {
   R.toast = opts && opts.toast ? opts.toast : () => {};
   R.stage = stage;
@@ -43,88 +121,7 @@ function dataTex(d){const t=new T3.DataTexture(d,G.N,G.N,T3.RGBAFormat);t.magFil
 G.visData=new Uint8Array(G.CELLS*4);G.lightData=new Uint8Array(G.CELLS*4);
 G.visTex=dataTex(G.visData);G.lightTex=dataTex(G.lightData);
 U.uVis.value=G.visTex;U.uLight.value=G.lightTex;U.uDark.value=new T3.Color('#0E1316');U.uMistCol.value=new T3.Color('#dfe8ee');
-const MIST_NOISE=`
-float mh(vec2 p){p=fract(p*vec2(233.34,851.73));p+=dot(p,p+23.45);return fract(p.x*p.y);}
-float mvn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-  return mix(mix(mh(i),mh(i+vec2(1.0,0.0)),f.x),mix(mh(i+vec2(0.0,1.0)),mh(i+vec2(1.0,1.0)),f.x),f.y);}
-`;
-const FOG_FRAG=`
-{
-  vec2 fuv=(vFogXZ+vec2(uHalf))/(2.0*uHalf);
-  vec4 Lt=texture2D(uLight,fuv);
-  // luz de antorchas: suave, sin quemar el color
-  #ifdef FOG_ORIGIN
-  vec3 lit=Lt.rgb*1.7*uGain;
-  #else
-  vec3 lit=Lt.rgb*2.4*uGain;
-  #endif
-  lit=lit/(1.0+lit*0.3);
-  gl_FragColor.rgb+=diffuseColor.rgb*(lit+vec3(uFloor));
-  // oscuridad mágica: velo oscuro translúcido, deja intuir el fondo
-  gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*0.32+vec3(0.045,0.02,0.08),Lt.a*0.8);
-  #ifdef FOG_GRID
-  if(uGrid>0.5&&vUp>0.5){
-    vec2 gd=abs(fract(vFogXZ+0.5)-0.5);
-    float gline=1.0-smoothstep(0.012,0.035,min(gd.x,gd.y));
-    gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*0.5,gline*0.85);
-  }
-  #endif
-  float hidden=0.0;
-  if(uFogOn>0.5){
-    vec4 V=texture2D(uVis,fuv);
-    float lum=dot(diffuseColor.rgb,vec3(0.299,0.587,0.114));
-    vec3 dvc=vec3(lum)*vec3(0.58,0.63,0.7);
-    vec3 nowc=mix(gl_FragColor.rgb,max(gl_FragColor.rgb*0.35,dvc),V.b);
-    // lo que no se ve: color plano (sin sombras ni luces), frío y apagado, para no confundirlo con una sombra
-    vec3 fcol=mix(vec3(lum),diffuseColor.rgb,0.45)*uAmbFlat;
-    vec3 tint=mix(fcol,fcol*vec3(0.78,0.86,1.0),0.6);
-    vec3 mem=mix(tint,uDark,uFogAlpha*0.5);
-    vec3 hid=mix(tint,uDark,uFogAlpha);
-    gl_FragColor.rgb=mix(mix(hid,mem,V.g),nowc,V.r);
-    hidden=(1.0-V.r)*(1.0-0.5*V.g);
-  }
-  // niebla ambiental: se pega al suelo, se mueve despacio y recoge la luz de las antorchas
-  if(uMist>0.001){
-    vec2 mp=vFogXZ*0.55+vec2(uMistT*0.05,uMistT*0.03);
-    float nz=mvn(mp)*0.6+mvn(mp*2.3+vec2(uMistT*-0.04,5.1))*0.4;
-    float hgt=1.0-smoothstep(uMistBase,uMistBase+uMistTop*(0.7+nz*0.6),vFogY);
-    float m=clamp(hgt*uMist*(0.45+0.75*nz),0.0,0.82);
-    vec3 mc=uMistCol+Lt.rgb*uGain*0.45;
-    mc*=1.0-hidden*uFogAlpha*0.75;
-    gl_FragColor.rgb=mix(gl_FragColor.rgb,mc,m);
-  }
-}
-`;
-function patchMat(mat,opt){
-  mat.defines=Object.assign({},mat.defines||{});
-  if(opt.origin)mat.defines.FOG_ORIGIN='';
-  if(opt.grid)mat.defines.FOG_GRID='';
-  mat.onBeforeCompile=function(sh){
-    Object.assign(sh.uniforms,U);
-    sh.vertexShader='varying vec2 vFogXZ;\nvarying float vUp;\nvarying float vFogY;\n'+sh.vertexShader.replace('#include <project_vertex>',
-`#include <project_vertex>
-  vec4 fwp=vec4(transformed,1.0);
-  #ifdef USE_INSTANCING
-    fwp=instanceMatrix*fwp;
-  #endif
-  fwp=modelMatrix*fwp;
-  vFogY=fwp.y;
-#ifdef FOG_ORIGIN
-  vFogXZ=(modelMatrix*vec4(0.0,0.0,0.0,1.0)).xz;vUp=0.0;
-#else
-  vFogXZ=fwp.xz+objectNormal.xz*0.45;vUp=objectNormal.y;
-#endif`);
-    let fs=sh.fragmentShader;
-    // sombras del sol más suaves. onBeforeCompile recibe la plantilla sin expandir (sólo #include), así que
-    // se parchea el chunk lights_fragment_begin (donde r170 sombrea por luz) y se inserta ya expandido.
-    const lfb=T3.ShaderChunk.lights_fragment_begin.replace(/getShadow\( directionalShadowMap\[ i \][^;]*\) : 1\.0;/,m=>'mix(1.0,'+m.slice(0,-7)+',uShadow) : 1.0;');
-    fs=fs.replace('#include <lights_fragment_begin>',lfb);
-    sh.fragmentShader='varying vec2 vFogXZ;\nvarying float vUp;\nvarying float vFogY;\nuniform sampler2D uVis;\nuniform sampler2D uLight;\nuniform float uHalf;\nuniform float uGain;\nuniform float uFloor;\nuniform float uFogOn;\nuniform float uGrid;\nuniform float uFogAlpha;\nuniform vec3 uDark;\nuniform float uShadow;\nuniform float uAmbFlat;\nuniform float uMist;\nuniform vec3 uMistCol;\nuniform float uMistBase;\nuniform float uMistTop;\nuniform float uMistT;\n'
-      +MIST_NOISE+fs.replace('#include <fog_fragment>',FOG_FRAG+'\n#include <fog_fragment>');
-  };
-  return mat;
-}
-
+// patchMat se ha movido al nivel superior (lo usan terrain.js, sprites y water.js).
 
 /* ---------- pedestal ---------- */
 function woodCanvas(){
@@ -179,126 +176,7 @@ const fillMeshes={};
 MATS.forEach((m,mi)=>{const fl=slotOf(mi,'fill');fillMeshes[mi]=instanced(atlasBox([fl,fl,fl,fl,fl,fl]),terrainMat,1024);});
 let terrainMeshes=topMeshes.concat(Object.values(fillMeshes));
 
-/* =====================================================================
-   AGUA: tuberías virtuales (con inercia) + superficie continua + cascadas
-   ===================================================================== */
-const WU={uTime:{value:0},uPix:{value:16}};
-const WATER_NOISE=`
-float wh(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
-float wvn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-  return mix(mix(wh(i),wh(i+vec2(1.0,0.0)),f.x),mix(wh(i+vec2(0.0,1.0)),wh(i+vec2(1.0,1.0)),f.x),f.y);}
-float wfbm(vec2 p){return wvn(p)*0.55+wvn(p*2.03+7.1)*0.3+wvn(p*4.1+13.7)*0.15;}
-`;
-const WATER_COLOR=`
-vec3 wcol;float walpha;float wn;
-vec2 wp=vWPos.xz;
-if(uPix>0.5)wp=(floor(wp*uPix)+0.5)/uPix;
-if(vInfo.z<0.5){
-  // superficie: dos capas de ruido que avanzan con la corriente y se relevan
-  float ph=fract(uTime*0.35);
-  vec2 fl=clamp(vFlow,-2.0,2.0);
-  float n1=wfbm(wp*2.2-fl*ph*1.6+uTime*0.03);
-  float n2=wfbm(wp*2.2-fl*fract(ph+0.5)*1.6+vec2(3.7,1.3)-uTime*0.03);
-  wn=mix(n1,n2,abs(ph*2.0-1.0));
-  float dep=clamp(vInfo.x/1.4,0.0,1.0);
-  wcol=mix(vec3(0.44,0.80,0.88),vec3(0.08,0.29,0.50),dep);
-  wcol+=(wn-0.5)*0.16;
-  wcol+=smoothstep(0.64,0.8,wn)*0.16;
-  float fo=clamp(vInfo.y,0.0,1.0);
-  float fm=smoothstep(0.74-fo*0.3,0.78-fo*0.3,wn)*smoothstep(0.03,0.3,fo);
-  wcol=mix(wcol,vec3(0.94,0.98,1.0),fm);
-  walpha=max(mix(0.58,0.9,dep),fm*0.95);
-}else{
-  // cortina de cascada: vetas que caen, espuma arriba y abajo
-  vec2 q=vec2(vWUv.x*6.0,vWPos.y*1.2+uTime*3.4);
-  if(uPix>0.5){vec2 qs=vec2(2.67,6.0)*uPix/16.0;q=floor(q*qs)/qs;}
-  wn=wvn(vec2(q.x,q.y*0.45))*0.6+wvn(q*vec2(1.0,1.7)+5.0)*0.4;
-  wcol=mix(vec3(0.46,0.76,0.9),vec3(0.96,0.99,1.0),smoothstep(0.42,0.78,wn));
-  float lip=smoothstep(0.14,0.0,vWUv.y)*0.6+smoothstep(0.72,1.0,vWUv.y);
-  wcol=mix(wcol,vec3(0.97,0.99,1.0),clamp(lip,0.0,1.0)*0.85);
-  walpha=(0.42+0.5*smoothstep(0.3,0.75,wn)+lip*0.3)*clamp(vInfo.x,0.0,1.0);
-}
-vec4 diffuseColor=vec4(wcol,walpha*opacity);
-`;
-const WATER_NORMAL=`
-if(vInfo.z<0.5){
-  vec2 gp=vWPos.xz*3.0+uTime*vec2(0.21,0.17)-vFlow*uTime*0.4;
-  float e=0.09,a0=wvn(gp),ax=wvn(gp+vec2(e,0.0)),az=wvn(gp+vec2(0.0,e));
-  normal=normalize(normal+vec3(a0-ax,0.0,a0-az)/e*0.1);
-}
-`;
-function waterPatch(mat){
-  patchMat(mat,{});
-  const base=mat.onBeforeCompile;
-  mat.onBeforeCompile=function(sh){
-    base(sh);
-    sh.uniforms.uTime=WU.uTime;sh.uniforms.uPix=WU.uPix;
-    sh.vertexShader='attribute vec2 aFlow;\nattribute vec3 aInfo;\nattribute vec2 aUv;\nvarying vec2 vFlow;\nvarying vec3 vInfo;\nvarying vec2 vWUv;\nvarying vec3 vWPos;\nuniform float uTime;\n'
-      +sh.vertexShader.replace('#include <begin_vertex>',
-        '#include <begin_vertex>\n  transformed.y+=(sin(transformed.x*3.1+uTime*1.7)+sin(transformed.z*2.7-uTime*1.3))*0.012*(1.0-aInfo.z);\n  vFlow=aFlow;vInfo=aInfo;vWUv=aUv;vWPos=transformed;');
-    sh.fragmentShader='varying vec2 vFlow;\nvarying vec3 vInfo;\nvarying vec2 vWUv;\nvarying vec3 vWPos;\nuniform float uTime;\nuniform float uPix;\n'+WATER_NOISE
-      +sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );',WATER_COLOR)
-        .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n'+WATER_NORMAL);
-  };
-  return mat;
-}
-let SURF_Q=G.CELLS;const CURT_Q=2400;
-function waterGeo(q){
-  const g=new T3.BufferGeometry(),v=q*6;
-  const at=(n,s)=>{const a=new T3.BufferAttribute(new Float32Array(v*s),s);a.setUsage(T3.DynamicDrawUsage);g.setAttribute(n,a);};
-  at('position',3);at('normal',3);at('aFlow',2);at('aInfo',3);at('aUv',2);
-  g.setDrawRange(0,0);g.boundingSphere=new T3.Sphere(new T3.Vector3(0,2,0),40);
-  return g;
-}
-let surfGeo=waterGeo(SURF_Q);const curtGeo=waterGeo(CURT_Q);
-const waterMat=waterPatch(new T3.MeshPhongMaterial({color:0xffffff,transparent:true,shininess:110,specular:0xcfeeff,emissive:0x3a6f86,emissiveIntensity:.3}));
-const curtMat=waterPatch(new T3.MeshPhongMaterial({color:0xffffff,transparent:true,shininess:50,specular:0xcfeeff,side:T3.DoubleSide,depthWrite:false,emissive:0x9cc9dd,emissiveIntensity:.3}));
-const waterMesh=new T3.Mesh(surfGeo,waterMat);
-waterMesh.frustumCulled=false;waterMesh.receiveShadow=true;waterMesh.renderOrder=1;waterMesh.userData.quadCell=new Int32Array(SURF_Q);
-const curtMesh=new T3.Mesh(curtGeo,curtMat);
-curtMesh.frustumCulled=false;curtMesh.renderOrder=2;
-scene.add(waterMesh);scene.add(curtMesh);
-
-/* ---------- partículas ---------- */
-const PMAX=600,pPos=new Float32Array(PMAX*3),parts=[];
-const pGeo=new T3.BufferGeometry();pGeo.setAttribute('position',new T3.BufferAttribute(pPos,3));pGeo.setDrawRange(0,0);
-const pts=new T3.Points(pGeo,new T3.PointsMaterial({color:0xeaf7ff,size:.09,transparent:true,opacity:.9,depthWrite:false}));
-pts.frustumCulled=false;scene.add(pts);
-const FF=26,ffPos=new Float32Array(FF*3),ffSeed=[];
-const ffGeo=new T3.BufferGeometry();ffGeo.setAttribute('position',new T3.BufferAttribute(ffPos,3));
-const ffMat=new T3.PointsMaterial({color:0xfff09a,size:.16,transparent:true,opacity:0,depthWrite:false,blending:T3.AdditiveBlending});
-const ff=new T3.Points(ffGeo,ffMat);ff.frustumCulled=false;scene.add(ff);
-{const r=rng(5);for(let k=0;k<FF;k++)ffSeed.push({x:wx(9+r()*11),z:wz(8+r()*12),y:2.4+r()*1.6,p:r()*6.28,s:.5+r()});}
-
-/* ---------- bancos de niebla que flotan ---------- */
-function mistCanvas(){
-  const c=mkCanvas(128,128),x=c.getContext('2d'),r=rng(9);
-  for(let k=0;k<30;k++){const px=22+r()*84,py=40+r()*48,rad=14+r()*30;
-    const g=x.createRadialGradient(px,py,0,px,py,rad);g.addColorStop(0,'rgba(255,255,255,.2)');g.addColorStop(1,'rgba(255,255,255,0)');
-    x.fillStyle=g;x.fillRect(0,0,128,128);}
-  return c;
-}
-const mistTex=new T3.CanvasTexture(mistCanvas());
-const mistGroup=new T3.Group();scene.add(mistGroup);
-{
-  const r=rng(31),n=isMobile?7:12;
-  for(let k=0;k<n;k++){
-    const sp=new T3.Sprite(new T3.SpriteMaterial({map:mistTex,transparent:true,depthWrite:false,opacity:0}));
-    const w=6+r()*5;sp.scale.set(w,w*.36,1);
-    sp.userData={x:(r()-.5)*G.N,z:(r()-.5)*G.N,v:.25+r()*.35,ph:r()*6};
-    mistGroup.add(sp);
-  }
-}
-function updateMist(dt,t){
-  U.uMist.value+=(S.mist-U.uMist.value)*Math.min(1,dt*3);U.uMistT.value=t;
-  const op=U.uMist.value*(S.view==='gm'?.5:.3);
-  mistGroup.visible=op>.01;
-  mistGroup.children.forEach(m=>{
-    const d=m.userData;d.x+=d.v*dt;if(d.x>G.N/2+4)d.x=-G.N/2-4;
-    m.position.set(d.x,U.uMistBase.value+.35+Math.sin(t*.4+d.ph)*.15,d.z);
-    m.material.opacity=op*(.7+.3*Math.sin(t*.3+d.ph));m.material.color.copy(U.uMistCol.value);
-  });
-}
+initWater(scene);initFx(scene);
 
 /* ---------- cursor y selección ---------- */
 function frameCanvas(){
@@ -421,15 +299,10 @@ function allocWorld(n){
   const ov=G.visTex,ol=G.lightTex;
   G.visTex=dataTex(G.visData);G.lightTex=dataTex(G.lightData);ov.dispose();ol.dispose();
   U.uVis.value=G.visTex;U.uLight.value=G.lightTex;U.uHalf.value=G.N/2;
-  G.FLX=new Float32Array(G.CELLS*4);G.Wprev=new Float32Array(G.CELLS);G.Wr=new Float32Array(G.CELLS);
-  G.VX=new Float32Array(G.CELLS);G.VZ=new Float32Array(G.CELLS);G.FOAM=new Float32Array(G.CELLS);G.foamT=new Float32Array(G.CELLS);
+  resizeWater(G.CELLS);
   G.illum=new Float32Array(G.CELLS);G.darkMask=new Uint8Array(G.CELLS);G.lightAcc=new Float32Array(G.CELLS*3);
   G.tVis=new Float32Array(G.CELLS);G.tMem=new Float32Array(G.CELLS);G.tDv=new Float32Array(G.CELLS);
   G.cVis=new Float32Array(G.CELLS);G.cMem=new Float32Array(G.CELLS);G.cDv=new Float32Array(G.CELLS);G.strongView=new Uint8Array(G.CELLS);
-  SURF_Q=G.CELLS;
-  const og=surfGeo;surfGeo=waterGeo(SURF_Q);waterMesh.geometry=surfGeo;og.dispose();
-  surfGeo.boundingSphere.radius=G.N*1.2;curtGeo.boundingSphere.radius=G.N*1.2;
-  waterMesh.userData.quadCell=new Int32Array(SURF_Q);
   sizePedestal();
 }
 function growWorld(pad,quiet){
@@ -591,7 +464,7 @@ function loadScene(key){
   target.set(0,cfg.target,0);targetT.copy(target);
   clearGroup(decor);clearGroup(charsGroup);clearGroup(propGroup);
   spriteMats.forEach(m=>m.dispose());spriteMats.clear();sharedSpriteMats();
-  objs.clear();mounts.clear();G.tufts.length=0;lights.length=0;chars.length=0;parts.length=0;
+  objs.clear();mounts.clear();G.tufts.length=0;lights.length=0;chars.length=0;clearParts();
   const r=rng(2026);
   cfg.objs.forEach(([k,x,z,q])=>addObj(I(x,z),k,q==null?null:q*Math.PI/2));
   (cfg.mounts||[]).forEach(([k,x,z,d])=>addMount(I(x,z),d,k));
@@ -751,178 +624,6 @@ function buildTerrain(){
 }
 
 /* =====================================================================
-   AGUA DINÁMICA
-   Modelo de "tuberías virtuales": cada casilla guarda cuánto fluye hacia
-   cada vecina y ese caudal tiene inercia, así el agua acelera, hace olas
-   y se asienta sola. Se simula a 80 Hz y se dibuja interpolado.
-   ===================================================================== */
-const GRAV=9.8,DAMP=.993,SUB=4,TICK=.05,DROP=.35,WET=.02;
-const pours=[];
-function resetWater(){G.FLX.fill(0);G.Wprev.set(G.W);G.VX.fill(0);G.VZ.fill(0);G.FOAM.fill(0);pours.length=0;}
-function waterBox(){
-  let x0=G.N,z0=G.N,x1=-1,z1=-1;
-  for(let i=0;i<G.CELLS;i++){if(G.W[i]>0||G.FLX[i*4]>0){const x=i%G.N,z=(i/G.N)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(z<z0)z0=z;if(z>z1)z1=z;}}
-  for(const sp of springs){const x=cxOf(sp.cell),z=czOf(sp.cell);x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);}
-  for(const pr of pours){const x=cxOf(pr.cell),z=czOf(pr.cell);x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);}
-  G.WB=x1<0?[0,-1,0,-1]:[Math.max(0,x0-2),Math.min(G.N-1,x1+2),Math.max(0,z0-2),Math.min(G.N-1,z1+2)];
-}
-function simWater(){
-  G.Wprev.set(G.W);
-  waterBox();
-  // agua vertida: cae durante un momento y se reparte un poco alrededor
-  for(let k=pours.length-1;k>=0;k--){
-    const pr=pours[k],a=Math.min(pr.left,.16),x=cxOf(pr.cell),z=czOf(pr.cell);
-    G.W[pr.cell]+=a*.52;
-    for(const [dx,dz] of DIRS){const nx=x+dx,nz=z+dz;G.W[inb(nx,nz)?I(nx,nz):pr.cell]+=a*.12;}
-    pr.left-=a;if(pr.left<=1e-4)pours.splice(k,1);
-  }
-  const dt=TICK/SUB;
-  for(let st=0;st<SUB;st++){
-    for(const sp of springs)if(!sp.cap||G.W[sp.cell]<sp.cap)G.W[sp.cell]+=sp.rate/SUB;
-    for(let bz=G.WB[2];bz<=G.WB[3];bz++)for(let bx=G.WB[0];bx<=G.WB[1];bx++){
-      const i=bz*G.N+bx,w=G.W[i],o=i*4;
-      if(w<=1e-4){G.FLX[o]=G.FLX[o+1]=G.FLX[o+2]=G.FLX[o+3]=0;continue;}
-      const x=i%G.N,z=(i/G.N)|0,si=G.H[i]+w;let sum=0;
-      for(let d=0;d<4;d++){
-        const nx=x+DIRS[d][0],nz=z+DIRS[d][1];
-        let dh;
-        if(nx<0||nz<0||nx>=G.N||nz>=G.N)dh=G.edgeDrain?w*.9:-1;
-        else{const j=nz*G.N+nx;dh=si-(G.H[j]+G.W[j]);}
-        let f=G.FLX[o+d]*DAMP+dt*GRAV*dh;
-        if(f<0)f=0;
-        G.FLX[o+d]=f;sum+=f;
-      }
-      if(sum>0){const k=w/(sum*dt);if(k<1){G.FLX[o]*=k;G.FLX[o+1]*=k;G.FLX[o+2]*=k;G.FLX[o+3]*=k;}}
-    }
-    for(let bz=G.WB[2];bz<=G.WB[3];bz++)for(let bx=G.WB[0];bx<=G.WB[1];bx++){
-      const i=bz*G.N+bx,x=bx,z=bz,o=i*4;
-      let inn=0;
-      if(x>0)inn+=G.FLX[(i-1)*4];
-      if(x<G.N-1)inn+=G.FLX[(i+1)*4+1];
-      if(z>0)inn+=G.FLX[(i-G.N)*4+2];
-      if(z<G.N-1)inn+=G.FLX[(i+G.N)*4+3];
-      const w=G.W[i]+dt*(inn-(G.FLX[o]+G.FLX[o+1]+G.FLX[o+2]+G.FLX[o+3]));
-      G.W[i]=w>0?w:0;
-    }
-  }
-  // el lago desagua lo que sobra por encima de su nivel: así nunca se desborda
-  for(const sk of sinks){const ex=G.H[sk.cell]+G.W[sk.cell]-sk.level;if(ex>0)G.W[sk.cell]-=Math.min(G.W[sk.cell],ex*.5);}
-  G.foamT.fill(0);
-  for(let bz=G.WB[2];bz<=G.WB[3];bz++)for(let bx=G.WB[0];bx<=G.WB[1];bx++){
-    const i=bz*G.N+bx;let w=G.W[i];
-    if(w>0){w-=G.evap;if(w<WET)w-=.003;G.W[i]=w>0?w:0;}
-    const x=i%G.N,z=(i/G.N)|0,o=i*4,d=Math.max(G.W[i],.08);
-    G.VX[i]=((x>0?G.FLX[(i-1)*4]:0)-G.FLX[o+1]+G.FLX[o]-(x<G.N-1?G.FLX[(i+1)*4+1]:0))*.5/d;
-    G.VZ[i]=((z>0?G.FLX[(i-G.N)*4+2]:0)-G.FLX[o+3]+G.FLX[o+2]-(z<G.N-1?G.FLX[(i+G.N)*4+3]:0))*.5/d;
-    if(G.W[i]<WET)continue;
-    G.foamT[i]+=Math.min(.45,Math.max(0,Math.hypot(G.VX[i],G.VZ[i])-1.2)*.1);
-    const si=G.H[i]+G.W[i];
-    for(let k=0;k<4;k++){
-      const nx=x+DIRS[k][0],nz=z+DIRS[k][1];if(nx<0||nz<0||nx>=G.N||nz>=G.N)continue;
-      const j=nz*G.N+nx,sj=G.H[j]+(G.W[j]>=WET?G.W[j]:0);
-      if(si-sj>DROP&&G.FLX[o+k]>.02)G.foamT[j]+=Math.min(1,G.FLX[o+k]*.9);
-      else if(G.W[j]<WET&&G.H[j]>=si-.05)G.foamT[i]+=.07;
-    }
-  }
-  for(let i=0;i<G.CELLS;i++)G.FOAM[i]+=(Math.min(1,G.foamT[i])-G.FOAM[i])*.3;
-}
-
-/* ---------- geometría del agua (se rehace cada fotograma, interpolada) ---------- */
-function surfAt(i){return G.H[i]+G.Wr[i];}
-function cornerH(cx,cz,si){
-  // media de las superficies mojadas que tocan la esquina y están a nivel parecido
-  let s=0,n=0;
-  for(let dz=-1;dz<=0;dz++)for(let dx=-1;dx<=0;dx++){
-    const x=cx+dx,z=cz+dz;if(x<0||z<0||x>=G.N||z>=G.N)continue;
-    const j=z*G.N+x;if(G.Wr[j]<.004)continue;
-    const sj=surfAt(j);if(Math.abs(sj-si)>.4)continue;
-    s+=sj;n++;
-  }
-  return n?s/n:si;
-}
-function buildWater(alpha,dt,now,withFx){
-  for(let i=0;i<G.CELLS;i++)G.Wr[i]=G.Wprev[i]+(G.W[i]-G.Wprev[i])*alpha;
-  // superficie
-  const P=surfGeo.attributes.position.array,Nn=surfGeo.attributes.normal.array,F=surfGeo.attributes.aFlow.array,
-        In=surfGeo.attributes.aInfo.array,Uv=surfGeo.attributes.aUv.array,qc=waterMesh.userData.quadCell;
-  let v=0,q=0;
-  const put=(x,y,z,fx,fz,dep,fo)=>{P[v*3]=x;P[v*3+1]=y;P[v*3+2]=z;Nn[v*3]=0;Nn[v*3+1]=1;Nn[v*3+2]=0;
-    F[v*2]=fx;F[v*2+1]=fz;In[v*3]=dep;In[v*3+1]=fo;In[v*3+2]=0;Uv[v*2]=0;Uv[v*2+1]=0;v++;};
-  const outF=i=>G.FLX[i*4]+G.FLX[i*4+1]+G.FLX[i*4+2]+G.FLX[i*4+3];
-  const shows=i=>G.Wr[i]>=WET||(G.Wr[i]>=.004&&outF(i)>.004);
-  for(let i=0;i<G.CELLS;i++){
-    if(!shows(i))continue;
-    const x=i%G.N,z=(i/G.N)|0,si=G.H[i]+Math.max(G.Wr[i],.03),x0=x-G.N/2,z0=z-G.N/2,x1=x0+1,z1=z0+1;
-    const h00=cornerH(x,z,si)+.012,h01=cornerH(x,z+1,si)+.012,h10=cornerH(x+1,z,si)+.012,h11=cornerH(x+1,z+1,si)+.012;
-    const fx=G.VX[i],fz=G.VZ[i],dep=G.Wr[i],fo=G.FOAM[i];
-    put(x0,h00,z0,fx,fz,dep,fo);put(x0,h01,z1,fx,fz,dep,fo);put(x1,h10,z0,fx,fz,dep,fo);
-    put(x1,h10,z0,fx,fz,dep,fo);put(x0,h01,z1,fx,fz,dep,fo);put(x1,h11,z1,fx,fz,dep,fo);
-    qc[q++]=i;
-  }
-  surfGeo.setDrawRange(0,v);
-  for(const n of ['position','normal','aFlow','aInfo','aUv'])surfGeo.attributes[n].needsUpdate=true;
-
-  // cascadas: cortinas donde el agua cae a una casilla más baja o por el borde del pedestal
-  const CP=curtGeo.attributes.position.array,CN=curtGeo.attributes.normal.array,CI=curtGeo.attributes.aInfo.array,
-        CU=curtGeo.attributes.aUv.array,CF=curtGeo.attributes.aFlow.array;
-  let c=0;
-  const cput=(x,y,z,nx,nz,str,u,vv)=>{CP[c*3]=x;CP[c*3+1]=y;CP[c*3+2]=z;CN[c*3]=nx;CN[c*3+1]=0;CN[c*3+2]=nz;
-    CI[c*3]=str;CI[c*3+1]=0;CI[c*3+2]=1;CU[c*2]=u;CU[c*2+1]=vv;CF[c*2]=0;CF[c*2+1]=0;c++;};
-  const curtain=(cx,cz,dx,dz,top,bot,str,out0,out1,wd)=>{
-    if(c+6>CURT_Q*6||top-bot<.05)return;
-    const px=-dz,pz=dx;
-    const ax=cx+dx*out0,az=cz+dz*out0,bx=cx+dx*out1,bz=cz+dz*out1;
-    const hw=(wd||1)*.5;
-    const t0x=ax-px*hw,t0z=az-pz*hw,t1x=ax+px*hw,t1z=az+pz*hw,b0x=bx-px*hw,b0z=bz-pz*hw,b1x=bx+px*hw,b1z=bz+pz*hw;
-    cput(t0x,top,t0z,dx,dz,str,0,0);cput(b0x,bot,b0z,dx,dz,str,0,1);cput(t1x,top,t1z,dx,dz,str,1,0);
-    cput(t1x,top,t1z,dx,dz,str,1,0);cput(b0x,bot,b0z,dx,dz,str,0,1);cput(b1x,bot,b1z,dx,dz,str,1,1);
-  };
-  for(let i=0;i<G.CELLS;i++){
-    if(!shows(i))continue;
-    const x=i%G.N,z=(i/G.N)|0,o=i*4,si=G.H[i]+Math.max(G.Wr[i],.03)+.012,cx=wx(x),cz=wz(z);
-    for(let k=0;k<4;k++){
-      const dx=DIRS[k][0],dz=DIRS[k][1],nx=x+dx,nz=z+dz,f=G.FLX[o+k];
-      if(nx<0||nz<0||nx>=G.N||nz>=G.N){
-        if(!G.edgeDrain||f<.01)continue;
-        const str=Math.min(1,.5+f*1.6);
-        curtain(cx,cz,dx,dz,si,.02,str,.5,.56);          // hasta el borde del pedestal
-        curtain(cx,cz,dx,dz,.02,-1.3,str*.8,.9,.98);       // y del pedestal hacia abajo
-        if(withFx&&Math.random()<str*dt*6)spawn(cx+dx*.62+(Math.random()-.5)*.8*dz,.05,cz+dz*.62+(Math.random()-.5)*.8*dx,dx*.6,.4,dz*.6);
-        continue;
-      }
-      const j=nz*G.N+nx,sj=G.H[j]+(G.Wr[j]>=WET?G.Wr[j]+.012:0);
-      if(si-sj<=DROP||f<.008||G.H[j]>=si)continue;
-      const str=Math.min(1,.55+f*1.6),fall=si-sj;
-      curtain(cx,cz,dx,dz,si,sj,str,.5,.5+Math.min(.35,.08+fall*.06));
-      if(withFx&&fxOk(j)&&Math.random()<str*dt*14){
-        const lx=cx+dx*(.62+Math.random()*.2)+(Math.random()-.5)*.8*dz,lz=cz+dz*(.62+Math.random()*.2)+(Math.random()-.5)*.8*dx;
-        spawn(lx,sj,lz,dx*.4,1+fall*.35,dz*.4);
-      }
-    }
-  }
-  // chorro que cae del cielo mientras se vierte
-  for(const pr of pours){
-    const x=wx(cxOf(pr.cell)),z=wz(czOf(pr.cell)),top=G.H[pr.cell]+4.5,bot=surfAt(pr.cell)+.02;
-    curtain(x,z,0,1,top,bot,.95,0,0,.32);curtain(x,z,1,0,top,bot,.95,0,0,.32);
-    if(withFx&&Math.random()<dt*30)spawn(x+(Math.random()-.5)*.5,bot,z+(Math.random()-.5)*.5,0,1.6,0);
-  }
-  curtGeo.setDrawRange(0,c);
-  for(const n of ['position','normal','aFlow','aInfo','aUv'])curtGeo.attributes[n].needsUpdate=true;
-}
-function spawn(x,y,z,vx,vy,vz){
-  if(parts.length>=PMAX)return;
-  parts.push({x,y,z,vx:vx+(Math.random()-.5)*.8,vy:vy*(.5+Math.random()*.7),vz:vz+(Math.random()-.5)*.8,life:.6+Math.random()*.6});
-}
-function updateParts(dt){
-  for(let k=parts.length-1;k>=0;k--){
-    const p=parts[k];p.vy-=7*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.life-=dt;
-    if(p.life<=0||p.y<-4){parts[k]=parts[parts.length-1];parts.pop();}
-  }
-  let n=0;for(const p of parts){pPos[n*3]=p.x;pPos[n*3+1]=p.y;pPos[n*3+2]=p.z;n++;}
-  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;
-}
-
-/* =====================================================================
    LÍNEA DE VISIÓN, LUCES Y VISIÓN POR PERSONAJE
    ===================================================================== */
 function los(a,b,eyeH,mode){
@@ -993,190 +694,6 @@ function composeLightmap(t){
   G.lightTex.needsUpdate=true;
 }
 
-/* =====================================================================
-   EXPLOSIONES
-   Hunden el terreno en forma de cráter, destruyen objetos, piezas de pared
-   y luces, vaporizan el agua (que luego vuelve a entrar), queman el suelo
-   y encadenan barriles explosivos. Se pueden deshacer.
-   ===================================================================== */
-const BOOM_LEVELS={
-  pequena:{name:'Pequeña',ft:5,r:1.25,depth:1,rim:0,light:1.6},
-  media:{name:'Media',ft:10,r:2.25,depth:2,rim:.2,light:2.4},
-  grande:{name:'Grande',ft:20,r:4.2,depth:3,rim:.35,light:3.2},
-  enorme:{name:'Enorme',ft:30,r:6.2,depth:4,rim:.45,light:4},
-};
-const SCORCH=MATS.findIndex(m=>m.scorch);
-const flashes=[],booms=[],boomQueue=[],undoStack=[];
-const shakeOff=new T3.Vector3();
-
-// --- efectos visuales ---
-const fireMat=new T3.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0,blending:T3.AdditiveBlending,depthWrite:false});
-const coreMat=new T3.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0,blending:T3.AdditiveBlending,depthWrite:false});
-const waveMat=new T3.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:0,depthWrite:false,side:T3.DoubleSide});
-const sphereGeo=new T3.SphereGeometry(1,20,14),waveGeo=new T3.RingGeometry(.8,1,40);waveGeo.rotateX(-Math.PI/2);
-const DEB_MAX=400;
-const debMesh=new T3.InstancedMesh(new T3.BoxGeometry(.14,.14,.14),new T3.MeshLambertMaterial({color:0xffffff}),DEB_MAX);
-debMesh.count=0;debMesh.frustumCulled=false;debMesh.castShadow=true;scene.add(debMesh);
-{const c0=new T3.Color(1,1,1);for(let k=0;k<DEB_MAX;k++)debMesh.setColorAt(k,c0);}
-const debris=[],smokes=[];
-const EMB_MAX=300,embPos=new Float32Array(EMB_MAX*3),embers=[];
-const embGeo=new T3.BufferGeometry();embGeo.setAttribute('position',new T3.BufferAttribute(embPos,3));embGeo.setDrawRange(0,0);
-const embPts=new T3.Points(embGeo,new T3.PointsMaterial({color:0xffa24a,size:.11,transparent:true,opacity:.95,depthWrite:false,blending:T3.AdditiveBlending}));
-embPts.frustumCulled=false;scene.add(embPts);
-const dc=new T3.Color();
-
-function spawnDebris(x,y,z,col,n,power){
-  for(let k=0;k<n&&debris.length<DEB_MAX;k++){
-    const a=Math.random()*Math.PI*2,sp=(.8+Math.random()*2.4)*power;
-    debris.push({x:x+(Math.random()-.5)*.6,y:y+.2,z:z+(Math.random()-.5)*.6,vx:Math.cos(a)*sp,vy:2.5+Math.random()*4*power,vz:Math.sin(a)*sp,
-      rx:Math.random()*6,ry:Math.random()*6,life:2+Math.random()*1.5,col:dc.set(col).offsetHSL(0,0,(Math.random()-.5)*.15).getHex(),s:.6+Math.random()*.9});
-  }
-}
-function spawnSmoke(x,y,z,n,size){
-  for(let k=0;k<n;k++){
-    const sp=new T3.Sprite(new T3.SpriteMaterial({map:mistTex,transparent:true,depthWrite:false,opacity:0,color:0x6b6560}));
-    const s=size*(.5+Math.random()*.6);sp.scale.set(s,s,1);
-    sp.position.set(x+(Math.random()-.5)*size*.8,y+.3+Math.random()*.6,z+(Math.random()-.5)*size*.8);
-    sp.userData={t:0,life:2.6+Math.random()*1.8,s,vy:.5+Math.random()*.7,vx:(Math.random()-.5)*.4,vz:(Math.random()-.5)*.4};
-    scene.add(sp);smokes.push(sp);
-  }
-}
-function spawnEmbers(x,y,z,n,r){
-  for(let k=0;k<n&&embers.length<EMB_MAX;k++){
-    const a=Math.random()*Math.PI*2,d=Math.random()*r;
-    embers.push({x:x+Math.cos(a)*d,y:y+.1,z:z+Math.sin(a)*d,vx:(Math.random()-.5)*.6,vy:.6+Math.random()*1.6,vz:(Math.random()-.5)*.6,life:1+Math.random()*2.5});
-  }
-}
-
-// --- explosión ---
-function snapshot(){
-  undoStack.push({N:G.N,H:G.H.slice(),M:G.M.slice(),objs:[],mounts:[],lights:[]});
-  if(undoStack.length>5)undoStack.shift();
-  return undoStack[undoStack.length-1];
-}
-function explode(cell,levelKey,chained){
-  const L=BOOM_LEVELS[levelKey],cx=cxOf(cell),cz=czOf(cell);
-  const snap=chained||snapshot();
-  const R=L.r,rc=Math.ceil(R+1),top=G.H[cell]+.3,wxp=wx(cx),wzp=wz(cz);
-  const affected=[],chain=[];
-  // cráter, suelo quemado y agua evaporada
-  for(let z=cz-rc;z<=cz+rc;z++)for(let x=cx-rc;x<=cx+rc;x++){
-    if(!inb(x,z))continue;
-    const i=I(x,z),d=Math.hypot(x-cx,z-cz);
-    if(d<=R){
-      const k=1-(d/R)*(d/R),drop=Math.max(0,Math.round(L.depth*k+(Math.random()-.5)*.8));
-      const nh=Math.max(1,G.H[i]-drop);
-      if(nh<G.H[i]){
-        const mat=MATS[G.M[i]]&&MATS[G.M[i]].swatch||'#777';
-        spawnDebris(wx(x),G.H[i],wz(z),mat,Math.min(6,2+(G.H[i]-nh)*2),1+L.depth*.25);
-        G.H[i]=nh;
-      }
-      if(SCORCH>=0&&d<=R*.85&&Math.random()<.9)G.M[i]=SCORCH;
-      G.W[i]*=d<R*.7?0:.3;
-    }else if(d<=R+1&&L.rim&&Math.random()<L.rim&&G.H[i]<MAXH&&!objs.has(i)&&!charAt(i,null)){
-      G.H[i]++;
-    }
-  }
-  // objetos: los explosivos se encadenan, el resto se rompe
-  Array.from(objs.entries()).forEach(([i,o])=>{
-    const d=Math.hypot(cxOf(i)-cx,czOf(i)-cz),K=OBJ_KINDS[o.kind];
-    if(K.explosive&&i!==cell&&d<=R*1.35){chain.push([i,K.explosive,d]);return;}
-    if(d>R*.95)return;
-    snap.objs.push({i,kind:o.kind,rot:o.rot,open:o.open});
-    spawnDebris(wx(cxOf(i)),G.H[i]+.4,wz(czOf(i)),K.tree!=null?'#4f8a3c':'#8a5a2e',5,1);
-    removeObj(i);
-  });
-  if(objs.has(cell)&&OBJ_KINDS[objs.get(cell).kind].explosive){
-    const o=objs.get(cell);snap.objs.push({i:cell,kind:o.kind,rot:o.rot,open:o.open});removeObj(cell);
-  }
-  Array.from(mounts.entries()).forEach(([k,o])=>{
-    const f=I(cxOf(o.wall)+DIRS[o.dir][0],czOf(o.wall)+DIRS[o.dir][1]);
-    if(Math.hypot(cxOf(f)-cx,czOf(f)-cz)<=R){snap.mounts.push({wall:o.wall,dir:o.dir,kind:o.kind});removeMount(k);}
-  });
-  lights.slice().forEach(l=>{
-    if(l.carrier)return;
-    if(Math.hypot(cxOf(l.cell)-cx,czOf(l.cell)-cz)<=R*.9){snap.lights.push({preset:l.preset,cell:l.cell,mount:l.mount&&{wall:l.mount.wall,dir:l.mount.dir}});removeLight(l);}
-  });
-  tufts.forEach(m=>{const i=m.userData.cell;if(Math.hypot(cxOf(i)-cx,czOf(i)-cz)<=R)m.userData.burnt=true;});
-  chars.forEach(c=>{
-    const cc=c.seg?c.seg.to:c.cell,d=Math.hypot(cxOf(cc)-cx,czOf(cc)-cz);
-    if(d<=R){affected.push(c.name);c.hit=1;}
-  });
-  // efectos
-  booms.push({x:wxp,y:top,z:wzp,R,t:0,
-    fire:new T3.Mesh(sphereGeo,fireMat.clone()),core:new T3.Mesh(sphereGeo,coreMat.clone()),wave:new T3.Mesh(waveGeo,waveMat.clone())});
-  const b=booms[booms.length-1];[b.fire,b.core,b.wave].forEach(m=>{m.position.set(wxp,top,wzp);scene.add(m);});
-  b.wave.position.y=G.H[cell]+.08;
-  flashes.push({cell,r:R+3.5,i:L.light,t:0});
-  spawnSmoke(wxp,G.H[cell],wzp,6+L.depth*3,1.4+R*.6);
-  spawnEmbers(wxp,G.H[cell],wzp,30+L.depth*25,R);
-  for(let k=0;k<10+L.depth*8;k++)spawn(wxp+(Math.random()-.5)*R,top,wzp+(Math.random()-.5)*R,(Math.random()-.5)*3,2+Math.random()*3,(Math.random()-.5)*3);
-  G.shake=Math.max(G.shake,.15+L.depth*.12);
-  chain.forEach(([i,lv,d])=>boomQueue.push({cell:i,level:lv,t:.18+d*.08,snap}));
-  terrainChanged();refreshTufts();G.visionDirty=true;
-  G.FLX.fill(0);G.Wprev.set(G.W);
-  if(!chained)R.toast('¡Explosión '+L.name.toLowerCase()+' ('+L.ft+' pies)!'+(affected.length?' Afecta a: '+affected.join(', ')+'.':''));
-  return snap;
-}
-
-// --- animación ---
-function flashLight(){
-  // destello: luz cálida sin sombras que se apaga en un segundo
-  for(const f of flashes){
-    const k=Math.max(0,1-f.t/1.1),amp=f.i*k*k,cx=cxOf(f.cell),cz=czOf(f.cell),rc=Math.ceil(f.r);
-    for(let z=cz-rc;z<=cz+rc;z++)for(let x=cx-rc;x<=cx+rc;x++){
-      if(!inb(x,z))continue;const d=Math.hypot(x-cx,z-cz);if(d>f.r)continue;
-      const w=amp*(1-d/f.r),j=I(x,z)*3;G.lightAcc[j]+=w;G.lightAcc[j+1]+=w*.62;G.lightAcc[j+2]+=w*.28;
-    }
-  }
-}
-function updateBooms(dt){
-  for(let k=boomQueue.length-1;k>=0;k--){const q=boomQueue[k];q.t-=dt;if(q.t<=0){boomQueue.splice(k,1);
-    if(objs.has(q.cell)&&OBJ_KINDS[objs.get(q.cell).kind].explosive)explode(q.cell,q.level,q.snap);}}
-  for(let k=flashes.length-1;k>=0;k--){flashes[k].t+=dt;if(flashes[k].t>1.1)flashes.splice(k,1);}
-  if(flashes.length)G.lightTick=0;
-  for(let k=booms.length-1;k>=0;k--){
-    const b=booms[k];b.t+=dt;const t=b.t;
-    const g=Math.min(1,t/.35),e=1-Math.pow(1-g,3);
-    b.fire.scale.setScalar(.2+b.R*1.05*e);b.fire.material.opacity=Math.max(0,.85*(1-t/.75));
-    b.core.scale.setScalar(.15+b.R*.55*e);b.core.material.opacity=Math.max(0,1-t/.4);
-    const wv=Math.min(1,t/.6);b.wave.scale.setScalar(.3+(b.R+1.6)*wv);b.wave.material.opacity=Math.max(0,.7*(1-wv));
-    b.fire.position.y=b.y+t*.8;
-    if(t>1){[b.fire,b.core,b.wave].forEach(m=>{scene.remove(m);m.material.dispose();});booms.splice(k,1);}
-  }
-  // escombros que rebotan en el terreno
-  let n=0;
-  for(let k=debris.length-1;k>=0;k--){
-    const p=debris[k];p.vy-=14*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.rx+=dt*6;p.ry+=dt*5;p.life-=dt;
-    const gx=Math.round(p.x+G.N/2-.5),gz=Math.round(p.z+G.N/2-.5),gh=inb(gx,gz)?G.H[I(gx,gz)]:-1.3;
-    if(p.y<gh+.07&&p.vy<0){p.y=gh+.07;p.vy*=-.3;p.vx*=.55;p.vz*=.55;}
-    if(p.life<=0||p.y<-6){debris.splice(k,1);continue;}
-  }
-  for(const p of debris){
-    dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx,p.ry,0);dummy.scale.setScalar(p.s*Math.min(1,p.life/.5));dummy.updateMatrix();
-    debMesh.setMatrixAt(n,dummy.matrix);debMesh.setColorAt(n,dc.setHex(p.col));n++;
-  }
-  dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);
-  debMesh.count=n;debMesh.instanceMatrix.needsUpdate=true;if(debMesh.instanceColor)debMesh.instanceColor.needsUpdate=true;
-  for(let k=smokes.length-1;k>=0;k--){
-    const sp=smokes[k],u=sp.userData;u.t+=dt;const a=u.t/u.life;
-    sp.position.y+=u.vy*dt;sp.position.x+=u.vx*dt;sp.position.z+=u.vz*dt;
-    const s=u.s*(1+a*1.6);sp.scale.set(s,s,1);
-    sp.material.opacity=Math.min(1,u.t*4)*(1-a)*.75;
-    sp.material.color.setRGB(.42+.1*a,.4+.1*a,.38+.1*a);
-    if(a>=1){scene.remove(sp);sp.material.dispose();smokes.splice(k,1);}
-  }
-  let m=0;
-  for(let k=embers.length-1;k>=0;k--){const p=embers[k];p.vy-=.4*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.life-=dt;if(p.life<=0)embers.splice(k,1);}
-  for(const p of embers){embPos[m*3]=p.x;embPos[m*3+1]=p.y;embPos[m*3+2]=p.z;m++;}
-  embGeo.setDrawRange(0,m);embGeo.attributes.position.needsUpdate=true;
-  // temblor de cámara
-  G.shake=Math.max(0,G.shake-dt*.9);
-  const s2=G.shake*G.shake*2.2;shakeOff.set((Math.random()-.5)*s2,(Math.random()-.5)*s2*.6,(Math.random()-.5)*s2);
-  // fichas alcanzadas: parpadean en rojo
-  chars.forEach(c=>{if(!c.hit)return;c.hit=Math.max(0,c.hit-dt*.8);const f=Math.sin(c.hit*20)>0?c.hit:0;c.mesh.material.color.setRGB(1,1-.6*f,1-.7*f);});
-}
-
 function computeFor(c){
   let v=pcVis.get(c);if(!v){v={mode:new Uint8Array(G.CELLS),strong:new Uint8Array(G.CELLS)};pcVis.set(c,v);}
   let e=explored.get(c);if(!e){e=new Uint8Array(G.CELLS);explored.set(c,e);}
@@ -1223,7 +740,6 @@ function computeVision(){
   });
   G.visionDirty=false;
 }
-function fxOk(i){return S.view==='gm'||G.cVis[i]>.5;}
 function blendVision(dt,snap){
   const k=snap?1:Math.min(1,dt*7);let moving=false;
   for(let j=0;j<G.CELLS;j++){
@@ -1582,12 +1098,7 @@ function frame(now){
   updateBooms(dt);
   placeMarks(s);
   const flyOn=G.sceneKey==='valle'&&S.view==='gm'&&envCur.fly>.02;
-  ff.visible=flyOn;
-  if(flyOn){
-    ffMat.opacity=envCur.fly*(.75+.25*Math.sin(s*3));
-    ffSeed.forEach((f,n)=>{ffPos[n*3]=f.x+Math.sin(s*f.s+f.p)*.8;ffPos[n*3+1]=f.y+Math.sin(s*f.s*1.7+f.p)*.35;ffPos[n*3+2]=f.z+Math.cos(s*f.s*.8+f.p)*.8;});
-    ffGeo.attributes.position.needsUpdate=true;
-  }
+  updateFireflies(dt,s,flyOn?envCur.fly:0);
 
   postMat.uniforms.uFocus.value+=((S.focus?1:0)-postMat.uniforms.uFocus.value)*Math.min(1,dt*6);
   renderer.setRenderTarget(rt);renderer.render(scene,cam);
@@ -1614,5 +1125,6 @@ function setEnv(env,amb){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(false);
 }
+hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
 return { start, stop, resize, rotate, setEnv };
 }
