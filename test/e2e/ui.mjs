@@ -164,7 +164,7 @@ try {
   const v0 = await gm.evaluate(() => window.D3.version());
   step('2.5D: terreno cargado del servidor (version 0)', v0 === 0, String(v0));
   const railTools = await gm.$$eval('#rail .tool', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.dataset.tool));
-  step('rail 2.5D del director: select, pan y herramientas de terreno (regla y planos llegan después)', railTools.join(',') === 'select,pan,up,down,paint,object,water', railTools.join(','));
+  step('rail 2.5D del director: select, pan, fichas y herramientas de terreno (regla y planos llegan después)', railTools.join(',') === 'select,pan,player,enemy,up,down,paint,object,water', railTools.join(','));
 
   // el jugador abre el mismo tablero 2.5D y recibe las ops de terreno del director
   const invite25 = (await gm.textContent('#inviteCode')).trim();
@@ -200,12 +200,32 @@ try {
       color: '#7FB2E5', hidden: false, vision: true, sight: 0, darkvision: 0, size: 1, art: 'guerrera',
       light: { preset: 'torch', on: true, bright: 20, dim: 20, color: '#FFA652', intensity: 1, anim: 'flicker', angle: 360, rot: 0 },
       img: null, owner: null };
-    S.tokens.push(t); Net.tick();
+    S.tokens.push(t); changed(); Net.tick();
   });
   await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 15000 });
   const seen = await pl.evaluate(() => window.D3.debug());
   step('2.5D: la ficha del director aparece como sprite en la pantalla del jugador', seen.chars >= 1 && seen.lights >= 1, JSON.stringify(seen));
   await shot(pl, '11-ficha-25d-jugador');
+
+  // el director mueve la ficha con dos clics y el jugador la ve cambiar de sitio
+  await gm.click('#rail [data-tool="select"]');
+  await gm.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 15000 });
+  const before = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
+  const pos = (await gm.evaluate(() => window.D3.debug().screen))[0];
+  await gm.mouse.click(pos.x, pos.y);
+  await gm.mouse.click(pos.x + 70, pos.y + 40);
+  await pl.waitForFunction((b) => S.tokens[0] && S.tokens[0].x + ',' + S.tokens[0].y !== b, before, { timeout: 20000 });
+  const after = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
+  step('2.5D: el director mueve la ficha y el jugador la ve en la casilla nueva', after !== before, `${before} → ${after}`);
+  await shot(pl, '12-ficha-movida-25d');
+
+  // crear una ficha con la herramienta del rail
+  await gm.click('#rail [data-tool="player"]');
+  const box = await gm.locator('#stage').boundingBox();
+  await gm.mouse.click(box.x + box.width / 2 - 90, box.y + box.height / 2 + 60);
+  await pl.waitForFunction(() => window.D3.debug().chars >= 2, null, { timeout: 15000 });
+  step('2.5D: el director crea una ficha tocando una casilla', true);
+  await gm.click('#rail [data-tool="select"]');
 
   await pl.evaluate(() => Net.terrain({ type: 'cells', cells: [{ i: 1, h: 9 }] }));
   await pl.waitForTimeout(1000);

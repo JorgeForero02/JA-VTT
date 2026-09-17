@@ -25,7 +25,7 @@ export const S={
 };
 export const R={
   renderer:null, scene:null, cam:null, sun:null, hemi:null,
-  canvas:null, stage:null, toast:()=>{}
+  canvas:null, stage:null, toast:()=>{}, canMove:()=>true
 };
 export const U={
   uVis:{value:null}, uLight:{value:null}, uHalf:{value:11},

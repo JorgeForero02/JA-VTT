@@ -160,7 +160,7 @@ export function updateChars(dt, now, theta) {
       c.gy = G.H[a] + dh * t + (c.float ? 0 : Math.sin(Math.PI * t) * (.18 + .25 * Math.abs(dh)));
       const dot = (cxOf(b) - cxOf(a)) * rx + (czOf(b) - czOf(a)) * rz;
       if (Math.abs(dot) > .01) c.dir = dot < 0 ? -1 : 1;
-      if (t >= 1) { c.cell = b; c.seg = null; c.fi = 0; if (c.pc && !c.path.length) hooks.maybeGrow(b); }
+      if (t >= 1) { c.cell = b; c.seg = null; c.fi = 0; if (c.pc && !c.path.length) hooks.maybeGrow(b); if (!c.path.length && c.vid != null) hooks.moved(c); }
     } else {
       x = wx(cxOf(c.cell)); z = wz(czOf(c.cell));
       c.gy += (G.H[c.cell] - c.gy) * Math.min(1, dt * 10);

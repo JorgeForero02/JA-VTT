@@ -71,7 +71,10 @@ export function showCursor(i){
 export function applyTool(p){
   if(!p)return;
   if(p.char){
-    if(G.tool==='mover'){select(p.char);return;}
+    if(G.tool==='mover'){
+      if(p.char.vid!=null&&!R.canMove(p.char.vid)){R.toast('Esa ficha no es tuya.');return;}
+      select(p.char);return;
+    }
     p={cell:p.char.cell};
   }
   if(p.mount){
@@ -79,9 +82,11 @@ export function applyTool(p){
     return;
   }
   const i=p.cell;showCursor(i);
+  if(G.tool==='ficha')return;   // crear fichas lo hace JA-VTT con D3.pickCell (rail Ficha/Enemigo)
   if(G.tool==='mover'){
     if(p.obj&&isDoor(i)){const o=objs.get(i);if(o.locked&&S.view!=='gm'){R.toast('La puerta está cerrada con llave.');return;}sendOp({type:'door',i,open:!o.open});return;}
     if(!G.selected){R.toast('Primero toca una ficha.');return;}
+    if(G.selected.vid!=null&&!R.canMove(G.selected.vid)){R.toast('Esa ficha no es tuya.');return;}
     moveTo(G.selected,i);
   }else if(G.tool==='subir'){
     if(G.H[i]>=MAXH){R.toast('Ese bloque ya está a la altura máxima.');return;}
@@ -160,7 +165,7 @@ function endPointer(e){
   if(!pointers.has(e.pointerId))return;
   const single=pointers.size===1;
   pointers.delete(e.pointerId);
-  if(single&&!dragMoved&&e.type==='pointerup'&&G.tool!=='mover')applyTool(pickAt(e.clientX,e.clientY)); // fase A: sólo 'mover', que aquí no hace nada
+  if(single&&!dragMoved&&e.type==='pointerup')applyTool(pickAt(e.clientX,e.clientY));
   if(pointers.size<2)pinchM=null;
   if(pointers.size===0)R.stage.classList.remove('dragging');
 }

@@ -295,7 +295,7 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
-  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\):not\(\.d3Only\),#app\.d3 #rail \.railsep:not\(\.d3Only\)\{display:none\}/);
+  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\):not\(\[data-tool="player"\]\):not\(\[data-tool="enemy"\]\):not\(\.d3Only\),#app\.d3 #rail \.railsep:not\(\.d3Only\)\{display:none\}/);
 });
 
 test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara N ni H por su cuenta', () => {
@@ -387,4 +387,26 @@ test('fichas y luces 2.5D: sync desde el estado clásico y presets sin duplicar'
   assert.match(net, /D3\.syncObjects\(\)/);
   const ctx = read('js/d3/ctx.js');
   assert.match(ctx, /cellPx:\s*50/);
+});
+
+test('fichas 2.5D: selección, movimiento por ops y creación desde el rail', () => {
+  const input = read('js/d3/input.js');
+  assert.ok(!/G\.tool!=='mover'/.test(input), 'la herramienta mover ya no está desactivada');
+  assert.match(input, /R\.canMove\(p\.char\.vid\)/);
+  assert.match(input, /if\(G\.tool==='ficha'\)return/);
+  const chars = read('js/d3/chars.js');
+  assert.match(chars, /hooks\.moved\(c\)/);
+  assert.match(read('js/d3/fx.js'), /moved:/);
+  assert.match(read('js/d3/ctx.js'), /canMove:/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /hooks\.moved=/);
+  assert.match(idx, /function pickCell\(/);
+  assert.match(idx, /pickCell/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /player:'ficha',enemy:'ficha'/);
+  assert.match(ed, /function canMove25\(/);
+  assert.match(ed, /function onToken25Move\(/);
+  assert.match(ed, /window\.D3\.pickCell\(/);
+  assert.match(read('js/render.js'), /onMove:onToken25Move/);
+  assert.match(read('css/app.css'), /#app\.d3 #rail \.tool[^\n]*data-tool="player"/);
 });

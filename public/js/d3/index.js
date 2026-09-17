@@ -7,16 +7,17 @@ import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as 
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
 import { initVision, refreshLights, composeLightmap, computeVision, blendVision } from './vision.js';
-import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights } from './chars.js';
+import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights, pxOfCell } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
 import { initWorld, loadScene, loadTerrain, applyTerrainOp, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
-import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp } from './input.js';
+import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
 THREE.ColorManagement.enabled=false;
 export function createEngine(stage,opts) {
   R.toast = opts && opts.toast ? opts.toast : () => {};
+  R.canMove = (opts && opts.canMove) || (() => true);
   G.cellPx = (opts && opts.cell) || 50;
   R.stage = stage;
 
@@ -52,7 +53,7 @@ onTerrainOp(op=>opts.onTerrainOp&&opts.onTerrainOp(op));
 
 /* ---------- lo que fx.js, chars.js y vision.js necesitan de otros módulos (sin importes circulares) ---------- */
 hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
-hooks.envEm=()=>envCur.em;hooks.blocksMove=blocksMove;hooks.closedDoor=closedDoor;hooks.blocksSight=blocksSight;hooks.flashLight=flashLight;hooks.relayout=relayout;hooks.maybeGrow=maybeGrow;
+hooks.envEm=()=>envCur.em;hooks.blocksMove=blocksMove;hooks.closedDoor=closedDoor;hooks.blocksSight=blocksSight;hooks.flashLight=flashLight;hooks.relayout=relayout;hooks.maybeGrow=maybeGrow;hooks.moved=c=>{if(!opts.onMove)return;const p=pxOfCell(c.cell);opts.onMove(c.vid,p.x,p.y);};
 
 /* =====================================================================
    BUCLE
@@ -108,7 +109,16 @@ function frame(now){
 
 // El estado del tablero vive en los scripts clásicos (window.S); el motor sólo lo refleja.
 function syncObjects(){const St=window.S;if(!St)return;syncTokens(St.tokens||[]);syncLights(St.lights||[]);}
-function debug(){return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null)};}
+function debug(){
+  const rect=R.stage.getBoundingClientRect();
+  const screen=G.chars.filter(c=>c.vid!=null).map(c=>{
+    const v=c.mesh.position.clone();v.y+=.5;v.project(R.cam);
+    return {vid:c.vid,x:rect.left+(v.x+1)/2*rect.width,y:rect.top+(1-v.y)/2*rect.height};
+  });
+  return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen};
+}
+// Qué casilla del tablero hay bajo un punto de la pantalla, en píxeles de JA-VTT.
+function pickCell(px,py){const p=pickAt(px,py);const i=p?(p.char?p.char.cell:p.cell):null;return i==null?null:pxOfCell(i);}
 
 /* ---------- API interna: lo que expone createEngine ---------- */
 let stopped=false;
@@ -128,7 +138,7 @@ function setEnv(env,amb){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(false);
 }
-return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug };
+return { start, stop, resize, rotate, setEnv, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -157,4 +167,5 @@ export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
 export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly}))};}
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo};
+export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell};

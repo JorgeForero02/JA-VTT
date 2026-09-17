@@ -31,7 +31,8 @@ function loadState(o,images){
   touchWalls();resetExplored();UI.selected=[];hist.undo.length=0;hist.redo.length=0;syncUndo();
 }
 let panelTimer=0;
-function changed(walls){if(walls)touchWalls();requestRender();saveSoon();clearTimeout(panelTimer);panelTimer=setTimeout(refreshPanels,30)}
+// El servidor no hace eco de las ops al emisor: en 2.5D el motor se refresca aquí con cada cambio propio.
+function changed(walls){if(walls)touchWalls();if(is25()&&window.D3&&window.D3.isMounted())window.D3.syncObjects();requestRender();saveSoon();clearTimeout(panelTimer);panelTimer=setTimeout(refreshPanels,30)}
 
 /* ---------- Creación ---------- */
 function newLight(p,presetId){
@@ -172,7 +173,14 @@ function hitHandle(p){
 
 /* ---------- Puntero ---------- */
 function evScreen(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua'};
+const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua',player:'ficha',enemy:'ficha'};
+/* El motor 2.5D pregunta si esta ficha se puede mover y avisa cuando termina su camino. */
+function canMove25(vid){const t=byId(vid);return !!t&&(isGM()||canControl(t));}
+function onToken25Move(vid,x,y){
+  const t=byId(vid);if(!t||!canMove25(vid))return;
+  if(t.x===x&&t.y===y)return;
+  pushUndo();t.x=x;t.y=y;changed();
+}
 function setTool(t){
   if(!isGM()&&!PLAYER_TOOLS.includes(t)){toast('Solo el Director puede editar la escena');return}
   finishChain();UI.curve=null;UI.arc=null;UI.zpoly=null;UI.tool=t;UI.act=null;
@@ -195,7 +203,14 @@ function hitWallVertex(p){
   return best;
 }
 stage.addEventListener('pointerdown',e=>{
-  if(is25())return;
+  if(is25()){
+    if(!isGM()||!['player','enemy'].includes(UI.tool))return;
+    if(e.button!==0)return;
+    const q=window.D3&&window.D3.pickCell(e.clientX,e.clientY);
+    if(!q)return;
+    pushUndo();const t=addObj(newToken(q,UI.tool));UI.selected=[t.id];changed();
+    return;
+  }
   closePops();
   stage.setPointerCapture(e.pointerId);
   UI.pointers.set(e.pointerId,evScreen(e));
@@ -410,7 +425,7 @@ window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
   if(['input','select','textarea'].includes(tag))return;
   if(tag==='button'&&(e.code==='Space'||e.key==='Enter'))return;
-  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(e.key!=='Escape')return}
+  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(isGM()&&!e.repeat&&/^[pe]$/.test(e.key.toLowerCase())){setTool(e.key.toLowerCase()==='p'?'player':'enemy');e.preventDefault();return}if(e.key!=='Escape')return}
   const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
   if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
   if(mod&&k==='y'){e.preventDefault();redo();return}
