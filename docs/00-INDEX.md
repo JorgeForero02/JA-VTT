@@ -11,7 +11,9 @@ guerra, varias escenas por tablero unidas por portales, tiempo real por WebSocke
 desplegable: **Node 22 + PostgreSQL 16 + Docker Compose**, login con contraseña, registro
 abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
-Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
+Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16 —
+**producción sirve `34a7ba4` (2D); `main` ya lleva el modo 2.5D (fases A–D, `2853f49`, mergeado y
+empujado el 2026-09-18) y se despliega al cerrar la fase E.**
 
 Tamaño real (2026-09-17, rama `modo-25d-fase-a`): servidor ~2300 líneas · cliente ~3100 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (14 módulos ES, ~2800 líneas)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
@@ -29,7 +31,7 @@ Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`; **fases A–D cerrad
 persistente y editable; fichas y luces como sprites; mover fichas; ver como; niebla por celda; panel
 «Mapa 2.5D» con 4 estilos; luces colgadas y menú contextual; arte propio desde la Biblioteca; aspecto de
 ficha). Fase D con subagentes Claude (implementador + revisor por tarea + revisión final). Sigue la
-fase E (agua, explosiones, cierre). Sin desplegar todavía. Punto de entrada:
+fase E (agua, explosiones, cierre). Mergeado en `main` y en `origin`; **sin desplegar** (se despliega con E). Punto de entrada:
 [08-traspaso-opencode.md](08-traspaso-opencode.md).
 Resto: [06-pendientes.md](06-pendientes.md).
 

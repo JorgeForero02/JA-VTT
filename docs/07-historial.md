@@ -2,6 +2,17 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Modo 2.5D: merge de `modo-25d-fase-a` en `main` y push (sin desplegar)
+
+**Qué** — `git merge --ff-only` de la rama (47 commits, `e0d0ffa..2853f49`) en `main` y `git push` de
+`main` y de la rama. `origin/main` iba por detrás de `main` local (`34a7ba4`), ambos ancestros de la
+rama: avance rápido sin conflictos. Comprobado que Coolify **no** despliega por push (`instant_deploy:
+false`): los contenedores de producción siguen «Up 2 days» sirviendo `34a7ba4`.
+**Por qué** — decisión del usuario: consolidar A–D en `main`; el despliegue se hace al cerrar la fase E.
+**Evidencia** — `git status -sb` → `## main...origin/main`; `docker ps` en vps1new sin contenedores nuevos.
+**Revertir** — `git revert -m` no aplica (ff): `git reset --hard 34a7ba4` en `main` + `push --force` sólo
+si nadie ha construido encima; mejor `git revert` de los commits concretos.
+
 ## 2026-09-18 — Modo 2.5D, fase D cerrada: panel, luces colgadas, menú contextual, arte propio, aspecto
 
 **Qué** — D1 panel «Mapa 2.5D» (4 estilos de arte, opacidad de niebla, niebla ambiental, muros

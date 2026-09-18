@@ -16,7 +16,9 @@ Estado al 2026-09-16: **en producción en https://tablero.supportive.pro** (Cool
 | Dominio en Coolify | `docker_compose_domains = {"app":{"domain":"https://tablero.supportive.pro"}}` |
 
 Desplegar: push a `main` y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
-UI). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
+UI). **El push solo no despliega** (`instant_deploy: false`, sin webhook): comprobado el 2026-09-18 al
+empujar el modo 2.5D a `main` — los contenedores siguieron «Up 2 days». Producción sirve `34a7ba4`
+hasta que se lance el deploy (previsto al cerrar la fase E; antes, `npm run test:ui` local y `test:e2e`). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
 Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
