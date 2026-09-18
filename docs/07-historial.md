@@ -2,6 +2,16 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-17 — 2.5D: barra de selección al elegir ficha, Supr/Escape, icono de Subir
+
+**Qué** — El motor avisa al shell de la ficha elegida (`hooks.selected` → `opts.onSelect` →
+`UI.selected`), así que en 2.5D aparece la barra Editar/Duplicar/Eliminar y el panel sigue a la
+ficha; `D3.select(null)` desde Escape; borrar quita el anillo. En 2.5D pasan al editor Supr/Retroceso
+y los atajos con Ctrl (flechas y WASD siguen siendo de la cámara). Icono `chevron-up` para Subir
+bloque (antes `move`, flechas en cruz). Detectado por el usuario probando a mano tras el cierre de C.
+**Evidencia** — `check` 115/115 · `test:ui` 31/31 (paso nuevo: la barra aparece con «Prueba»).
+**Revertir** — `git revert 4d9ad0f`.
+
 ## 2026-09-17 — Modo 2.5D, fase C cerrada: fichas, luces, ver como y niebla por celda
 
 **Qué** — C1 servidor: `token.art`, `light.mount` en `sanitize`; niebla 2.5D como bytes crudos

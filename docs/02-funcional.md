@@ -64,7 +64,8 @@ intenta algo que no puede.
   llegan en la fase D). Una luz con `mount` cuelga de la cara de un muro. Los radios, color y parpadeo
   son los del tablero; el tipo sólo cambia el sprite. La linterna sorda alumbra en redondo (sin cono)
   y el tamaño de ficha mayor que 1 no se dibuja distinto, por ahora.
-- **Mover fichas**: un clic sobre una ficha propia la elige (anillo); un clic en una casilla la lleva
+- **Mover fichas**: un clic sobre una ficha propia la elige (anillo, y para el director la barra
+  Editar/Duplicar/Eliminar de siempre; Supr borra, Escape suelta); un clic en una casilla la lleva
   andando por el camino más corto (no sube escalones de más de un bloque, no atraviesa objetos ni
   fichas, no cruza puertas cerradas) y al llegar la posición se guarda para todos. Si no hay camino,
   aviso. El director mueve cualquier ficha; el jugador sólo las suyas. El director crea fichas con

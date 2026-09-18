@@ -17,8 +17,8 @@ Tamaño real (2026-09-17, rama `modo-25d-fase-a`): servidor ~2300 líneas · cli
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
 Estado de calidad verificado el 2026-09-17 (rama `modo-25d-fase-a`): `npm run lint` limpio · `npm test` →
-**114 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
-· `npm run test:ui` (Playwright + Edge, GPU por software) → **30/30** con capturas.
+**115 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge, GPU por software) → **31/31** con capturas.
 
 Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
 portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
