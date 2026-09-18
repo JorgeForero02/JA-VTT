@@ -452,3 +452,19 @@ test('niebla 2.5D: lo explorado se guarda por celda y se recupera', () => {
   // el 2D no cambia: sigue subiendo PNG por bloques
   assert.match(rnd, /toDataURL\('image\/png'\)/);
 });
+
+test('selección 2.5D: el motor avisa al shell, la barra de selección aparece y Supr/Escape funcionan', () => {
+  assert.match(read('js/d3/chars.js'), /export function select\(c\) \{ G\.selected = c; hooks\.selected\(c\); \}/);
+  assert.match(read('js/d3/fx.js'), /selected: \(\) => \{\}/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /hooks\.selected=c=>\{if\(opts\.onSelect\)opts\.onSelect\(c\?c\.vid:null\);\}/);
+  assert.match(idx, /function selectVid\(vid\)/);
+  assert.match(idx, /select:selectToken/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function onToken25Select\(vid\)\{if\(vid==null\)return;UI\.selected=\[vid\];/);
+  assert.match(ed, /e\.key==='Escape'\|\|e\.key==='Delete'\|\|e\.key==='Backspace'\|\|e\.ctrlKey\|\|e\.metaKey/);
+  assert.match(ed, /if\(e\.key==='Escape'&&window\.D3\)window\.D3\.select\(null\)/);
+  assert.match(read('js/render.js'), /onSelect:onToken25Select/);
+  assert.match(read('index.html'), /data-tool="up" data-ic="chevron-up"/);
+  assert.match(read('js/icons.js'), /"chevron-up":/);
+});

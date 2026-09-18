@@ -176,6 +176,8 @@ function evScreen(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.
 const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua',player:'ficha',enemy:'ficha'};
 /* El motor 2.5D pregunta si esta ficha se puede mover y avisa cuando termina su camino. */
 function canMove25(vid){const t=byId(vid);return !!t&&(isGM()||canControl(t));}
+/* El motor eligió una ficha: la barra de selección y el panel siguen a la ficha, como en 2D. */
+function onToken25Select(vid){if(vid==null)return;UI.selected=[vid];closePops();refreshPanels();requestRender();}
 function onToken25Move(vid,x,y){
   const t=byId(vid);if(!t||!canMove25(vid))return;
   if(t.x===x&&t.y===y)return;
@@ -425,7 +427,10 @@ window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
   if(['input','select','textarea'].includes(tag))return;
   if(tag==='button'&&(e.code==='Space'||e.key==='Enter'))return;
-  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(isGM()&&!e.repeat&&/^[pe]$/.test(e.key.toLowerCase())){setTool(e.key.toLowerCase()==='p'?'player':'enemy');e.preventDefault();return}if(e.key!=='Escape')return}
+  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(isGM()&&!e.repeat&&/^[pe]$/.test(e.key.toLowerCase())){setTool(e.key.toLowerCase()==='p'?'player':'enemy');e.preventDefault();return}
+    // en 2.5D las flechas y WASD son de la cámara (motor); al editor sólo pasan Escape, Supr y los atajos con Ctrl
+    if(!(e.key==='Escape'||e.key==='Delete'||e.key==='Backspace'||e.ctrlKey||e.metaKey))return;
+    if(e.key==='Escape'&&window.D3)window.D3.select(null);}
   const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
   if(mod&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return}
   if(mod&&k==='y'){e.preventDefault();redo();return}

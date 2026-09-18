@@ -6,8 +6,8 @@ import { spawn } from './water.js';
 const T3 = THREE;
 
 // Hooks que engine.js rellena para funciones que aún viven allí.
-// `moved`: la ficha terminó su camino y el shell debe mandar la posición al servidor.
-export const hooks = { terrainChanged: null, removeObj: null, removeMount: null, removeLight: null, charAt: null, refreshTufts: null, envEm: null, blocksMove: null, closedDoor: null, flashLight: null, relayout: null, maybeGrow: null, moved: () => {} };
+// `moved`: la ficha terminó su camino y el shell debe mandar la posición al servidor. `selected`: cambió la ficha elegida.
+export const hooks = { terrainChanged: null, removeObj: null, removeMount: null, removeLight: null, charAt: null, refreshTufts: null, envEm: null, blocksMove: null, closedDoor: null, flashLight: null, relayout: null, maybeGrow: null, moved: () => {}, selected: () => {} };
 
 /* ---------- luciérnagas ---------- */
 const FF = 26, ffPos = new Float32Array(FF * 3), ffSeed = [];

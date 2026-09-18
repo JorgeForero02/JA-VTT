@@ -54,6 +54,7 @@ onTerrainOp(op=>opts.onTerrainOp&&opts.onTerrainOp(op));
 /* ---------- lo que fx.js, chars.js y vision.js necesitan de otros módulos (sin importes circulares) ---------- */
 hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
 hooks.envEm=()=>envCur.em;hooks.blocksMove=blocksMove;hooks.closedDoor=closedDoor;hooks.blocksSight=blocksSight;hooks.flashLight=flashLight;hooks.relayout=relayout;hooks.maybeGrow=maybeGrow;hooks.moved=c=>{if(!opts.onMove)return;const p=pxOfCell(c.cell);opts.onMove(c.vid,p.x,p.y);};
+hooks.selected=c=>{if(opts.onSelect)opts.onSelect(c?c.vid:null);};
 
 /* =====================================================================
    BUCLE
@@ -137,6 +138,8 @@ function debug(){
   return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen,
     view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid), explored:G.exploredUser.reduce((n,v)=>n+(v?1:0),0)};
 }
+// El shell elige (o suelta) una ficha por su id de JA-VTT: Escape, listas del panel…
+function selectVid(vid){G.selected=vid==null?null:(G.chars.find(c=>c.vid===vid)||null);}
 // Qué casilla del tablero hay bajo un punto de la pantalla, en píxeles de JA-VTT.
 function pickCell(px,py){const p=pickAt(px,py);const i=p?(p.char?p.char.cell:p.cell):null;return i==null?null:pxOfCell(i);}
 
@@ -163,7 +166,7 @@ function setEnv(env,amb,snap){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored:visionLoadExplored, resetExplored:visionResetExplored };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored:visionLoadExplored, resetExplored:visionResetExplored };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -194,8 +197,9 @@ export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatc
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
+export function selectToken(vid){if(eng)eng.select(vid);}
 export function exploredBytes(){return eng?eng.exploredBytes():null;}
 export function exploredDirty(){return eng?eng.exploredDirty():false;}
 export function loadExplored(bytes){if(eng)eng.loadExplored(bytes);}
 export function resetExplored25(){if(eng)eng.resetExplored();}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25};
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25};

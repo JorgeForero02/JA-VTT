@@ -213,6 +213,9 @@ try {
   const before = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
   const pos = (await gm.evaluate(() => window.D3.debug().screen))[0];
   await gm.mouse.click(pos.x, pos.y);
+  await gm.waitForFunction(() => getComputedStyle(document.getElementById('selbar')).display !== 'none', null, { timeout: 8000 });
+  const selText = await gm.textContent('#selbar .count');
+  step('2.5D: elegir una ficha muestra la barra de selección (editar, duplicar, eliminar)', /Prueba/.test(selText), selText.trim());
   await gm.mouse.click(pos.x + 70, pos.y + 40);
   await pl.waitForFunction((b) => S.tokens[0] && S.tokens[0].x + ',' + S.tokens[0].y !== b, before, { timeout: 20000 });
   const after = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);

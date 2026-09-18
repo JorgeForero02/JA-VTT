@@ -141,7 +141,7 @@ export function findPath(c, to) {
   const out = []; for (let k = to; k !== from; k = prev[k]) out.push(k);
   return out.reverse();
 }
-export function select(c) { G.selected = c; }
+export function select(c) { G.selected = c; hooks.selected(c); }
 export function moveTo(c, i) {
   const p = findPath(c, i);
   if (p === null) { R.toast('No hay camino: algún escalón mide más de un bloque o la casilla está ocupada.'); return; }
@@ -175,6 +175,7 @@ export function updateChars(dt, now, theta) {
 }
 
 function removeChar(c) {
+  if (G.selected === c) select(null);
   charsGroup.remove(c.mesh);
   c.mesh.geometry.dispose();
   spriteMats.delete(c.mesh.material);
