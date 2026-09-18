@@ -29,7 +29,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 ```bash
 docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
-npm run test:ui          # 32 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director, ficha como sprite, mover y crear fichas, ciego / ver con la ficha / Director↔Vista de jugador, niebla que sobrevive a la recarga), recuperación; capturas en test/e2e/capturas
+npm run test:ui          # 55 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director, 4 estilos con atlas, ampliar, arte propio y objeto propio con re-recorte, ficha como sprite, aspecto, mover/crear/soltar fichas, farol y luz colgada, menú contextual, ciego / ver con la ficha / Director↔Vista de jugador, niebla que sobrevive a la recarga), recuperación; capturas en test/e2e/capturas
 # Edge headless con GPU por software (--use-angle=swiftshader …) para que el WebGL del 2.5D renderice (~6 fps); el paso 2.5D va ANTES de la recuperación porque ésta cierra las sesiones del director
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 ```

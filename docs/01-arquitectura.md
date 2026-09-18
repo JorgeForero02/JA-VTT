@@ -33,7 +33,7 @@ cookie `jav_session`, 1 año) · `boards` (dueño, `invite_code`, `settings` jso
 `active_scene`) → `scenes` (settings jsonb, orden) → `objects` (`data` jsonb; id BIGINT
 generado en cliente como `Date.now()*1000+aleatorio`) · `board_members` (rol `gm|player`,
 escena en la que está cada uno) · `images` (bytes en `bytea`, miniatura opcional; `board_id`
-NULL = sin tablero, ya no se usa) · `fog` (por usuario y escena: en 2D un PNG por bloque `cx,cy`; en 2.5D una sola fila `cx=cy=0` con un byte por casilla) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
+NULL = sin tablero, ya no se usa; categoría `arte25` = hojas de piezas para el arte propio 2.5D) · `fog` (por usuario y escena: en 2D un PNG por bloque `cx,cy`; en 2.5D una sola fila `cx=cy=0` con un byte por casilla) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
 · `users.recovery_code` (migración 002).
 
 Tiempos en milisegundos desde época (BIGINT). `pg` devuelve BIGINT como texto: `db.js`
@@ -65,7 +65,7 @@ Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
-## Modo 2.5D (rama `modo-25d-fase-a`; fases A–C cerradas, D–E en curso)
+## Modo 2.5D (rama `modo-25d-fase-a`; fases A–D cerradas, E en curso)
 
 Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones: [08](08-traspaso-opencode.md).
 
@@ -88,7 +88,7 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
 | `camera.js` | Cámara orbital (estado en `CAM`), entorno (`stepEnv`), posproceso |
 | `input.js` | Raycast, cursor y anillo, herramientas del director (sin UI), punteros y teclado |
 | `light-map.js` | Módulo puro (importable en Node): traduce una luz de JA-VTT a la definición del motor — los radios, color y animación mandan tal cual; el preset del diorama sólo elige el sprite (`SPRITE_OF`, `defFor`) |
-| `index.js` | `createEngine(stage, opts)`: renderer, escena, luces, enlace de módulos, bucle; `window.D3 = {mount, unmount, resize, rotate, setEnv, setView, isMounted, loadTerrain, applyRemoteOp, version, setTool, setToolOption, catalog, syncObjects, debug, pickCell, exploredBytes, exploredDirty, loadExplored, resetExplored}` para los scripts clásicos |
+| `index.js` | `createEngine(stage, opts)`: renderer, escena, luces, enlace de módulos, bucle; `window.D3 = {mount, unmount, resize, rotate, setEnv, setView, isMounted, loadTerrain, applyRemoteOp, version, setTool, setToolOption, catalog, syncObjects, debug, pickCell, pickPlace, select, exploredBytes, exploredDirty, loadExplored, resetExplored, terrainOp, settings25, customArt, styles, artThumb}` para los scripts clásicos |
 
 - Look fiel a r128: `THREE.ColorManagement.enabled = false` (global al módulo three) + salida
   `LinearSRGBColorSpace`; luces ×π (r170 quitó el modo legado); sombras suaves parcheando
@@ -155,8 +155,41 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
   usuario; el servidor sólo acepta ese formato en tableros 2.5D y el PNG en 2D (`handleFog`). Si el
   tamaño guardado no coincide con `N*N` se descarta (el jugador vuelve a explorar). `growWorld`
   recoloca `exploredUser` con el resto del mundo. El director no explora ni sube niebla.
-- Pendiente (fases D–E): panel completo, arte propio, luces desde el mapa, cono de la linterna sorda,
-  tamaño de ficha >1, agua/explosiones sincronizadas. Planes en `superpowers/plans/`.
+- **Un solo camino de edición (fase D).** Todo lo que el director cambia del terreno pasa por
+  `D3.terrainOp(op)` = `input.sendOp`: aplica en local con `version+1` y emite por `onTerrainOp`. El
+  servidor no hace eco al emisor (sólo `ack`), por eso el panel no puede limitarse a `Net.terrain`.
+  Las ops remotas entran por `applyRemoteOp`, que devuelve `false` si `applyTerrainOp` lanza y así
+  `net.js` pide el terreno completo (`want:'full'`).
+- **Ajustes 2.5D de la escena (D1).** Viven en `terrain.extras` (`style, fogAlpha, mist, cutOn, cutH,
+  focus, autoGrow, evap, edgeDrain`) y viajan por la op `settings`. `D3.settings25()` los lee para el
+  panel «Mapa 2.5D»; `style` se aplica con `chars.restyle` (que reasigna también el atlas del terreno
+  vía `hooks.atlasChanged`) y se lee de `extras` al cargar. Estilos: `packs`, `pixel`, `pixel32`, `drawn`.
+- **Luces y menú contextual (D2).** La herramienta Luz crea luces de JA-VTT en la casilla tocada o,
+  si el clic cae en la cara de un muro más alto (`pickAt().wall`), colgadas: `x,y` = centro de la casilla
+  contigua y `mount={cell: pared, dir}` (`D3.pickPlace`). El servidor exige `mountValid` (misma regla
+  que el cliente: contigua dentro y más baja) para colgar piezas. Clic derecho sin arrastrar →
+  `hooks.context` → `opts.onContext(describePick)`: fichas y luces abren el menú normal de JA-VTT;
+  objetos de terreno y piezas colgadas, un menú propio (abrir/cerrar, llave, girar sólo en `fixed`,
+  quitar) que manda ops `door`/`obj`/`mount`. La op `obj` **reemplaza** el objeto: `open`/`locked`
+  sobreviven sólo si el emisor los reenvía (el menú lo hace; el cliente aplica `open` al recibirla).
+- **Arte propio (D3).** `images.category='arte25'` guarda hojas de piezas; `extras.art` guarda
+  **rectángulos**, no bitmaps: `tile:<mat>:<top|side|fill>` · `char:<kind>:<idle|run>` · `obj:<kind>` →
+  `{imgId, fw, fh, ppc, frames:[[x,y,w,h],…]}` (≤ 64 cuadros; tile 1), y las definiciones
+  `newchar:propio-<id>` `{name}` / `newobj:propio-<id>` `{name, move, sight, fixed, mount}`. Op
+  `art {add|remove|clear}` (regex de clave `ART_KEY`, ≤ 200 entradas; `char:/obj:propio-*` exigen su
+  `new*`; `obj`/`mount` con kind propio exigen `newobj` y, para colgar, `newobj.mount`). El motor recorta
+  en cada cliente (`art.setCustomArt(list, getImage)` con `getImg` de JA-VTT; `world.refreshCustomArt`
+  reintenta ≤ 20 veces mientras cargan imágenes; los objetos cuya imagen falta esperan en `deferred`)
+  y vacía `STYLE_CACHE` para rehacer el atlas. Un kind propio existe en `CHAR_INFO`/`OBJ_KINDS` sólo con
+  su arte recortado; antes de rehacerlos, sus instancias se retiran (si no, `removeObj` reventaba) y
+  las consultas `isDoor/blocksMove/blocksSight` toleran kinds desconocidos. «Quitar» limpia usos
+  (`D3.customArt().uses`, incluidos los diferidos) antes de `art remove`.
+- **Aspecto de ficha (D4).** `token.art` = clave de criatura (12 del catálogo + `propio-*`); el editor
+  muestra miniaturas generadas por el motor (`D3.artThumb`) en vez del retrato; un `art` de criatura ya
+  borrada cae al arte por defecto. `playerUpsert` deja al dueño cambiar `art` (como `img`).
+- Pendiente (fase E): cono de la linterna sorda, tamaño de ficha >1, agua/explosiones sincronizadas,
+  cascada en servidor al quitar `newobj`/`newchar` (hoy los `obj:`/`char:` asociados los borra el
+  cliente). Planes en `superpowers/plans/`.
 
 ## Decisiones y trampas
 

@@ -18,7 +18,7 @@ esté completo (fase E), este archivo se archiva en `_archivo/`.
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
 | Cómo se trabajó (briefs, informes, revisiones) | `.superpowers/sdd/2026-09-16-modo-25d-fase-a/` — gitignorado; el resumen útil está en §3 |
 
-## 2. Estado exacto (rama `modo-25d-fase-a`, fases A, B y C cerradas, 114 tests, `test:ui` 30/30)
+## 2. Estado exacto (rama `modo-25d-fase-a`, fases A–D cerradas, 127 tests, `test:ui` 55/55)
 
 | Commit | Qué |
 |---|---|
@@ -52,9 +52,16 @@ de la fase, una **auditoría** con un guion Playwright aparte que pruebe lo que 
 (regresión 2D, permisos de jugador, `grow` con estado encima, recarga). Ledger en
 `.superpowers/sdd/2026-09-16-modo-25d-fase-c/progress.md` (gitignorado) con los *rulings*.
 
-Siguiente: **fase D** (`superpowers/plans/2026-09-16-modo-25d-fase-d.md`): panel completo, subbar,
-editor de ficha con *Aspecto*, luces desde el mapa y colgadas en pared, arte propio en `images`, 4
-estilos. Antes de empezarla, expandir el plan al detalle del de C leyendo el código real.
+Fase D (2026-09-18): `00e6430` (D1) · `43608ae` (fix D1) · `0cafb6f` (D2) · `6efdcc5` + `20bde80` (D3) ·
+`c802481` (D4) · `48a3d6e` (ola final). Se hizo con **subagentes Claude** siguiendo
+`superpowers:subagent-driven-development`: brief detallado por tarea escrito por el controlador →
+implementador fresco (Sonnet; Opus en D3 y en la ola final) que commitea → revisor de tarea (spec +
+calidad) → rondas de corrección con re-revisión acotada → revisión final de toda la fase (Opus) → una
+sola ola de correcciones. Ledger: `.superpowers/sdd/2026-09-16-modo-25d-fase-d/progress.md`.
+
+Siguiente: **fase E** (`superpowers/plans/2026-09-16-modo-25d-fase-e.md`): agua y explosiones
+sincronizadas, niebla ambiental, `undoBoom`, cierre. Antes de empezarla, expandir el plan al detalle de
+los briefs de C/D leyendo el código real; llevar también los pendientes P-13.
 
 ## 3. Decisiones tomadas en marcha (rulings) — revisar si algo chirría
 
@@ -77,6 +84,17 @@ estilos. Antes de empezarla, expandir el plan al detalle del de C leyendo el có
 11. **Fase C — carrera del arte:** `isMounted()` es cierto al crear el motor, pero el arte carga en
     `start()`. Todo lo que toque `ART` debe esperar a la bandera `ready` (o pasar por `syncObjects`/
     `setView`, que ya lo hacen).
+
+12. **Fase D — un camino de edición:** el panel y los menús usan `D3.terrainOp` (aplica en local + emite),
+    nunca `Net.terrain` directo; el servidor no hace eco al emisor. `applyRemoteOp` devuelve `false` si la
+    op lanza y el cliente pide `full`.
+13. **Fase D — menú contextual** en vez del `#editor` del plan para objetos de terreno; clic derecho sin
+    arrastrar abre menú, arrastrar con el derecho desplaza. Las puertas siguen abriéndose con clic izquierdo.
+14. **Fase D — arte propio:** `extras.art` guarda rectángulos y el motor recorta en cada cliente; ids
+    `propio-<base36>`; una criatura u objeto nuevo = entrada `new*` + entrada de arte; el kind entra en
+    `CHAR_INFO`/`OBJ_KINDS` sólo con arte recortado, así que las instancias se retiran antes de rehacer el arte.
+15. **Fase D — op `obj` reemplaza el objeto:** `open`/`locked` viajan siempre desde el menú; el cliente aplica
+    `open`. El jugador puede cambiar el `art` de su ficha (`playerUpsert`), como cambia su retrato.
 
 ### Menores diferidos (para la revisión final de la fase A)
 - `app.css` `.tag` usa `color:#fff`; mejor `var(--amber-ink)` en tema claro.

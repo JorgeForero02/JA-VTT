@@ -2,6 +2,32 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Modo 2.5D, fase D cerrada: panel, luces colgadas, menú contextual, arte propio, aspecto
+
+**Qué** — D1 panel «Mapa 2.5D» (4 estilos de arte, opacidad de niebla, niebla ambiental, muros
+recortados, maqueta, ampliar tablero, agua) por `D3.terrainOp`/`settings25`; `style` en `extras` y
+aplicado al cargar. D2 herramienta Luz en 2.5D (suelta o colgada con `mount`, `D3.pickPlace`), clic
+derecho → menú contextual (fichas/luces: el de JA-VTT; objetos de terreno: abrir/cerrar, llave, girar,
+quitar), `mountValid` en servidor, `open` en la op `obj`. D3 arte propio: categoría `arte25`,
+recortador en la Biblioteca, op `art` (rects, ≤ 64 cuadros, ≤ 200 entradas, ids `propio-*`), motor
+que recorta en cada cliente y rehace el atlas, criaturas y objetos nuevos. D4 campo «Aspecto» con
+miniaturas del motor (`D3.artThumb`) y `restyle` que reasigna el atlas del terreno. Ola final:
+kinds propios sin imagen ya no matan el render del jugador (instancias retiradas antes de rehacer el
+arte, guards en `removeObj`/`isDoor`/…, `applyRemoteOp` devuelve `false` al lanzar), el cliente aplica
+`open`, `deferred` se limpia, `playerUpsert` copia `art`, y menores (tope al reintento de montaje,
+`d.error` en el toast, Girar sólo en `fixed`, tecla L, `tile:[0-6]`…).
+Flujo: subagentes Claude por tarea (implementador Sonnet/Opus + revisor + re-revisión acotada), revisión
+final de toda la fase con Opus y una única ola de correcciones. Ledger con rulings en
+`.superpowers/sdd/2026-09-16-modo-25d-fase-d/progress.md` (gitignorado); resumen en 08 §3.
+**Por qué** — fase D de la spec del modo 2.5D (paridad de opciones con el diorama dentro del panel de
+JA-VTT; arte propio en `images`, nada en `localStorage`).
+**Evidencia** — `npm run check` 127/127 · `npm run test:ui` 55/55 (capturas 09-estilo-{pixel,pixel32,
+drawn,packs} con atlas distinto, 17 farol, 18 menú, 19 pasto magenta, 20 esqueleto, luz colgada, objeto
+propio «Tótem» re-recortado sin errores en el jugador).
+**Revertir** — `git revert` de `00e6430..48a3d6e`. Sin migraciones; las filas `images` con
+`category='arte25'` y las claves `extras.art`/`extras.style` quedarían huérfanas (el cliente anterior
+las ignora).
+
 ## 2026-09-17 — 2.5D: barra de selección al elegir ficha, Supr/Escape, icono de Subir
 
 **Qué** — El motor avisa al shell de la ficha elegida (`hooks.selected` → `opts.onSelect` →

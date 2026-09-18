@@ -39,7 +39,7 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
-## Modo 2.5D (rama `modo-25d-fase-a`; fases A–C cerradas)
+## Modo 2.5D (rama `modo-25d-fase-a`; fases A–D cerradas)
 
 - Al crear un tablero se elige **Tipo de mapa: 2D / 2.5D**; la tarjeta muestra la etiqueta `2.5D`.
   El tipo no se puede cambiar después. `POST /api/boards {name, mode}`; `mode` viaja en la lista y
@@ -78,6 +78,27 @@ intenta algo que no puede.
 - **Niebla de guerra por jugador**: lo explorado queda en penumbra y se guarda por casilla en la
   cuenta del jugador, por escena; al volver a entrar sigue ahí. «Reiniciar exploración» la borra para
   todos. Si el tablero creció desde la última visita, se empieza de cero.
+- **Panel «Mapa 2.5D»** (pestaña Escena, sólo 2.5D; el jugador lo ve deshabilitado): estilo de arte
+  (Packs, Píxel 16, Píxel 32, Dibujado), opacidad de la niebla, niebla ambiental, recortar muros altos
+  (con altura), efecto maqueta, tamaño del tablero con «Ampliar 8 casillas» y «crecer solo», evaporación
+  y desagüe por el borde. Todo se guarda con la escena y llega a todos. En 2.5D se ocultan «Zonas
+  interiores» y «Contenido» (cosas del 2D).
+- **Luces**: la herramienta Luz (L) con los presets de siempre en la subbarra coloca una luz en la
+  casilla tocada, o la **cuelga** de la pared si tocas la cara de un muro más alto. Las piezas de pared
+  (estandartes, fuente, grieta, limo) sólo cuelgan donde la casilla de al lado es más baja.
+- **Clic derecho** en el mapa: sobre una ficha o una luz abre su menú de siempre (ver como, ocultar,
+  encender, duplicar, eliminar…); sobre un objeto de terreno, el director tiene abrir/cerrar, cerrar con
+  llave, girar (los que no giran con la cámara) y quitar; sobre una pieza colgada, quitarla. Arrastrar
+  con el botón derecho sigue desplazando la vista.
+- **Arte propio** (Biblioteca → «Arte 2.5D»): sube un PNG con piezas, elige la imagen, recorta
+  (ancho/alto/separación/margen/zoom, piezas por clic y en orden para animar) y di dónde usarlo: una
+  cara de un material del terreno, un personaje del catálogo (reposo/movimiento), un objeto, un
+  **objeto nuevo** (nombre, bloquea el paso, tapa la vista, no gira, se cuelga) o una **criatura nueva**
+  (nombre; aparece como enemigo cerca del centro). «Píxeles por casilla» fija su tamaño. Lo aplicado
+  sale en «Arte propio en uso» con Quitar y «Quitar todo»; quitar una criatura u objeto nuevo retira sus
+  usos del tablero. El arte se guarda con la escena y lo ven todos; nada queda en el navegador.
+- **Aspecto de la ficha**: en el editor de la ficha (director, y el jugador en la suya) el retrato se
+  sustituye por una rejilla de criaturas (las 12 del catálogo más las propias) que cambia el sprite.
 - Fases siguientes y estado: [08](08-traspaso-opencode.md).
 
 ## Arte del modo 2.5D
