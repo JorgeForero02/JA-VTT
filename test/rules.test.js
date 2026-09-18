@@ -82,3 +82,16 @@ test('sanitize: light.mount cuelga la luz de una celda; celda inválida = sin mo
   assert.equal(R.sanitize(Object.assign({}, base, { mount: { cell: -1 } })).mount, undefined);
   assert.equal(R.sanitize(base).mount, undefined);
 });
+
+test('playerUpsert: el dueño cambia el aspecto (art) de su ficha pero no puede tocar hidden', () => {
+  const uid = 7;
+  const old = R.sanitize({ id: 1, type: 'token', kind: 'player', owner: uid, x: 100, y: 100, name: 'A', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, art: 'guerrera', light: { preset: 'none' } });
+  const neu = R.sanitize(Object.assign({}, old, { art: 'goblin', hidden: true }));
+  const result = R.playerUpsert(uid, old, neu, { settings: {} }, 1, 0);
+  assert.ok(result);
+  assert.equal(result.art, 'goblin', 'el jugador elige el aspecto de su propia ficha');
+  assert.equal(result.hidden, false, 'hidden sigue siendo cosa del director');
+  // sin `art` en lo enviado se conserva el que había (mismo trato que img: no se pierde por omisión)
+  const sinArt = Object.assign({}, neu); delete sinArt.art;
+  assert.equal(R.playerUpsert(uid, old, sinArt, { settings: {} }, 1, 0).art, 'guerrera');
+});

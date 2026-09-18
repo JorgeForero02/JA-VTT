@@ -6,6 +6,37 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
+
+/* Píxeles RGBA de una captura PNG de Playwright (8 bits, RGB o RGBA, sin entrelazado): para medir colores
+   con tolerancia en vez de comparar bytes (la bruma y la luz animada cambian la captura entre fotogramas). */
+function pngPixels(buf) {
+  let pos = 8, w = 0, h = 0, ch = 4; const idat = [];
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos), type = buf.toString('ascii', pos + 4, pos + 8), data = buf.subarray(pos + 8, pos + 8 + len);
+    if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); ch = data[9] === 2 ? 3 : 4; }
+    if (type === 'IDAT') idat.push(data);
+    pos += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat)), stride = w * ch, out = Buffer.alloc(h * stride);
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)], src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)), row = out.subarray(y * stride, (y + 1) * stride), prev = y ? out.subarray((y - 1) * stride, y * stride) : null;
+    for (let i = 0; i < stride; i++) {
+      const a = i >= ch ? row[i - ch] : 0, b = prev ? prev[i] : 0, c = prev && i >= ch ? prev[i - ch] : 0;
+      let p = 0;
+      if (f === 1) p = a; else if (f === 2) p = b; else if (f === 3) p = (a + b) >> 1;
+      else if (f === 4) { const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c); p = pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+      row[i] = (src[i] + p) & 255;
+    }
+  }
+  return { w, h, ch, px: out };
+}
+// fracción de píxeles «magenta» (rojo y azul muy por encima del verde): la pieza de prueba del arte propio
+function magentaShare(buf) {
+  const { w, h, ch, px } = pngPixels(buf); let n = 0;
+  for (let i = 0; i < w * h; i++) { const r = px[i * ch], g = px[i * ch + 1], b = px[i * ch + 2]; if (r > g + 40 && b > g + 40) n++; }
+  return n / (w * h);
+}
 
 const BASE = process.env.BASE_URL || 'http://localhost:3999';
 const OUT = process.argv[2] || path.join(process.cwd(), 'test', 'e2e', 'capturas');
@@ -222,15 +253,23 @@ try {
   await gm.mouse.click(cv.x + 8, cv.y + 8);   // primera pieza (zoom 2 → 32 px por pieza)
   await gm.click('#arte25Target .chip:has-text("Terreno")');
   const vArt0 = await gm.evaluate(() => window.D3.version());
+  // recorte del centro del tablero (sobre todo pasto = material 0) antes, con y sin el arte: la pieza es magenta
+  const stage0 = await gm.locator('#stage').boundingBox();
+  const groundClip = { x: Math.round(stage0.x + stage0.width / 2 - 150), y: Math.round(stage0.y + stage0.height / 2 - 150), width: 300, height: 300 };
+  const groundBefore = magentaShare(await gm.screenshot({ clip: groundClip }));
   await gm.click('#arte25Apply');
   await gm.waitForFunction((v) => window.D3.version() > v && Object.keys(window.D3.customArt().art).length === 1, vArt0, { timeout: 40000 });
   const artKeys = await gm.evaluate(() => Object.keys(window.D3.customArt().art));
   step('2.5D arte: la pieza recortada se aplica al terreno como op y aparece en «Arte en uso»', artKeys[0] === 'tile:0:top' && (await gm.locator('#arte25List .item').count()) >= 1, artKeys.join(','));
   await gm.waitForTimeout(2500);
+  const groundArt = magentaShare(await gm.screenshot({ clip: groundClip }));
+  step('2.5D arte: el suelo se pinta con la pieza magenta', groundArt > groundBefore + 0.1, `magenta ${(groundBefore * 100).toFixed(1)} % → ${(groundArt * 100).toFixed(1)} %`);
   await shot(gm, '19-arte-propio-25d');
   await gm.click('#arte25List button:has-text("Quitar")');
   await gm.waitForFunction(() => Object.keys(window.D3.customArt().art).length === 0, null, { timeout: 40000 });
-  step('2.5D arte: quitar devuelve el atlas original', true);
+  await gm.waitForTimeout(2500);
+  const groundAfter = magentaShare(await gm.screenshot({ clip: groundClip }));
+  step('2.5D arte: quitar devuelve el atlas original', Math.abs(groundAfter - groundBefore) < 0.02 && groundAfter < groundArt - 0.1, `magenta ${(groundAfter * 100).toFixed(1)} % (antes ${(groundBefore * 100).toFixed(1)} %)`);
   await gm.click('[data-tab="scene"]');
 
   // el jugador abre el mismo tablero 2.5D y recibe las ops de terreno del director
@@ -246,6 +285,59 @@ try {
   const stageBox = await gm.locator('#stage').boundingBox();
   const cx = stageBox.x + stageBox.width / 2;
   const cy = stageBox.y + stageBox.height / 2;
+
+  // objeto propio: «Tótem» recortado de la primera pieza, colocado con la herramienta Objeto y visto por el
+  // jugador; después se vuelve a recortar con la segunda pieza. Antes de la ola final, esa segunda op `art`
+  // borraba el kind propio en el jugador y removeObj lanzaba: el motor se paraba hasta recargar (C1).
+  await gm.click('[data-tab="library"]');
+  await gm.click('#arte25Imgs button.thumb');
+  await gm.waitForSelector('#arte25Cutter:not([hidden])', { timeout: 40000 });
+  await gm.waitForFunction(() => /pieza/.test(document.getElementById('arte25Sel').textContent), null, { timeout: 40000 });
+  const cv2 = await gm.locator('#arte25Canvas').boundingBox();
+  await gm.mouse.click(cv2.x + 8, cv2.y + 8);
+  await gm.click('#arte25Target .chip:has-text("Nuevo objeto")');
+  await gm.fill('#arte25Opts input[type="text"]', 'Tótem');
+  await gm.click('#arte25Apply');
+  await gm.waitForFunction(() => window.D3.customArt().kinds.objs.length === 1, null, { timeout: 40000 });
+  const totem = await gm.evaluate(() => window.D3.customArt().kinds.objs[0]);
+  await gm.click('#rail [data-tool="object"]');
+  await gm.waitForSelector('#subbar .chip[aria-pressed="true"]', { timeout: 5000 });
+  const objChip = await gm.textContent('#subbar .chip[aria-pressed="true"]');
+  step('2.5D arte: el objeto propio entra en la subbarra de Objeto ya elegido', /Tótem/.test(objChip) && /^propio-/.test(totem), `${totem}: ${objChip.trim()}`);
+  // se prueba en varias casillas: si en la elegida ya había un árbol, el clic lo quita en vez de poner el tótem
+  let placed = false;
+  for (const [dx, dy] of [[130, 70], [-150, 90], [170, -50], [-170, -60], [60, 120]]) {
+    const v = await gm.evaluate(() => window.D3.version());
+    await gm.mouse.click(cx + dx, cy + dy);
+    await gm.waitForFunction((n) => window.D3.version() > n, v, { timeout: 40000 });
+    if (await gm.evaluate(() => window.D3.customArt().uses.length === 1)) { placed = true; break; }
+  }
+  step('2.5D arte: el tótem se coloca con la herramienta Objeto', placed);
+  await pl.waitForFunction((k) => window.D3.customArt().uses.length === 1 && window.D3.customArt().uses[0].kind === k, totem, { timeout: 40000 });
+  step('2.5D arte: el jugador ve el objeto propio en su tablero', true);
+  await gm.waitForTimeout(1500);
+  await shot(gm, '21-objeto-propio-25d');
+  // segunda pieza (cian) para el mismo objeto: destino «Objeto» → Tótem (ya elegido al crearlo)
+  await gm.locator('#arte25Canvas').scrollIntoViewIfNeeded(); // el panel se desplazó al escribir el nombre
+  const cv3 = await gm.locator('#arte25Canvas').boundingBox();
+  await gm.mouse.click(cv3.x + cv3.width * 0.75, cv3.y + cv3.height / 2); // el lienzo va escalado por CSS: la segunda pieza es la mitad derecha
+  await gm.waitForFunction(() => /1 pieza/.test(document.getElementById('arte25Sel').textContent), null, { timeout: 8000 });
+  await gm.click('#arte25Target .chip:has(span:text-is("Objeto"))');
+  const objSel = await gm.inputValue('#arte25Opts select');
+  const vRecut = await gm.evaluate(() => window.D3.version());
+  await gm.click('#arte25Apply');
+  await gm.waitForFunction((v) => window.D3.version() > v, vRecut, { timeout: 40000 });
+  const vGm = await gm.evaluate(() => window.D3.version());
+  await pl.waitForFunction((v) => window.D3.version() >= v, vGm, { timeout: 40000 });
+  await pl.waitForTimeout(1200);
+  const plAlive = await pl.evaluate(() => { const d = window.D3.debug(); return d && d.lights >= 0 && window.D3.customArt().uses.length === 1; });
+  const recutErrors = errors.filter((e) => /player/.test(e) && /TypeError|terreno fallida/.test(e));
+  step('2.5D arte: re-recortar el objeto propio no tumba el motor del jugador (versión al día, debug responde, sin errores)', objSel === totem && plAlive && recutErrors.length === 0, recutErrors.slice(0, 2).join(' | ') || `v=${vGm}`);
+  await gm.click('#arte25List button:has-text("Quitar")');
+  await gm.waitForFunction(() => window.D3.customArt().uses.length === 0 && Object.keys(window.D3.customArt().art).length === 0, null, { timeout: 40000 });
+  await pl.waitForFunction(() => window.D3.customArt().uses.length === 0 && Object.keys(window.D3.customArt().art).length === 0, null, { timeout: 40000 });
+  step('2.5D arte: «Quitar» limpia el objeto propio y su arte en director y jugador', true);
+  await gm.click('[data-tab="scene"]');
 
   // el panel Mapa 2.5D ya adelantó la versión (4 cambios de estilo + 1 «Ampliar»): las comprobaciones
   // de aquí en adelante son relativas a esa base, no absolutas
@@ -331,6 +423,19 @@ try {
   await gm.mouse.click(posL.x - 70, posL.y - 40);
   await pl.waitForFunction((n) => window.D3.debug().lights > n, lights0, { timeout: 40000 });
   step('2.5D: el director coloca un farol y el jugador lo ve', true);
+  // luz colgada: se busca alrededor del bloque que «Subir» levantó en el centro un punto cuyo pickPlace caiga en
+  // la cara de un muro (mount); con la herramienta Luz aún activa, el clic ahí cuelga el farol
+  const lights1 = await pl.evaluate(() => window.D3.debug().lights);
+  const mountPt = await gm.evaluate(([x, y]) => {
+    for (let dy = 4; dy <= 90; dy += 4) for (let dx = -36; dx <= 36; dx += 6) { const q = window.D3.pickPlace(x + dx, y + dy); if (q && q.mount) return { x: x + dx, y: y + dy, mount: q.mount }; }
+    for (let dy = -4; dy >= -90; dy -= 4) for (let dx = -36; dx <= 36; dx += 6) { const q = window.D3.pickPlace(x + dx, y + dy); if (q && q.mount) return { x: x + dx, y: y + dy, mount: q.mount }; }
+    return null;
+  }, [cx, cy]);
+  step('2.5D: hay una cara de muro donde colgar junto al bloque levantado', !!mountPt, JSON.stringify(mountPt));
+  await gm.mouse.click(mountPt.x, mountPt.y);
+  await pl.waitForFunction((n) => window.D3.debug().lights > n, lights1, { timeout: 40000 });
+  const hung = await pl.evaluate(() => S.lights.filter((l) => l.mount).map((l) => l.mount));
+  step('2.5D: la luz colgada llega al jugador con su mount', hung.length === 1 && hung[0].cell === mountPt.mount.cell && hung[0].dir === mountPt.mount.dir, JSON.stringify(hung));
   await gm.click('#rail [data-tool="select"]');
   await shot(pl, '17-farol-25d');
 
@@ -360,6 +465,22 @@ try {
   const dbg = await pl.evaluate(() => window.D3.debug());
   step('2.5D: con una ficha propia el jugador ve con ella', dbg.view === 'party' && dbg.viewers.length >= 1, JSON.stringify(dbg));
   await shot(pl, '14-vista-jugador-25d');
+
+  // el jugador elige el aspecto de su propia ficha: clic derecho → «Editar mi personaje» → Aspecto → goblin;
+  // el servidor (playerUpsert) conserva `art` y el director ve el sprite nuevo (I3)
+  const posOwn = await pl.evaluate(() => window.D3.debug().screen.find((s) => s.vid === S.tokens[0].id));
+  await pl.mouse.click(posOwn.x, posOwn.y, { button: 'right' });
+  await pl.waitForFunction(() => getComputedStyle(document.getElementById('ctx')).display !== 'none', null, { timeout: 8000 });
+  await pl.click('#ctx button:has-text("Editar mi personaje")');
+  await pl.waitForSelector('#edBody .pick.sprite', { timeout: 40000 });
+  const plHasHidden = await pl.evaluate(() => /Oculta para jugadores/.test(document.getElementById('edBody').textContent));
+  await pl.click('#edBody .pick.sprite[data-art="goblin"]');
+  await gm.waitForFunction(() => (window.D3.debug().screen.find((s) => s.vid === S.tokens[0].id) || {}).kind === 'goblin', null, { timeout: 40000 });
+  const tokHidden = await gm.evaluate(() => S.tokens[0].hidden);
+  step('2.5D: el jugador elige el aspecto de su ficha y el director ve el goblin (sin poder tocar «Oculta»)', !plHasHidden && tokHidden === false);
+  await shot(gm, '22-aspecto-jugador-25d');
+  await pl.keyboard.press('Escape');
+  await pl.waitForTimeout(400);
 
   // el jugador explora moviendo su ficha, recarga la página y la niebla sigue ahí
   const posPl = (await pl.evaluate(() => window.D3.debug().screen.find((s) => s.vid === S.tokens[0].id)));

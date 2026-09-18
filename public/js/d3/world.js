@@ -2,7 +2,7 @@
    puertas, marcas de agua y recolocación de todo lo que se apoya en el terreno. */
 import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
-import { rng, OBJ_KINDS, CHAR_INFO, CUSTOM, ART, setCustomArt } from './art.js';
+import { rng, OBJ_KINDS, CHAR_INFO, CUSTOM, ART, setCustomArt, customKinds } from './art.js';
 import { resetWater, simWater, buildWater, clearParts, resizeWater, WET, pours } from './water.js';
 import { undoStack, boomQueue, hooks } from './fx.js';
 import { resizeVision } from './vision.js';
@@ -272,9 +272,9 @@ export function loadTerrain(blob){
 export function applyTerrainOp(op,version){
   switch(op.type){
     case 'cells':for(const c of op.cells){if(c.i>=G.CELLS)continue;if(c.h!=null)G.H[c.i]=c.h;if(c.m!=null)G.M[c.i]=c.m;}terrainChanged();refreshTufts();break;
-    case 'obj':{if(objs.has(op.i))removeObj(op.i);if(op.kind){addObj(op.i,op.kind,op.rot);const w=objs.get(op.i);if(w&&op.locked)w.locked=true;}refreshTufts();relayout();G.visionDirty=true;break;}
-    case 'door':{const o=objs.get(op.i);if(!o||!OBJ_KINDS[o.kind].door)break;o.open=!!op.open;o.mesh.userData.tex.offset.x=o.open?.5:0;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;break;}
-    case 'mount':{if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
+    case 'obj':{dropDeferred(d=>d.i===op.i);if(objs.has(op.i))removeObj(op.i);if(op.kind){addObj(op.i,op.kind,op.rot);const w=objs.get(op.i);if(w&&op.locked)w.locked=true;if(w&&op.open&&OBJ_KINDS[op.kind]&&OBJ_KINDS[op.kind].door){w.open=true;w.mesh.userData.tex.offset.x=.5;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;}}refreshTufts();relayout();G.visionDirty=true;break;}
+    case 'door':{const o=objs.get(op.i);if(!o||!(OBJ_KINDS[o.kind]||{}).door)break;o.open=!!op.open;o.mesh.userData.tex.offset.x=o.open?.5:0;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;break;}
+    case 'mount':{dropDeferred(d=>d.wall+':'+d.dir===op.key);if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
     case 'water':G.springs.length=0;G.springs.push(...op.springs);G.sinks.length=0;G.sinks.push(...op.sinks);G.evap=op.evap;G.edgeDrain=op.edgeDrain;updateMarks();resetWater();break;
     case 'settings':if(op.style)restyle(op.style);if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
     case 'grow':growWorld(op.pad,true);G.terrainVersion=version;return true;
@@ -292,6 +292,8 @@ export function applyTerrainOp(op,version){
 // objetos y piezas de pared cuyo kind propio existe pero su imagen aún no ha llegado: se colocan al llegar
 // (exportado: customArt() los cuenta como usos para que «Quitar» también los limpie del servidor)
 export const deferred=[];
+// una op nueva sobre la misma casilla / el mismo muro anula lo que esperaba allí (si no, al llegar la imagen resucitaría un objeto que el servidor ya no tiene)
+function dropDeferred(match){for(let k=deferred.length-1;k>=0;k--)if(match(deferred[k]))deferred.splice(k,1);}
 const isCustomId=k=>/^propio-/.test(k);
 // un kind se conoce si es del catálogo o si el tablero define ese objeto propio (aunque su arte esté cargando)
 const objKnown=k=>!!OBJ_KINDS[k]||(isCustomId(k)&&!!G.customArt['newobj:'+k]);
@@ -304,6 +306,12 @@ function dropChar(c){
   chars.splice(chars.indexOf(c),1);
 }
 export function refreshCustomArt(){
+  // las instancias de kinds propios salen ANTES de rehacer OBJ_KINDS: setCustomArt borra esos kinds y sólo
+  // recrea los que ya tienen imagen, así que quitarlas después dejaría mallas con un kind inexistente.
+  // Pasan a `deferred` y vuelven al final si su kind sigue existiendo y su arte está listo (con el material nuevo).
+  const own=new Set(customKinds().objs);
+  objs.forEach((o,i)=>{if(!own.has(o.kind))return;deferred.push({i,kind:o.kind,rot:o.rot});removeObj(i);});
+  mounts.forEach((o,key)=>{if(!own.has(o.kind))return;deferred.push({wall:o.wall,dir:o.dir,kind:o.kind});removeMount(key);});
   const pending=setCustomArt(Object.entries(G.customArt).map(([key,v])=>Object.assign({key},v)),hooks.getImage||(()=>null));
   // lo que ya no tiene arte no puede seguir en escena: las fichas las vuelve a crear el shell (syncTokens)
   // con el arte por defecto; los objetos con imagen pendiente esperan en `deferred`
@@ -316,7 +324,7 @@ export function refreshCustomArt(){
     // materiales compartidos de los kinds nuevos; fuera los de kinds que ya no existen
     Object.keys(objMats).forEach(k=>{if(!OBJ_KINDS[k]){objMats[k].dispose();spriteMats.delete(objMats[k]);delete objMats[k];}});
     Object.keys(OBJ_KINDS).forEach(k=>{if(!objMats[k]&&ART.TEX.objs[k])objMats[k]=spriteMaterial(ART.TEX.objs[k]);});
-    deferred.splice(0).forEach(d=>{if(!objKnown(d.kind))return;if(!objArtReady(d.kind)){deferred.push(d);return;}if(d.wall!=null)addMount(d.wall,d.dir,d.kind);else addObj(d.i,d.kind,d.rot);});
+    deferred.splice(0).forEach(d=>{if(!objKnown(d.kind))return;if(!objArtReady(d.kind)){deferred.push(d);return;}if(d.wall!=null){const key=mountKey(d.wall,d.dir);if(mounts.has(key))removeMount(key);addMount(d.wall,d.dir,d.kind);}else{if(objs.has(d.i))removeObj(d.i);addObj(d.i,d.kind,d.rot);}});
     relayout();
   }
   G.lightsDirty=true;G.visionDirty=true;
@@ -325,15 +333,19 @@ export function refreshCustomArt(){
   if(pending&&++artTries<=20)artTimer=setTimeout(refreshCustomArt,400); // alguna imagen aún cargaba
   else{if(pending)R.toast('No se pudo cargar una imagen del arte propio');artTries=0;}
 }
+// al parar el motor (salir del tablero) no debe saltar un reintento —ni su toast— sobre el dashboard
+export function cancelArtRetry(){clearTimeout(artTimer);artTimer=0;artTries=0;}
 
-export const isDoor=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].door;
+// (OBJ_KINDS[kind]||{}): un objeto propio puede quedarse un instante con un kind que setCustomArt acaba de borrar
+export const isDoor=j=>objs.has(j)&&!!(OBJ_KINDS[objs.get(j).kind]||{}).door;
 export const closedDoor=j=>isDoor(j)&&!objs.get(j).open;
-export const blocksMove=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].move&&!(isDoor(j)&&objs.get(j).open);
-export const blocksSight=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].sight&&!(isDoor(j)&&objs.get(j).open);
+export const blocksMove=j=>objs.has(j)&&!!(OBJ_KINDS[objs.get(j).kind]||{}).move&&!(isDoor(j)&&objs.get(j).open);
+export const blocksSight=j=>objs.has(j)&&!!(OBJ_KINDS[objs.get(j).kind]||{}).sight&&!(isDoor(j)&&objs.get(j).open);
 const higher=(j,i)=>G.H[j]>G.H[i]+1;
 export function autoRot(i,kind){
+  const K=OBJ_KINDS[kind]||{};
   const x=cxOf(i),z=czOf(i),at=(dx,dz)=>inb(x+dx,z+dz)&&higher(I(x+dx,z+dz),i);
-  if(OBJ_KINDS[kind].door){
+  if(K.door){
     if(at(0,1)&&at(0,-1))return Math.PI/2;
     if(at(1,0)&&at(-1,0))return 0;
   }
@@ -353,9 +365,9 @@ export function addObj(i,kind,rot){
   decor.add(m);objs.set(i,{kind,mesh:m,rot:r,open:false});
 }
 export function removeObj(i){
-  const o=objs.get(i);if(!o)return;decor.remove(o.mesh);o.mesh.geometry.dispose();
-  if(OBJ_KINDS[o.kind].door){spriteMats.delete(o.mesh.material);o.mesh.material.dispose();}
-  objs.delete(i);if(OBJ_KINDS[o.kind].door){lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;}
+  const o=objs.get(i);if(!o)return;const K=OBJ_KINDS[o.kind]||{};decor.remove(o.mesh);o.mesh.geometry.dispose();
+  if(K.door){spriteMats.delete(o.mesh.material);o.mesh.material.dispose();}
+  objs.delete(i);if(K.door){lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;}
 }
 export function toggleDoor(i){
   const o=objs.get(i);o.open=!o.open;

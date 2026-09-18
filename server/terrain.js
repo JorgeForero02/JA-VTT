@@ -55,7 +55,7 @@ const OBJ_KINDS = {
 const CHAR_KINDS = ['guerrera', 'mago', 'arquera', 'enana', 'goblin', 'esqueleto', 'demonio', 'nigromante', 'fantasma', 'murcielago', 'arana', 'rata'];
 // Ids de criaturas y objetos creados desde la Biblioteca: `propio-<base36>`.
 const CUSTOM_ID = /^propio-[a-z0-9]{1,12}$/;
-const ART_KEY = /^(tile:\d{1,2}:(top|side|fill)|char:[a-z0-9_-]{1,20}:(idle|run)|obj:[a-z0-9_-]{1,20}|newchar:propio-[a-z0-9]{1,12}|newobj:propio-[a-z0-9]{1,12})$/;
+const ART_KEY = /^(tile:[0-6]:(top|side|fill)|char:[a-z0-9_-]{1,20}:(idle|run)|obj:[a-z0-9_-]{1,20}|newchar:propio-[a-z0-9]{1,12}|newobj:propio-[a-z0-9]{1,12})$/;
 const objKindOk = (kind) => !!OBJ_KINDS[kind] || CUSTOM_ID.test(kind);
 
 const BORDERS = {

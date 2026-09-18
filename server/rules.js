@@ -179,9 +179,13 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
   if (neu.type === 'token') {
     if (old) {
       if (old.owner !== uid) return null;
-      return Object.assign({}, old, {
+      const out = Object.assign({}, old, {
         x: neu.x, y: neu.y, name: neu.name || old.name, color: neu.color, img: neu.img, light: neu.light,
       });
+      // `art` (aspecto 2.5D) es del dueño igual que el retrato; si no viene se conserva el que había
+      // (sin dejar una clave `art: undefined` que rompería sameObject)
+      if ('art' in neu) out.art = neu.art;
+      return out;
     }
     if (ownedCount >= 1 || neu.kind !== 'player' || neu.owner !== uid) return null;
     return Object.assign({}, neu, { hidden: false, vision: true, sight: 0, darkvision: 0, size: 1 });

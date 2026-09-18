@@ -506,10 +506,9 @@ test('fix D1: niebla explorada no se descarta al recargar con el tablero crecido
   assert.match(world, /G\.exploredUser\[re\(i\)\]=oEU\[i\];\s*\n\s*G\.exploredDirty=true;/);
   const ed = read('js/editor.js');
   // el estado disabled se recalcula en cada pintado del panel, no sólo la primera vez que se detecta jugador
-  assert.match(ed, /const ro=!isGM\(\);/);
-  assert.match(ed, /\$\$\('#tab-scene \[data-fold="mapa25"\] input,#tab-scene \[data-fold="mapa25"\] button'\)\.forEach\(el=>\{el\.disabled=ro\}\);/);
-  assert.match(ed, /\$\('#cutH25'\)\.disabled=ro\|\|!st\.cutOn;/);
-  assert.match(ed, /\$\('#grow25'\)\.disabled=ro\|\|st\.n\+16>st\.nMax;/);
+  const panel = ed.slice(ed.indexOf('function render25Panel()'), ed.indexOf('function render25PanelWait('));
+  assert.match(panel, /const ro=!isGM\(\);/);
+  assert.match(panel, /disabled=ro/, 'los controles del fold se deshabilitan con ro dentro de render25Panel');
 });
 
 test('2.5D: luces sueltas y colgadas desde el rail, menú contextual con clic derecho', () => {
@@ -568,7 +567,7 @@ test('D3: arte propio desde la Biblioteca — categoría arte25, op art, recorta
   assert.match(rnd, /el motor no cargó/);
   assert.match(idx, /deferred\.forEach\(d=>\{uses\.push/, 'customArt().uses incluye los objetos diferidos (imagen cargando)');
   assert.match(world, /export const deferred=\[\];/);
-  assert.match(read('js/net.js'), /if\(typeof renderArte25==='function'\)renderArte25\(\);/);
+  assert.match(read('js/net.js'), /renderArte25\(\)/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'app.js'), 'utf8'), /'arte25'/);
   assert.match(read('css/app.css'), /\.cutwrap\{/);
 });
@@ -589,4 +588,47 @@ test('aspecto de ficha en 2.5D: catálogo del motor con miniaturas y token.art',
   assert.match(chars, /hooks\.atlasChanged\(\)/);
   assert.match(read('js/d3/fx.js'), /atlasChanged: \(\) => \{\}/);
   assert.match(idx, /hooks\.atlasChanged=\(\)=>\{terrainMat\.map=ART\.TEX\.atlas;terrainMat\.needsUpdate=true;\}/);
+});
+
+test('ola final D: kinds propios sin imagen no tumban el motor; open en op obj; deferred limpio; menores', () => {
+  const world = read('js/d3/world.js');
+  // C1: removeObj (y los predicados del motor) toleran un kind que setCustomArt acaba de borrar
+  assert.match(world, /export function removeObj\(i\)\{\s*const o=objs\.get\(i\);if\(!o\)return;const K=OBJ_KINDS\[o\.kind\]\|\|\{\};/);
+  for (const fn of ['isDoor', 'blocksMove', 'blocksSight']) {
+    const line = world.slice(world.indexOf('export const ' + fn + '='));
+    assert.match(line.slice(0, line.indexOf('\n')), /\|\|\{\}\)/, fn + ' tolera kinds inexistentes');
+  }
+  assert.match(world, /export function autoRot\(i,kind\)\{\n\s*const K=OBJ_KINDS\[kind\]\|\|\{\}/);
+  // C1: las instancias de kinds propios salen ANTES de que setCustomArt rehaga OBJ_KINDS
+  const refresh = world.slice(world.indexOf('export function refreshCustomArt()'));
+  assert.ok(refresh.indexOf('customKinds()') < refresh.indexOf('setCustomArt('), 'refreshCustomArt quita los kinds propios antes de rehacerlos');
+  // C1: una op remota que lanza devuelve false para que net.js pida el terreno completo
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /export function applyRemoteOp\(op,version\)\{[^\n]*try\{return eng\.applyTerrainOp\(op,version\);\}catch\(e\)\{[^\n]*return false;\}/);
+  // I1: la op obj respeta `open` (Girar / llave sobre una puerta abierta)
+  assert.match(world, /case 'obj':\{[^\n]*if\(w&&op\.open&&OBJ_KINDS\[op\.kind\]&&OBJ_KINDS\[op\.kind\]\.door\)\{w\.open=true;w\.mesh\.userData\.tex\.offset\.x=\.5;/);
+  // I2: una op sobre la casilla / el muro saca su entrada de deferred; la reproducción no duplica
+  assert.match(world, /case 'obj':\{dropDeferred\(d=>d\.i===op\.i\);/);
+  assert.match(world, /case 'mount':\{dropDeferred\(d=>d\.wall\+':'\+d\.dir===op\.key\);/);
+  assert.match(world, /if\(d\.wall!=null\)\{const key=mountKey\(d\.wall,d\.dir\);if\(mounts\.has\(key\)\)removeMount\(key\);addMount\(d\.wall,d\.dir,d\.kind\);\}else\{if\(objs\.has\(d\.i\)\)removeObj\(d\.i\);addObj\(d\.i,d\.kind,d\.rot\);\}/);
+  // menores: el reintento de arte se cancela al parar el motor
+  assert.match(world, /export function cancelArtRetry\(\)/);
+  assert.match(idx, /function stop\(\)\{stopped=true;cancelArtRetry\(\);/);
+  // menores: renderArte25 sólo con full u op art; el toast de fix muestra el error del servidor
+  const net = read('js/net.js');
+  assert.match(net, /if\(d\.fix\)toast\(d\.error\|\|'No puedes editar el terreno de esta escena'\)/);
+  assert.match(net, /if\(\(d\.full\|\|\(d\.op&&d\.op\.type==='art'\)\)&&typeof renderArte25==='function'\)renderArte25\(\);/);
+  // menores: Girar sólo para kinds fixed; tecla L = Luz; Arte 2.5D fuera del editor de imagen en 2D
+  assert.match(idx, /fixed:!!o\.fixed,custom:!!o\.custom/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /if\(info\.fixed\)add\('rotate-cw','Girar'/);
+  assert.match(read('js/d3/input.js'), /fixed:!!\(OBJ_KINDS\[o\.kind\]\|\|\{\}\)\.fixed/);
+  assert.match(ed, /\/\^\[pel\]\$\/\.test\(e\.key\.toLowerCase\(\)\)/);
+  assert.match(ed, /if\(k==='arte25'&&!is25\(\)&&m\.category!=='arte25'\)continue;/);
+  // I3: el jugador también elige Aspecto en 2.5D
+  const pStart = ed.indexOf("if(!gm){\n      text('Nombre'");
+  const player = ed.slice(pStart, ed.indexOf('if(gm){', pStart));
+  assert.match(player, /section\('Aspecto'\);body\.appendChild\(artPicker\(o,/);
+  // servidor: la clave tile sólo admite los 7 materiales
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'terrain.js'), 'utf8'), /tile:\[0-6\]:\(top\|side\|fill\)/);
 });

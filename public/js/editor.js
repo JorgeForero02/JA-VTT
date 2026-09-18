@@ -432,7 +432,7 @@ window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
   if(['input','select','textarea'].includes(tag))return;
   if(tag==='button'&&(e.code==='Space'||e.key==='Enter'))return;
-  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(isGM()&&!e.repeat&&/^[pe]$/.test(e.key.toLowerCase())){setTool(e.key.toLowerCase()==='p'?'player':'enemy');e.preventDefault();return}
+  if(is25()){if(isGM()&&!e.repeat&&/^[1-6]$/.test(e.key)){setTool(['select','up','down','paint','object','water'][e.key-1]);e.preventDefault();return}if(isGM()&&!e.repeat&&/^[pel]$/.test(e.key.toLowerCase())){setTool({p:'player',e:'enemy',l:'light'}[e.key.toLowerCase()]);e.preventDefault();return}
     // en 2.5D las flechas y WASD son de la cámara (motor); al editor sólo pasan Escape, Supr y los atajos con Ctrl
     if(!(e.key==='Escape'||e.key==='Delete'||e.key==='Backspace'||e.ctrlKey||e.metaKey))return;
     if(e.key==='Escape'&&window.D3)window.D3.select(null);}
@@ -538,7 +538,7 @@ function openTerrainContext(info,sp){
       add(info.open?'door-closed':'door-open',info.open?'Cerrar puerta':'Abrir puerta',()=>op({type:'door',i:info.cell,open:!info.open}));
       add(info.locked?'lock-open':'lock',info.locked?'Quitar llave':'Cerrar con llave',()=>op({type:'obj',i:info.cell,kind:info.kind,rot:info.rot,open:info.locked?info.open:false,locked:!info.locked}));
     }
-    add('rotate-cw','Girar',()=>op({type:'obj',i:info.cell,kind:info.kind,rot:(info.rot+Math.PI/2)%(Math.PI*2),open:info.open,locked:info.locked}));
+    if(info.fixed)add('rotate-cw','Girar',()=>op({type:'obj',i:info.cell,kind:info.kind,rot:(info.rot+Math.PI/2)%(Math.PI*2),open:info.open,locked:info.locked})); // los sprites que giran con la cámara no tienen rotación propia
     add('trash-2','Quitar',()=>op({type:'obj',i:info.cell,kind:null}),'danger');
   }else{
     add('trash-2','Quitar de la pared',()=>op({type:'mount',key:info.key,kind:null}),'danger');
@@ -593,8 +593,8 @@ function openEditor(o,sp){
     if(!gm){
       text('Nombre',o.name,v=>o.name=v);
       color('Color',o.color,v=>o.color=v);
-      section('Retrato');
-      body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
+      if(is25()&&window.D3&&window.D3.isMounted()){section('Aspecto');body.appendChild(artPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}))}
+      else{section('Retrato');body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}))}
       note('Solo el director cambia la visión, el tamaño o la visibilidad.');
     }
     if(gm){
@@ -1254,7 +1254,7 @@ function openImageEditor(id){
   const pv=document.createElement('img');pv.className='edPreview';pv.src=m.thumb;pv.alt='';body.appendChild(pv);
   const field=(label,el)=>{const w=document.createElement('label');w.className='field';const sp=document.createElement('span');sp.textContent=label;w.append(sp,el);body.appendChild(w);return el};
   const nm=document.createElement('input');nm.type='text';nm.value=m.name;nm.onchange=()=>Store.update(id,{name:nm.value.trim()||m.name}).then(()=>$('#edTitle').textContent=nm.value);field('Nombre',nm);
-  const cat=document.createElement('select');for(const[k,C]of Object.entries(CATS)){const op=document.createElement('option');op.value=k;op.textContent=C.one;cat.appendChild(op)}cat.value=m.category;cat.onchange=()=>Store.update(id,{category:cat.value});field('Categoría',cat);
+  const cat=document.createElement('select');for(const[k,C]of Object.entries(CATS)){if(k==='arte25'&&!is25()&&m.category!=='arte25')continue;const op=document.createElement('option');op.value=k;op.textContent=C.one;cat.appendChild(op)}cat.value=m.category;cat.onchange=()=>Store.update(id,{category:cat.value});field('Categoría',cat);
   const info=document.createElement('div');info.className='edNote';
   info.textContent=`${m.width} × ${m.height} px, ${fmtBytes(m.size)}. Origen: ${m.origin}. Se usa en ${imageUses(id)} elemento(s) de la escena.`;body.appendChild(info);
   const url=document.createElement('input');url.type='text';url.readOnly=true;url.className='urlField';url.value=Store.publicUrl(id);url.onfocus=()=>url.select();url.setAttribute('aria-label','URL del almacén');body.appendChild(url);

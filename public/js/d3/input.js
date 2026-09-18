@@ -142,7 +142,7 @@ export function describePick(p){
   if(p.char)return p.char.vid!=null?{type:'token',vid:p.char.vid,cell:p.char.cell}:null;
   if(p.light)return p.light.vid!=null?{type:'light',vid:p.light.vid,cell:p.light.cell}:null;
   if(p.mount){const m=G.mounts.get(p.mount);return m?{type:'mount',key:p.mount,kind:m.kind}:null;}
-  if(p.obj){const o=G.objs.get(p.cell);return o?{type:'obj',cell:p.cell,kind:o.kind,rot:o.rot||0,open:!!o.open,locked:!!o.locked,door:isDoor(p.cell)}:null;}
+  if(p.obj){const o=G.objs.get(p.cell);return o?{type:'obj',cell:p.cell,kind:o.kind,rot:o.rot||0,open:!!o.open,locked:!!o.locked,door:isDoor(p.cell),fixed:!!(OBJ_KINDS[o.kind]||{}).fixed}:null;}
   return {type:'cell',cell:p.cell,wall:p.wall||null};
 }
 // Dónde colocar algo desde el shell: centro en px de la casilla, y `mount` si el clic cayó en la cara de un muro.

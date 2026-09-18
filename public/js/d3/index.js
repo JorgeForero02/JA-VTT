@@ -10,7 +10,7 @@ import { initVision, refreshLights, composeLightmap, computeVision, blendVision,
 import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights, pxOfCell } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
-import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow, deferred } from './world.js';
+import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow, deferred, cancelArtRetry } from './world.js';
 import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt, sendOp, pickPlace as pickPlaceInput } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
@@ -182,7 +182,7 @@ async function start(){
   ready=true;syncObjects();if(pendingView){const v=pendingView;pendingView=null;setView(v);}
   if(pendingExplored){const b=pendingExplored;pendingExplored=null;visionLoadExplored(b);}
 }
-function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
+function stop(){stopped=true;cancelArtRetry();cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
 const ENV_MAP={interior:'interior',day:'day',dusk:'dusk',night:'night'};
 // Como el cambio de entorno del panel del diorama: niebla, bruma y visión se rehacen con el entorno.
@@ -214,7 +214,8 @@ export function setEnv(env, ambient) { if (eng) eng.setEnv(env, ambient); }
 export function setView(cfg) { if (eng) eng.setView(cfg); }
 export function isMounted() { return !!eng; }
 export function loadTerrainBlob(blob){if(eng)eng.loadTerrain(blob);}
-export function applyRemoteOp(op,version){return eng?eng.applyTerrainOp(op,version):false;}
+// si la op lanza (p. ej. un objeto propio con un kind a medio rehacer), false hace que net.js pida el terreno completo
+export function applyRemoteOp(op,version){if(!eng)return false;try{return eng.applyTerrainOp(op,version);}catch(e){console.error('op de terreno fallida, se pide el terreno completo',e);return false;}}
 export function terrainOp(op){if(eng)eng.terrainOp(op);}
 export function settings25(){return eng?eng.settings25():null;}
 export function customArt(){return eng?eng.customArt():{art:{},kinds:{chars:[],objs:[]},uses:[]};}
@@ -223,7 +224,7 @@ export function styles(){return STYLES;}
 export function version(){return eng?eng.version():-1;}
 export function setTool(id){if(eng)eng.setTool(id);}
 export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
-export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly,custom:!!o.custom})),CHARS:Object.entries(ART_CHARS).map(([key,c])=>({key,name:c.name,custom:!!c.custom}))};}
+export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly,fixed:!!o.fixed,custom:!!o.custom})),CHARS:Object.entries(ART_CHARS).map(([key,c])=>({key,name:c.name,custom:!!c.custom}))};}
 // Miniatura del arte de una criatura (primer cuadro de reposo), para el campo Aspecto del editor.
 function artThumb(kind){
   const a=ART.art&&ART.art.chars[kind];if(!a)return null;
