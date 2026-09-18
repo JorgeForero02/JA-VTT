@@ -461,7 +461,8 @@ test('selección 2.5D: el motor avisa al shell, la barra de selección aparece y
   assert.match(idx, /function selectVid\(vid\)/);
   assert.match(idx, /select:selectToken/);
   const ed = read('js/editor.js');
-  assert.match(ed, /function onToken25Select\(vid\)\{if\(vid==null\)return;UI\.selected=\[vid\];/);
+  assert.match(ed, /function onToken25Select\(vid\)\{UI\.selected=vid==null\?\[\]:\[vid\];/);
+  assert.match(read('js/d3/input.js'), /if\(G\.selected===p\.char\)\{select\(null\);return;\}/);
   assert.match(ed, /e\.key==='Escape'\|\|e\.key==='Delete'\|\|e\.key==='Backspace'\|\|e\.ctrlKey\|\|e\.metaKey/);
   assert.match(ed, /if\(e\.key==='Escape'&&window\.D3\)window\.D3\.select\(null\)/);
   assert.match(read('js/render.js'), /onSelect:onToken25Select/);

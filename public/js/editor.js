@@ -177,7 +177,7 @@ const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar
 /* El motor 2.5D pregunta si esta ficha se puede mover y avisa cuando termina su camino. */
 function canMove25(vid){const t=byId(vid);return !!t&&(isGM()||canControl(t));}
 /* El motor eligió una ficha: la barra de selección y el panel siguen a la ficha, como en 2D. */
-function onToken25Select(vid){if(vid==null)return;UI.selected=[vid];closePops();refreshPanels();requestRender();}
+function onToken25Select(vid){UI.selected=vid==null?[]:[vid];closePops();refreshPanels();requestRender();}
 function onToken25Move(vid,x,y){
   const t=byId(vid);if(!t||!canMove25(vid))return;
   if(t.x===x&&t.y===y)return;

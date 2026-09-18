@@ -72,6 +72,7 @@ export function applyTool(p){
   if(!p)return;
   if(p.char){
     if(G.tool==='mover'){
+      if(G.selected===p.char){select(null);return;}   // tocar la ficha elegida la suelta (clic en casilla = mover)
       if(p.char.vid!=null&&!R.canMove(p.char.vid)){R.toast('Esa ficha no es tuya.');return;}
       select(p.char);return;
     }

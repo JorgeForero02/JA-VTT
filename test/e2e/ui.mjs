@@ -40,8 +40,9 @@ async function register(page, name, password) {
   return code.trim();
 }
 
+let gm, pl;
 try {
-  const gm = await newPage(); gm.__name = 'gm';
+  gm = await newPage(); gm.__name = 'gm';
   const gmCode = await register(gm, `dir-${suffix}`, 'secreto1');
   step('registro muestra código de recuperación', /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(gmCode), gmCode);
   await shot(gm, '01-panel');
@@ -67,7 +68,7 @@ try {
   const invite = (await gm.textContent('#inviteCode')).trim();
   step('tablero creado con código de invitación', /^[A-Z2-9]{6}$/.test(invite), invite);
 
-  const pl = await newPage(); pl.__name = 'player';
+  pl = await newPage(); pl.__name = 'player';
   await register(pl, `jug-${suffix}`, 'secreto1');
   await pl.fill('#joinCode', invite);
   await pl.click('#joinForm button[type=submit]');
@@ -154,7 +155,7 @@ try {
   await gm.fill('#newBoardName', `Valle ${suffix}`);
   await gm.selectOption('#newBoardMode', '2.5d');
   await gm.click('#newBoardForm button[type=submit]');
-  await gm.waitForSelector('#stage canvas.d3', { timeout: 15000 });
+  await gm.waitForSelector('#stage canvas.d3', { timeout: 40000 });
   await gm.waitForTimeout(2500);
   // readPixels sobre el canvas ya presentado devuelve 0 (preserveDrawingBuffer es falso): se mide la captura
   const buf = await gm.screenshot({ clip: { x: 600, y: 380, width: 64, height: 64 } });
@@ -172,10 +173,8 @@ try {
   await pl.waitForSelector('#dashView:not([hidden])');
   await pl.fill('#joinCode', invite25);
   await pl.click('#joinForm button[type=submit]');
-  await pl.waitForFunction(() => {
-    const c = document.querySelector('#stage canvas.d3');
-    return !!c && c.width > 0 && c.height > 0 && !c.hidden;
-  }, null, { timeout: 15000 });
+  // con dos páginas WebGL en swiftshader el montaje puede pasar de 15 s (P-12): se espera al motor, no al canvas
+  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug() && window.D3.version() >= 0, null, { timeout: 40000 });
   await pl.waitForTimeout(3000);
 
   const stageBox = await gm.locator('#stage').boundingBox();
@@ -185,14 +184,14 @@ try {
   await gm.click('#rail [data-tool="up"]');
   await gm.waitForSelector('#subbar .hint', { timeout: 5000 });
   await gm.mouse.click(cx, cy);
-  await pl.waitForFunction(() => window.D3.version() === 1, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.version() === 1, null, { timeout: 40000 });
   step('2.5D: la edición del director llega al jugador (version 1)', true);
 
   await gm.click('#rail [data-tool="paint"]');
   await gm.waitForSelector('#subbar .chip:nth-of-type(2)', { timeout: 5000 });
   await gm.click('#subbar .chip:nth-of-type(2)');
   await gm.mouse.click(cx, cy);
-  await pl.waitForFunction(() => window.D3.version() === 2, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.version() === 2, null, { timeout: 40000 });
   step('2.5D: el material pintado llega al jugador (version 2)', true);
 
   await gm.evaluate(() => {
@@ -202,14 +201,14 @@ try {
       img: null, owner: null };
     S.tokens.push(t); changed(); Net.tick();
   });
-  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 40000 });
   const seen = await pl.evaluate(() => window.D3.debug());
   step('2.5D: la ficha del director aparece como sprite en la pantalla del jugador', seen.chars >= 1 && seen.lights >= 1, JSON.stringify(seen));
   await shot(pl, '11-ficha-25d-jugador');
 
   // el director mueve la ficha con dos clics y el jugador la ve cambiar de sitio
   await gm.click('#rail [data-tool="select"]');
-  await gm.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 15000 });
+  await gm.waitForFunction(() => window.D3.debug() && window.D3.debug().chars >= 1, null, { timeout: 40000 });
   const before = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
   const pos = (await gm.evaluate(() => window.D3.debug().screen))[0];
   await gm.mouse.click(pos.x, pos.y);
@@ -217,16 +216,22 @@ try {
   const selText = await gm.textContent('#selbar .count');
   step('2.5D: elegir una ficha muestra la barra de selección (editar, duplicar, eliminar)', /Prueba/.test(selText), selText.trim());
   await gm.mouse.click(pos.x + 70, pos.y + 40);
-  await pl.waitForFunction((b) => S.tokens[0] && S.tokens[0].x + ',' + S.tokens[0].y !== b, before, { timeout: 20000 });
+  await pl.waitForFunction((b) => S.tokens[0] && S.tokens[0].x + ',' + S.tokens[0].y !== b, before, { timeout: 60000 });
   const after = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
   step('2.5D: el director mueve la ficha y el jugador la ve en la casilla nueva', after !== before, `${before} → ${after}`);
   await shot(pl, '12-ficha-movida-25d');
+  // tocar la ficha elegida la suelta: la barra desaparece
+  await gm.waitForTimeout(600);
+  const pos2 = (await gm.evaluate(() => window.D3.debug().screen))[0];
+  await gm.mouse.click(pos2.x, pos2.y);
+  await gm.waitForFunction(() => getComputedStyle(document.getElementById('selbar')).display === 'none', null, { timeout: 8000 });
+  step('2.5D: tocar la ficha elegida la suelta y la barra se va', true);
 
   // crear una ficha con la herramienta del rail
   await gm.click('#rail [data-tool="player"]');
   const box = await gm.locator('#stage').boundingBox();
   await gm.mouse.click(box.x + box.width / 2 - 90, box.y + box.height / 2 + 60);
-  await pl.waitForFunction(() => window.D3.debug().chars >= 2, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.debug().chars >= 2, null, { timeout: 40000 });
   step('2.5D: el director crea una ficha tocando una casilla', true);
   await gm.click('#rail [data-tool="select"]');
 
@@ -235,7 +240,7 @@ try {
   await pl.waitForFunction(() => S.sharedVision === false, null, { timeout: 10000 });
 
   // el jugador no controla ninguna ficha: ve el aviso de ciego y nada del mapa
-  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === true, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === true, null, { timeout: 40000 });
   const blindShown = await pl.evaluate(() => getComputedStyle(document.getElementById('blindNote')).display !== 'none');
   step('2.5D: el jugador sin fichas ve el aviso de ciego', blindShown);
   await shot(pl, '13-ciego-25d');
@@ -243,7 +248,7 @@ try {
   // el director le asigna la ficha: deja de estar ciego y ve con ella
   const plId = await gm.evaluate(() => Net.members.find((m) => m.role === 'player').id);
   await gm.evaluate((uid) => { S.tokens[0].owner = uid; changed(); Net.tick(); }, plId);
-  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === false, null, { timeout: 15000 });
+  await pl.waitForFunction(() => window.D3.debug() && window.D3.debug().blind === false, null, { timeout: 40000 });
   const dbg = await pl.evaluate(() => window.D3.debug());
   step('2.5D: con una ficha propia el jugador ve con ella', dbg.view === 'party' && dbg.viewers.length >= 1, JSON.stringify(dbg));
   await shot(pl, '14-vista-jugador-25d');
@@ -257,8 +262,8 @@ try {
   await pl.evaluate(() => Net.flushFog());
   await pl.waitForTimeout(800);
   await pl.reload();
-  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug(), null, { timeout: 20000 });
-  await pl.waitForFunction((n) => window.D3.debug().explored >= n, Math.max(1, exp0 - 2), { timeout: 20000 });
+  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug(), null, { timeout: 60000 });
+  await pl.waitForFunction((n) => window.D3.debug().explored >= n, Math.max(1, exp0 - 2), { timeout: 60000 });
   const exp1 = await pl.evaluate(() => window.D3.debug().explored);
   step('2.5D: la niebla explorada sigue ahí tras recargar', exp0 > 0 && exp1 >= exp0 - 2, `${exp0} → ${exp1}`);
   await shot(pl, '16-niebla-25d');
@@ -300,6 +305,7 @@ try {
 } catch (e) {
   step('excepción en la prueba', false, e.message);
   if (errors.length) console.log('errores de consola hasta el fallo:\n  ' + errors.slice(0, 10).join('\n  '));
+  try { console.log('diag gm', await gm.evaluate(() => JSON.stringify({ v: window.D3.version(), tool: UI.tool, dbg: window.D3.debug() }))); console.log('diag pl', await pl.evaluate(() => JSON.stringify({ v: window.D3.version(), dbg: window.D3.debug(), mode: S.mode }))); } catch (e2) { console.log('diag', e2.message); }
 } finally {
   await browser.close();
 }
