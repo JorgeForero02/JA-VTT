@@ -29,12 +29,19 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 ```bash
 docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
-npm run test:ui          # 23 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director vista por el jugador), recuperación; capturas en test/e2e/capturas
+npm run test:ui          # 30 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director, ficha como sprite, mover y crear fichas, ciego / ver con la ficha / Director↔Vista de jugador, niebla que sobrevive a la recarga), recuperación; capturas en test/e2e/capturas
 # Edge headless con GPU por software (--use-angle=swiftshader …) para que el WebGL del 2.5D renderice (~6 fps); el paso 2.5D va ANTES de la recuperación porque ésta cierra las sesiones del director
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 ```
 
 No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.
+
+Gotchas del 2.5D en la prueba visual: `window.D3.debug()` sólo responde en `localhost` y da
+`{chars, lights, vids, screen:[{vid,x,y}], view, env, amb, blind, viewers, explored}` — `screen` son
+coordenadas de pantalla para pinchar una ficha; para tocar un objeto (una puerta) hay que pinchar el
+**sprite**, no el suelo de la casilla. Con dos páginas y swiftshader el montaje puede tardar >15 s:
+esperar a `D3.isMounted() && D3.debug()`, no a que el canvas sea «visible». Si falla, el script
+vuelca los errores de consola acumulados.
 
 ## Añadir una migración
 

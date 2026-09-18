@@ -1,8 +1,9 @@
 # 08 — Traspaso a OpenCode: modo 2.5D
 
-Escrito el 2026-09-16; actualizado el 2026-09-16 tras completar la tarea 7. **Este archivo es el punto de
-entrada para retomar el trabajo con OpenCode** (o cualquier otro agente). Cuando la fase A esté
-cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva en `_archivo/`.
+Escrito el 2026-09-16; actualizado el 2026-09-17 al cerrar la fase C. **Este archivo es el punto de
+entrada para retomar el trabajo con OpenCode** (o cualquier otro agente). El estado de lo ya hecho
+vive en `01`–`07`; aquí quedan el flujo de trabajo, los *rulings* y lo que sigue. Cuando el modo 2.5D
+esté completo (fase E), este archivo se archiva en `_archivo/`.
 
 ## 1. Dónde está todo
 
@@ -17,7 +18,7 @@ cerrada, lo que aquí es «estado» pasa a `01`–`07` y este archivo se archiva
 | Atlas de arte CC0 | `public/img/packs25.png` (créditos en `README.md`) |
 | Cómo se trabajó (briefs, informes, revisiones) | `.superpowers/sdd/2026-09-16-modo-25d-fase-a/` — gitignorado; el resumen útil está en §3 |
 
-## 2. Estado exacto (rama `modo-25d-fase-a`, fases A y B cerradas, 101 tests, `test:ui` 23/23)
+## 2. Estado exacto (rama `modo-25d-fase-a`, fases A, B y C cerradas, 114 tests, `test:ui` 30/30)
 
 | Commit | Qué |
 |---|---|
@@ -34,15 +35,26 @@ Verificado en Edge headless (swiftshader): el valle renderiza dentro del shell; 
 **Limitaciones de la fase A (por diseño):** sin fichas, luces, edición ni niebla por jugador; vista
 = director para todos; terreno = escena de muestra «Valle del arroyo» del diorama (no persiste).
 
-### Fases A y B cerradas — qué sigue (2026-09-17)
+### Fases A, B y C cerradas — qué sigue (2026-09-17)
 
-Fase B en la rama: commits `b6a0590` (B1) … `558aebe` (B5b) + docs. Lo que hay ahora está en `01`
-(«Terreno persistente», «Protocolo terrain») y `02` («El director edita»).
+Fase B: commits `b6a0590` (B1) … `558aebe` (B5b) + docs. Fase C: `cbca4ae` (C1) · `28e3b55` (C2) ·
+`98ef205` (C3) · `7a8cde7` (C4) · `8a5dd5a` (C5) · `c3d0fb9` (auditoría). Lo que hay está en `01`
+(«Terreno persistente», «Protocolo terrain», «Fichas y luces», «Movimiento», «Ver como», «Niebla por
+celda») y `02` («El director edita», «Fichas y luces», «Mover fichas», «Quién ve qué»).
 
-Siguiente: **fase C** (`superpowers/plans/2026-09-16-modo-25d-fase-c.md`): fichas y luces de JA-VTT
-como sprites, movimiento por `ops`, «ver como», niebla por celda persistente. El plan está a nivel
-de tarea: antes de cada tarea, Claude Code escribe la guía exacta (ficheros, interfaces, código,
-tests) como hizo en B, y la ejecuta OpenCode (Kimi) sin commitear, o la hace Claude Code directamente.
+**Cómo se trabajó la fase C** (repetir en D y E): Claude Code escribe para cada tarea un *brief*
+completo en `.superpowers/sdd/<plan>/task-<N>-brief.md` (objetivo, tabla de ficheros permitidos,
+interfaces con código exacto, tests en rojo con su texto, verificación con conteos esperados,
+mutaciones manuales, decisiones ya tomadas) y un prompt corto para OpenCode que lo referencia y añade
+las interfaces de tareas previas. Kimi implementa **sin commitear**; Claude Code revisa el `git diff`,
+corrige, ejecuta `npm run check` y `npm run test:ui`, mira las capturas de verdad y commitea. Al final
+de la fase, una **auditoría** con un guion Playwright aparte que pruebe lo que `test:ui` no cubre
+(regresión 2D, permisos de jugador, `grow` con estado encima, recarga). Ledger en
+`.superpowers/sdd/2026-09-16-modo-25d-fase-c/progress.md` (gitignorado) con los *rulings*.
+
+Siguiente: **fase D** (`superpowers/plans/2026-09-16-modo-25d-fase-d.md`): panel completo, subbar,
+editor de ficha con *Aspecto*, luces desde el mapa y colgadas en pared, arte propio en `images`, 4
+estilos. Antes de empezarla, expandir el plan al detalle del de C leyendo el código real.
 
 ## 3. Decisiones tomadas en marcha (rulings) — revisar si algo chirría
 
@@ -52,6 +64,19 @@ tests) como hizo en B, y la ejecuta OpenCode (Kimi) sin commitear, o la hace Cla
 4. **«Terreno a plena luz con entorno Interior» (fase A) no era un bug del port**, pero la explicación buena llegó en B5b: la escena de muestra traía 7 luces (antorchas, hoguera) de 20 pies de radio que iluminaban casi todo el mapa de 22 casillas. Con el terreno del servidor (sin luces hasta la fase C) «Interior» se ve oscuro con la luz de suelo del director (`uFloor` = 0,13) y «Exterior de día» iluminado: comportamiento correcto y coherente con los textos del panel. Medido: luminosidad media 103 (fase A) vs 22 (B4+) con el mismo entorno.
 5. Sombras suaves: en r170 `onBeforeCompile` recibe el template **sin expandir**; el parche se aplica a `THREE.ShaderChunk.lights_fragment_begin` y se sustituye el `#include`. Hay test estático que extrae el chunk real del vendor y comprueba la regex.
 6. Color: `ColorManagement.enabled=false` es global al módulo three; los dados lo reactivan sólo mientras construyen sus materiales (`withColorManagement`). Si algún día se quiere el pipeline sRGB en el 2.5D, hay que retocar colores y `outputColorSpace` a la vez.
+
+7. **Fase C — luces:** la luz del motor lleva su definición real del tablero (`l.def`, `light-map.js`);
+   el preset del diorama sólo elige el sprite. `bullseye` → farol, `window` → orbe alto, `custom` → orbe.
+   El cono de la linterna sorda no se dibuja (fase D).
+8. **Fase C — eco local:** el servidor no reenvía las `ops` a quien las emite, así que `editor.changed()`
+   refresca el motor en 2.5D. Cualquier cambio local a `S.tokens/S.lights` debe pasar por `changed()`.
+9. **Fase C — «ver como»:** jugador sin fichas propias y `sharedVision=false` queda ciego en 2.5D; el 2D
+   cae de vuelta al grupo (P-11). El director en vista Director no tiene niebla aunque haya fichas.
+10. **Fase C — niebla:** un byte por casilla, 255/0 (el «recordado» se calcula por fotograma, no se
+    guarda); si `N*N` no coincide con lo guardado se descarta. El director no sube niebla.
+11. **Fase C — carrera del arte:** `isMounted()` es cierto al crear el motor, pero el arte carga en
+    `start()`. Todo lo que toque `ART` debe esperar a la bandera `ready` (o pasar por `syncObjects`/
+    `setView`, que ya lo hacen).
 
 ### Menores diferidos (para la revisión final de la fase A)
 - `app.css` `.tag` usa `color:#fff`; mejor `var(--amber-ink)` en tema claro.

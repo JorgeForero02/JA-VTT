@@ -39,13 +39,13 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
-## Modo 2.5D (rama `modo-25d-fase-a`; fase A cerrada)
+## Modo 2.5D (rama `modo-25d-fase-a`; fases A–C cerradas)
 
 - Al crear un tablero se elige **Tipo de mapa: 2D / 2.5D**; la tarjeta muestra la etiqueta `2.5D`.
   El tipo no se puede cambiar después. `POST /api/boards {name, mode}`; `mode` viaja en la lista y
   en `GET /api/boards/:id`.
-- Abrir un tablero 2.5D monta el motor en el escenario: pedestal con el «Valle del arroyo» de muestra
-  (aún sin persistir), cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
+- Abrir un tablero 2.5D monta el motor en el escenario: pedestal con el terreno de la escena,
+  cámara orbital (arrastrar gira, rueda acerca, Q/E giran, WASD/flechas
   desplazan, F centra), entorno y luz ambiental de la pestaña Escena aplicados al 3D (también los
   cambios remotos del director).
 - **El terreno se guarda** (fase B): cada escena 2.5D tiene su relieve, materiales, objetos, piezas de
@@ -57,8 +57,26 @@ intenta algo que no puede.
   tablero crece 8 casillas por lado al editar cerca del borde (hasta 118). Todo llega al instante a los
   demás; un jugador no puede editar (recibe corrección). Las **puertas** las abre y cierra cualquiera
   con Seleccionar si el director lo permite (`playersDoors`) y no están cerradas con llave.
-- Sin fichas, luces ni niebla por jugador todavía (fase C): con «Interior» el mapa se ve oscuro,
-  como manda el entorno; usar «Exterior de día» mientras tanto.
+- **Fichas y luces** (fase C): las fichas y luces del tablero se ven en el mapa como sprites del
+  diorama. El aspecto de una ficha lo decide su campo *Aspecto* (`art`: `guerrera`, `mago`, `arquera`,
+  `enana`, `goblin`, `esqueleto`, `demonio`, `nigromante`, `fantasma`, `murcielago`, `arana`, `rata`;
+  sin él, guerrera para personajes y goblin para enemigos — el campo en el editor y el arte propio
+  llegan en la fase D). Una luz con `mount` cuelga de la cara de un muro. Los radios, color y parpadeo
+  son los del tablero; el tipo sólo cambia el sprite. La linterna sorda alumbra en redondo (sin cono)
+  y el tamaño de ficha mayor que 1 no se dibuja distinto, por ahora.
+- **Mover fichas**: un clic sobre una ficha propia la elige (anillo); un clic en una casilla la lleva
+  andando por el camino más corto (no sube escalones de más de un bloque, no atraviesa objetos ni
+  fichas, no cruza puertas cerradas) y al llegar la posición se guarda para todos. Si no hay camino,
+  aviso. El director mueve cualquier ficha; el jugador sólo las suyas. El director crea fichas con
+  **Ficha (P)** y **Enemigo (E)** tocando una casilla.
+- **Quién ve qué**: el director en vista Director lo ve todo. En «Vista de jugador» ve lo que ven las
+  fichas del grupo o, con el selector «Ver como», una concreta. Un jugador ve lo que ven sus fichas
+  (las del grupo si el tablero tiene *Visión compartida*); si no controla ninguna, el mapa queda a
+  oscuras con el aviso de siempre. Los personajes se ven siempre entre sí; los enemigos sólo cuando
+  alguien los ve; las fichas ocultas del director, nunca.
+- **Niebla de guerra por jugador**: lo explorado queda en penumbra y se guarda por casilla en la
+  cuenta del jugador, por escena; al volver a entrar sigue ahí. «Reiniciar exploración» la borra para
+  todos. Si el tablero creció desde la última visita, se empieza de cero.
 - Fases siguientes y estado: [08](08-traspaso-opencode.md).
 
 ## Arte del modo 2.5D

@@ -33,7 +33,7 @@ cookie `jav_session`, 1 año) · `boards` (dueño, `invite_code`, `settings` jso
 `active_scene`) → `scenes` (settings jsonb, orden) → `objects` (`data` jsonb; id BIGINT
 generado en cliente como `Date.now()*1000+aleatorio`) · `board_members` (rol `gm|player`,
 escena en la que está cada uno) · `images` (bytes en `bytea`, miniatura opcional; `board_id`
-NULL = sin tablero, ya no se usa) · `fog` (un PNG por casilla, por usuario y escena) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
+NULL = sin tablero, ya no se usa) · `fog` (por usuario y escena: en 2D un PNG por bloque `cx,cy`; en 2.5D una sola fila `cx=cy=0` con un byte por casilla) · `chat_messages` (texto, tirada o aviso, `body` jsonb)
 · `users.recovery_code` (migración 002).
 
 Tiempos en milisegundos desde época (BIGINT). `pg` devuelve BIGINT como texto: `db.js`
@@ -65,7 +65,7 @@ Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
-## Modo 2.5D (rama `modo-25d-fase-a`; fase A cerrada, B–E en curso)
+## Modo 2.5D (rama `modo-25d-fase-a`; fases A–C cerradas, D–E en curso)
 
 Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones: [08](08-traspaso-opencode.md).
 
@@ -87,7 +87,8 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
 | `fx.js` | Bruma, luciérnagas, explosiones; objeto `hooks` que `index.js` rellena para evitar importes circulares |
 | `camera.js` | Cámara orbital (estado en `CAM`), entorno (`stepEnv`), posproceso |
 | `input.js` | Raycast, cursor y anillo, herramientas del director (sin UI), punteros y teclado |
-| `index.js` | `createEngine(stage, opts)`: renderer, escena, luces, enlace de módulos, bucle; `window.D3 = {mount, unmount, resize, rotate, setEnv, isMounted}` para los scripts clásicos |
+| `light-map.js` | Módulo puro (importable en Node): traduce una luz de JA-VTT a la definición del motor — los radios, color y animación mandan tal cual; el preset del diorama sólo elige el sprite (`SPRITE_OF`, `defFor`) |
+| `index.js` | `createEngine(stage, opts)`: renderer, escena, luces, enlace de módulos, bucle; `window.D3 = {mount, unmount, resize, rotate, setEnv, setView, isMounted, loadTerrain, applyRemoteOp, version, setTool, setToolOption, catalog, syncObjects, debug, pickCell, exploredBytes, exploredDirty, loadExplored, resetExplored}` para los scripts clásicos |
 
 - Look fiel a r128: `THREE.ColorManagement.enabled = false` (global al módulo three) + salida
   `LinearSRGBColorSpace`; luces ×π (r170 quitó el modo legado); sombras suaves parcheando
@@ -115,8 +116,47 @@ Diseño: `superpowers/specs/2026-09-16-modo-25d-design.md`. Estado y decisiones:
   devuelve el blob. El cliente aplica en local con `version+1` antes de enviar (`input.sendOp`); un
   conflicto se resuelve recargando el `full`. `grow` se aplica con el mismo borde y los mismos árboles
   aleatorios en servidor y cliente (misma semilla `rng(off*131+n)`).
-- Pendiente (fases C–E): fichas/luces/niebla por jugador, panel completo y arte propio,
-  agua/explosiones sincronizadas. Planes en `superpowers/plans/`.
+- **Fichas y luces (fase C).** No hay modelo nuevo: el motor **refleja** `S.tokens`/`S.lights` del
+  estado clásico. `chars.syncTokens/syncLights` crean, actualizan y borran sprites por el id de
+  JA-VTT (`c.vid`); las fichas de la escena de muestra tienen `vid=null` y no se tocan. Casilla ↔
+  píxel: `cellFromPx(x,y) = I(⌊x/CELL⌋+OFF, ⌊y/CELL⌋+OFF)` y `pxOfCell` (centro de la casilla), con
+  `CELL=50` (`G.cellPx`, por `opts.cell`) y `G.OFF` = cuánto creció el mundo por el lado negativo.
+  `token.art` elige la criatura de `CHAR_INFO` (si no vale: `guerrera` para jugadores, `goblin` para
+  enemigos). `light.mount {cell,dir}` cuelga la luz de la cara `dir` de la celda `cell`. Cada luz
+  lleva su definición real (`l.def`, de `light-map.js`) y `vision.defOf(l)` la usa en vez del preset:
+  así `bullseye`, `window` y `custom` alumbran con sus radios aunque el diorama no los tenga (el cono
+  de la linterna sorda no se dibuja aún: alumbra en redondo). `window.S` se publica desde `core.js`
+  porque los módulos ES no ven los `const` del ámbito global de los scripts clásicos.
+- **Refresco del motor.** `net.js` llama a `D3.syncObjects()` tras cada `state`/`ops`; como el servidor
+  **no hace eco de las ops al emisor**, `editor.changed()` también lo llama en 2.5D para que quien
+  edita vea su cambio. El motor tiene bandera `ready`: montar es inmediato pero `start()` carga el
+  arte de forma asíncrona; hasta entonces `syncObjects` no hace nada y `setView` guarda la vista
+  pendiente (sin esto `addChar` reventaba con `ART.art=null`). El entorno del tablero se pasa al
+  montar (`opts.env/ambient`) y se aplica de golpe en el primer fotograma (`setEnv(…, true)`).
+- **Movimiento.** Clic en ficha controlable → `select`; clic en casilla → `findPath` (alturas ≤1,
+  objetos, fichas) y animación por tramos; al **terminar el camino** `hooks.moved(c)` avisa una sola
+  vez y el shell (`editor.onToken25Move`) escribe `x/y` → `changed()` → una `op` normal. Permiso:
+  `R.canMove(vid)` = `editor.canMove25` (director: todas; jugador: `canControl`). El servidor no valida
+  rutas (como en 2D). Crear fichas: herramientas Ficha/Enemigo del rail en 2.5D llaman a `D3.pickCell`
+  y crean la ficha en el centro de la casilla; la herramienta `ficha` del motor no hace nada para que
+  ese clic no mueva.
+- **Ver como.** `D3.setView({view, uid, gm, shared})`: `view` ∈ `'gm'` (director en vista Director:
+  `viewers()=[]`, sin niebla, `uFogOn=0`) · `'party'` · `vid`. `vision.viewers()` reproduce el de
+  `core.js`: fichas de jugador con visión y no ocultas; si no soy director y `sharedVision=false`,
+  sólo las mías (**y si no tengo ninguna, ninguna**: divergencia deliberada con el 2D, que cae de
+  vuelta al grupo — pendiente P-11). `editor.view25()` traduce `UI.role`/`UI.viewAs`/`S.sharedVision`
+  y se llama desde `setRole`, el selector «Ver como», `applyState` y `applyOps`. El aviso `#blindNote`
+  lo decide el motor (`opts.onBlind`). Las fichas de jugador se ven siempre entre ellas; los enemigos
+  sólo si algún observador los ve (`strongView`).
+- **Niebla por celda.** `G.exploredUser` (un byte por casilla: 255 explorado, 0 no) se marca en
+  `computeVision` cuando algún observador ve la casilla y alimenta `tMem` junto al explorado por
+  ficha. `render.loadFog/takeDirtyFog/resetExplored` delegan en D3 cuando `is25()`: el dato viaja como
+  `'base64:'+bytes` (frente a `data:image/png;base64,` del 2D), una fila `cx=cy=0` por escena y
+  usuario; el servidor sólo acepta ese formato en tableros 2.5D y el PNG en 2D (`handleFog`). Si el
+  tamaño guardado no coincide con `N*N` se descarta (el jugador vuelve a explorar). `growWorld`
+  recoloca `exploredUser` con el resto del mundo. El director no explora ni sube niebla.
+- Pendiente (fases D–E): panel completo, arte propio, luces desde el mapa, cono de la linterna sorda,
+  tamaño de ficha >1, agua/explosiones sincronizadas. Planes en `superpowers/plans/`.
 
 ## Decisiones y trampas
 

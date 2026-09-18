@@ -1,7 +1,7 @@
 # 00 — Índice maestro · Just Another VTT
 
 **Leer PRIMERO en cada sesión, junto con [06-pendientes](06-pendientes.md).**
-Última actualización: 2026-09-16.
+Última actualización: 2026-09-17.
 
 ## Resumen en 30 segundos
 
@@ -13,20 +13,22 @@ abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
 
-Tamaño real (2026-09-16, rama `modo-25d-fase-a`): servidor ~1600 líneas · cliente ~3000 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (12 módulos ES, ~2500 líneas)
+Tamaño real (2026-09-17, rama `modo-25d-fase-a`): servidor ~2300 líneas · cliente ~3100 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (14 módulos ES, ~2800 líneas)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
 Estado de calidad verificado el 2026-09-17 (rama `modo-25d-fase-a`): `npm run lint` limpio · `npm test` →
-**101 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
-· `npm run test:ui` (Playwright + Edge, GPU por software) → **23/23** con capturas.
+**114 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge, GPU por software) → **30/30** con capturas.
 
 Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
 portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
-Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`; **fases A y B cerradas** (2026-09-17: el
-terreno se guarda y el director lo edita). Sigue la fase C (fichas, luces, niebla). Punto de entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
+Trabajo en curso: **modo 2.5D** — rama `modo-25d-fase-a`; **fases A, B y C cerradas y auditadas**
+(2026-09-17: terreno persistente y editable; fichas y luces como sprites; mover fichas; ver como;
+niebla por celda por jugador). Sigue la fase D (panel, arte propio). Sin desplegar todavía. Punto de
+entrada: [08-traspaso-opencode.md](08-traspaso-opencode.md).
 Resto: [06-pendientes.md](06-pendientes.md).
 
 ## Mapa de la documentación
@@ -41,7 +43,7 @@ Resto: [06-pendientes.md](06-pendientes.md).
 | [05-runbook.md](05-runbook.md) | Comandos, tests, gotchas | Cuando cambia un comando |
 | [06-pendientes.md](06-pendientes.md) | **Tareas abiertas** | En cada sesión |
 | [07-historial.md](07-historial.md) | **Changelog**: qué, por qué, cómo revertir | Tras cada cambio relevante |
-| [08-traspaso-opencode.md](08-traspaso-opencode.md) | **Traspaso del modo 2.5D**: estado exacto, decisiones, cómo seguir con OpenCode, qué instalar | Mientras dure el modo 2.5D (fases B–E); después se archiva |
+| [08-traspaso-opencode.md](08-traspaso-opencode.md) | **Traspaso del modo 2.5D**: estado exacto, decisiones, cómo seguir con OpenCode, qué instalar | Mientras dure el modo 2.5D (fases D–E); después se archiva |
 
 ### Subcarpetas
 

@@ -2,6 +2,31 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-17 — Modo 2.5D, fase C cerrada: fichas, luces, ver como y niebla por celda
+
+**Qué** — C1 servidor: `token.art`, `light.mount` en `sanitize`; niebla 2.5D como bytes crudos
+(`base64:`) con una fila `cx=cy=0` por escena y usuario. C2 cliente: `syncTokens/syncLights` reflejan
+`S.tokens/S.lights` como sprites (`light-map.js`: la luz lleva sus radios reales, el preset sólo elige
+el sprite); `defOf(l)` en `vision.js`. C3: mover con dos clics y una sola `op` al llegar; Ficha/Enemigo
+del rail crean en casilla (`D3.pickCell`); `changed()` refresca el motor porque el servidor no hace eco
+al emisor. C4: `D3.setView({view,uid,gm,shared})`, `viewers()` como el 2D, `#blindNote` decidido por
+el motor, entorno del tablero aplicado en el primer fotograma. C5: `G.exploredUser`, `loadFog/
+takeDirtyFog/resetExplored` delegan en D3; bandera `ready` del motor (carrera `ART.art=null` que rompía
+la pantalla del jugador). Auditoría final de toda la rama (A–C) con un guion Playwright aparte:
+regresión 2D (fichas, arrastre, niebla PNG), puerta puesta por el director y abierta por el jugador,
+`grow` con ficha y niebla encima, recarga tras crecer, «Ver como» ficha concreta → 14/14. Hallazgo
+corregido: `obj/door/mount/water` no comprobaban el índice contra `n*n` (ahora lanzan → `fix`).
+Tareas C1–C5 con OpenCode (kimi) y revisión aquí; correcciones de revisión: luz que nacía encendida,
+eco local centralizado, entorno tardío, carrera del arte, logs de depuración.
+**Por qué** — fase C de la spec del modo 2.5D. Divergencia deliberada con el 2D: jugador sin fichas
+propias y `sharedVision=false` queda ciego (el 2D cae de vuelta al grupo) — P-11.
+**Evidencia** — `npm run check` 114/114 · `npm run test:ui` 30/30 (capturas 11–16: sprite real
+comparado con el atlas, movimiento `575,575 → 675,525`, ciego, vista del jugador, alternar
+Director/Vista de jugador, niebla 212 celdas antes y después de recargar).
+**Revertir** — `git revert` de `cbca4ae..c3d0fb9`. Sin cambios de esquema: la tabla `fog` ya era
+BYTEA. Las filas de niebla 2.5D (`cx=cy=0`, bytes crudos) quedarían huérfanas: `DELETE FROM fog`
+para las escenas de tableros 2.5D si se quiere limpiar.
+
 ## 2026-09-17 — Modo 2.5D, fase B cerrada: terreno persistente y editable
 
 **Qué** — Migración 005 (`terrain`), módulo puro `server/terrain.js`, catálogo compartido
