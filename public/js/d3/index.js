@@ -10,7 +10,7 @@ import { initVision, refreshLights, composeLightmap, computeVision, blendVision,
 import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updateChars, syncTokens, syncLights, pxOfCell } from './chars.js';
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
-import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
+import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow, deferred } from './world.js';
 import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt, sendOp, pickPlace as pickPlaceInput } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
@@ -152,6 +152,8 @@ function customArt(){
   const uses=[];
   G.objs.forEach((o,i)=>{if(ART_OBJ[o.kind]&&ART_OBJ[o.kind].custom)uses.push({kind:o.kind,i});});
   G.mounts.forEach((o,key)=>{if(ART_OBJ[o.kind]&&ART_OBJ[o.kind].custom)uses.push({kind:o.kind,key});});
+  // los que esperan su imagen también están en extras.objs/mounts del servidor
+  deferred.forEach(d=>{uses.push(d.wall!=null?{kind:d.kind,key:d.wall+':'+d.dir}:{kind:d.kind,i:d.i});});
   return {art:Object.assign({},G.customArt),kinds:customKinds(),uses};
 }
 // Ajustes 2.5D de la escena tal como están ahora, para pintar el panel del director.

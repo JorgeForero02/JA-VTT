@@ -105,12 +105,19 @@ function loop(ts){
 function syncStageMode(terrain){
   const want=is25();
   // el motor (d3/index.js y three) es un módulo ES que carga aparte: si el estado del tablero llega antes de
-  // que exista window.D3, nadie volvería a montar. Se reintenta con el mismo terreno hasta que el módulo esté.
-  if(want&&!window.D3){clearTimeout(syncStageMode.t);syncStageMode.t=setTimeout(()=>syncStageMode(terrain),150);return}
+  // que exista window.D3, nadie volvería a montar. Se reintenta con el mismo terreno hasta que el módulo esté,
+  // como mucho 400 veces (60 s, igual que loadFog); si no llega, se avisa una vez.
+  if(want&&!window.D3){
+    clearTimeout(syncStageMode.t);
+    if((syncStageMode.tries=(syncStageMode.tries||0)+1)<=400)syncStageMode.t=setTimeout(()=>syncStageMode(terrain),150);
+    else{syncStageMode.tries=0;toast('No se pudo iniciar el mapa 2.5D: el motor no cargó',4000)}
+    return;
+  }
+  syncStageMode.tries=0;
   const has=!!(window.D3&&window.D3.isMounted());
   stage.classList.toggle('d3',want);$('#app').classList.toggle('d3',want);
   if(want)$('#status').textContent='';
-  if(want&&!has&&window.D3){window.D3.mount(stage,{toast,terrain,env:S.env,ambient:S.ambient,getImage:getImg,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25,onSelect:onToken25Select,onContext:onTerrain25Context,onBlind:b=>{$('#blindNote').style.display=b?'grid':'none'}}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).then(()=>view25()).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
+  if(want&&!has){window.D3.mount(stage,{toast,terrain,env:S.env,ambient:S.ambient,getImage:getImg,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25,onSelect:onToken25Select,onContext:onTerrain25Context,onBlind:b=>{$('#blindNote').style.display=b?'grid':'none'}}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).then(()=>view25()).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
   else if(want&&has&&terrain)window.D3.loadTerrain(terrain);
   else if(!want&&has)window.D3.unmount();
   if(!want)$('#subbar').innerHTML='';

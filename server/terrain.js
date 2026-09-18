@@ -708,7 +708,7 @@ function applyTerrainOp(t, op) {
         if (CUSTOM_ID.test(op.kind)) {
           const def = customObj(t, op.kind);
           if (!def) throw new Error('Objeto propio desconocido');
-          if (def.mount !== true) throw new Error('Ese objeto propio no se puede colgar en una pared');
+          if (def.mount !== true) throw new Error('Este objeto propio no se puede colgar en una pared');
         }
         if (!mountValid(t, wallNum, dir)) throw new Error('La pieza necesita un muro más alto que la casilla de al lado');
         t.extras.mounts[op.key] = { kind: op.kind, wall: Number(wallStr), dir };

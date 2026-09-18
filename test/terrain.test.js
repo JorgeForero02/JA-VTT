@@ -262,7 +262,14 @@ test('art: claves válidas, límites de cuadros y de entradas, objetos propios',
   applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 40, kind: 'propio-abc', rot: 0 }));
   assert.equal(t.extras.objs[40].kind, 'propio-abc');
   assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 41, kind: 'propio-zzz', rot: 0 })), /desconocido/);
-  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: '5:0', kind: 'propio-abc' })), /muro más alto|colgar/);
+  // colgar: un muro válido (como en el test de mountValid) para que la regla que se prueba sea la de `newobj.mount`
+  const wall = 5 * 22 + 5; t.h[wall] = 4; t.h[wall + 1] = 1; t.h[wall - 1] = 4;
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':0', kind: 'propio-abc' })), /no se puede colgar/, 'newobj.mount=false');
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'newobj:propio-tap', name: 'Tapiz', move: false, sight: false, fixed: true, mount: true } }));
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'obj:propio-tap', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect] } }));
+  applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':0', kind: 'propio-tap' }));
+  assert.equal(t.extras.mounts[wall + ':0'].kind, 'propio-tap', 'newobj.mount=true cuelga');
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':1', kind: 'propio-tap' })), /muro más alto/, 'la regla del muro sigue');
   applyTerrainOp(t, cleanTerrainOp({ type: 'art', remove: 'tile:0:top' }));
   assert.equal(t.extras.art['tile:0:top'], undefined);
   applyTerrainOp(t, cleanTerrainOp({ type: 'art', clear: true }));

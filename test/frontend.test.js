@@ -562,7 +562,12 @@ test('D3: arte propio desde la Biblioteca — categoría arte25, op art, recorta
   assert.match(ed, /'newobj:'\+/);
   assert.match(ed, /'newchar:'\+/);
   assert.ok(!/arte25.*localStorage|localStorage.*arte25|AU25.*localStorage|localStorage.*AU25/.test(ed), 'el arte propio no se guarda en localStorage');
-  assert.match(read('js/render.js'), /getImage:getImg/);
+  const rnd = read('js/render.js');
+  assert.match(rnd, /getImage:getImg/);
+  assert.match(rnd, /syncStageMode\.tries=\(syncStageMode\.tries\|\|0\)\+1\)<=400/, 'el reintento hasta que exista window.D3 tiene tope');
+  assert.match(rnd, /el motor no cargó/);
+  assert.match(idx, /deferred\.forEach\(d=>\{uses\.push/, 'customArt().uses incluye los objetos diferidos (imagen cargando)');
+  assert.match(world, /export const deferred=\[\];/);
   assert.match(read('js/net.js'), /if\(typeof renderArte25==='function'\)renderArte25\(\);/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'app.js'), 'utf8'), /'arte25'/);
   assert.match(read('css/app.css'), /\.cutwrap\{/);

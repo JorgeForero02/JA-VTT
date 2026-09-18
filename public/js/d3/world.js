@@ -290,7 +290,8 @@ export function applyTerrainOp(op,version){
 
 /* ---------- arte propio: extras.art → CUSTOM del motor → texturas y sprites ---------- */
 // objetos y piezas de pared cuyo kind propio existe pero su imagen aún no ha llegado: se colocan al llegar
-const deferred=[];
+// (exportado: customArt() los cuenta como usos para que «Quitar» también los limpie del servidor)
+export const deferred=[];
 const isCustomId=k=>/^propio-/.test(k);
 // un kind se conoce si es del catálogo o si el tablero define ese objeto propio (aunque su arte esté cargando)
 const objKnown=k=>!!OBJ_KINDS[k]||(isCustomId(k)&&!!G.customArt['newobj:'+k]);
