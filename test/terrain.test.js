@@ -192,3 +192,15 @@ test('grow en blank deja el anillo plano y sin objetos', () => {
   }
   assert.deepEqual(Object.keys(t.extras.objs), []);
 });
+
+test('applyTerrainOp lanza si la casilla cae fuera del tablero (obj, door, mount, water)', () => {
+  const t = blankTerrain(22);
+  const out = 22 * 22;
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: out, kind: 'barril' })), /fuera del tablero/);
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'door', i: out, open: true })), /fuera del tablero/);
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: out + ':1', kind: 'estandarte' })), /fuera del tablero/);
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'water', springs: [{ cell: out, rate: .05, cap: .5 }], sinks: [], evap: .001, edgeDrain: true })), /fuera del tablero/);
+  assert.equal(t.version, 0, 'ninguna op inválida cambia la versión');
+  applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: out - 1, kind: 'barril' }));
+  assert.equal(t.version, 1);
+});

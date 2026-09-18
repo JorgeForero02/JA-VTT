@@ -530,6 +530,11 @@ function cleanTerrainOp(op) {
 }
 
 function applyTerrainOp(t, op) {
+  // cleanTerrainOp no conoce el tamaño del tablero: el rango se comprueba aquí y una casilla
+  // fuera del tablero hace fallar la op entera (handleTerrain responde con fix + terreno completo)
+  const total = t.n * t.n;
+  const inRange = (i) => Number.isInteger(i) && i >= 0 && i < total;
+  const need = (i) => { if (!inRange(i)) throw new Error('Casilla fuera del tablero'); };
   switch (op.type) {
     case 'cells': {
       const total = t.n * t.n;
@@ -603,6 +608,7 @@ function applyTerrainOp(t, op) {
       break;
     }
     case 'obj': {
+      need(op.i);
       if (op.kind === null) {
         delete t.extras.objs[op.i];
       } else {
@@ -613,6 +619,7 @@ function applyTerrainOp(t, op) {
       break;
     }
     case 'door': {
+      need(op.i);
       const o = t.extras.objs[op.i];
       if (o && OBJ_KINDS[o.kind] && OBJ_KINDS[o.kind].door) {
         o.open = op.open;
@@ -620,6 +627,7 @@ function applyTerrainOp(t, op) {
       break;
     }
     case 'mount': {
+      need(Number(op.key.split(':')[0]));
       if (op.kind === null) {
         delete t.extras.mounts[op.key];
       } else {
@@ -629,6 +637,8 @@ function applyTerrainOp(t, op) {
       break;
     }
     case 'water': {
+      for (const s of op.springs) need(s.cell);
+      for (const s of op.sinks) need(s.cell);
       t.extras.springs = op.springs;
       t.extras.sinks = op.sinks;
       t.extras.evap = op.evap;

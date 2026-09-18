@@ -28,7 +28,7 @@ export function initInput(scene){
 }
 
 /* =====================================================================
-   HERRAMIENTAS (sin interfaz: la UI del diorama no viene; fase B la hará JA-VTT)
+   HERRAMIENTAS (sin interfaz: la UI es la de JA-VTT — rail y subbarra en editor.js)
    ===================================================================== */
 export function setTool(id){G.tool=id;}
 export function setToolOption(k,v){if(k==='paintMat')G.paintMat=v;else if(k==='objKind')G.objKind=v;else if(k==='waterMode')G.waterMode=v;}
@@ -122,7 +122,7 @@ export function applyTool(p){
       for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){if(inb(x+dx,z+dz)){const j=I(x+dx,z+dz);G.W[j]=0;G.Wprev[j]=0;G.FLX[j*4]=G.FLX[j*4+1]=G.FLX[j*4+2]=G.FLX[j*4+3]=0;}}
     }
   }else if(G.tool==='boom'){
-    R.toast('Las explosiones llegan en una fase posterior.');
+    R.toast('Las explosiones todavía no están disponibles en el mapa 2.5D.');
   }else if(G.tool==='objeto'){
     const K=OBJ_KINDS[G.objKind];
     if(p.obj&&objs.has(i)){sendOp({type:'obj',i,kind:null});return;}
@@ -133,7 +133,7 @@ export function applyTool(p){
     sendOp({type:'obj',i,kind:G.objKind,rot:K.fixed?autoRot(i,G.objKind):0});
     if(canGrow(i))sendOp({type:'grow',pad:8});
   }else if(G.tool==='luz'){
-    R.toast('Las luces del mapa 2.5D llegan en la fase C.');
+    R.toast('Las luces todavía no se colocan desde el mapa 2.5D.');
   }
 }
 const pointers=new Map();let dragMoved=false,pinchD=0,pinchM=null,hoverXY=null;
