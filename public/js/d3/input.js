@@ -4,10 +4,11 @@ import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, MAXH, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
 import { mkCanvas, OBJ_KINDS, toTex } from './art.js';
 import { waterMesh, pours, WET } from './water.js';
-import { charsGroup, propGroup, select, moveTo, charAt } from './chars.js';
+import { charsGroup, propGroup, select, moveTo, charAt, pxOfCell } from './chars.js';
 import { vh, getTerrainMeshes } from './terrain.js';
 import { isDoor, mountValid, applyTerrainOp, autoRot, canGrow } from './world.js';
 import { CAM, panBy, focusOn, zoomMax } from './camera.js';
+import { hooks } from './fx.js';
 const T3 = THREE;
 const objs=G.objs, mounts=G.mounts, springs=G.springs, sinks=G.sinks;
 
@@ -83,7 +84,7 @@ export function applyTool(p){
     return;
   }
   const i=p.cell;showCursor(i);
-  if(G.tool==='ficha')return;   // crear fichas lo hace JA-VTT con D3.pickCell (rail Ficha/Enemigo)
+  if(G.tool==='ficha'||G.tool==='luz')return;   // crear fichas/luces lo hace JA-VTT con D3.pickPlace (rail Ficha/Enemigo/Luz)
   if(G.tool==='mover'){
     if(p.obj&&isDoor(i)){const o=objs.get(i);if(o.locked&&S.view!=='gm'){R.toast('La puerta está cerrada con llave.');return;}sendOp({type:'door',i,open:!o.open});return;}
     if(!G.selected){R.toast('Primero toca una ficha.');return;}
@@ -133,9 +134,23 @@ export function applyTool(p){
     if(charAt(i,null)&&K.move){R.toast('Hay una ficha en esa casilla.');return;}
     sendOp({type:'obj',i,kind:G.objKind,rot:K.fixed?autoRot(i,G.objKind):0});
     if(canGrow(i))sendOp({type:'grow',pad:8});
-  }else if(G.tool==='luz'){
-    R.toast('Las luces todavía no se colocan desde el mapa 2.5D.');
   }
+}
+/* Qué hay bajo el puntero, en términos del tablero (ids de JA-VTT, celdas del terreno). */
+export function describePick(p){
+  if(!p)return null;
+  if(p.char)return p.char.vid!=null?{type:'token',vid:p.char.vid,cell:p.char.cell}:null;
+  if(p.light)return p.light.vid!=null?{type:'light',vid:p.light.vid,cell:p.light.cell}:null;
+  if(p.mount){const m=G.mounts.get(p.mount);return m?{type:'mount',key:p.mount,kind:m.kind}:null;}
+  if(p.obj){const o=G.objs.get(p.cell);return o?{type:'obj',cell:p.cell,kind:o.kind,rot:o.rot||0,open:!!o.open,locked:!!o.locked,door:isDoor(p.cell)}:null;}
+  return {type:'cell',cell:p.cell,wall:p.wall||null};
+}
+// Dónde colocar algo desde el shell: centro en px de la casilla, y `mount` si el clic cayó en la cara de un muro.
+export function pickPlace(px,py){
+  const p=pickAt(px,py);if(!p)return null;
+  if(p.wall){const w=p.wall,x=cxOf(w.wall)+DIRS[w.dir][0],z=czOf(w.wall)+DIRS[w.dir][1];if(inb(x,z))return Object.assign(pxOfCell(I(x,z)),{cell:I(x,z),mount:{cell:w.wall,dir:w.dir}});}
+  const i=p.char?p.char.cell:p.cell;if(i==null)return null;
+  return Object.assign(pxOfCell(i),{cell:i,mount:null});
 }
 const pointers=new Map();let dragMoved=false,pinchD=0,pinchM=null,hoverXY=null;
 function onContextMenu(e){e.preventDefault();}
@@ -166,7 +181,10 @@ function endPointer(e){
   if(!pointers.has(e.pointerId))return;
   const single=pointers.size===1;
   pointers.delete(e.pointerId);
-  if(single&&!dragMoved&&e.type==='pointerup')applyTool(pickAt(e.clientX,e.clientY));
+  if(single&&!dragMoved&&e.type==='pointerup'){
+    if(e.button===2){hooks.context(describePick(pickAt(e.clientX,e.clientY)),e.clientX,e.clientY);}
+    else applyTool(pickAt(e.clientX,e.clientY));
+  }
   if(pointers.size<2)pinchM=null;
   if(pointers.size===0)R.stage.classList.remove('dragging');
 }

@@ -165,7 +165,7 @@ try {
   const v0 = await gm.evaluate(() => window.D3.version());
   step('2.5D: terreno cargado del servidor (version 0)', v0 === 0, String(v0));
   const railTools = await gm.$$eval('#rail .tool', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.dataset.tool));
-  step('rail 2.5D del director: select, pan, fichas y herramientas de terreno (regla y planos llegan después)', railTools.join(',') === 'select,pan,player,enemy,up,down,paint,object,water', railTools.join(','));
+  step('rail 2.5D del director: select, pan, luz, fichas y herramientas de terreno (regla y planos llegan después)', railTools.join(',') === 'select,pan,light,player,enemy,up,down,paint,object,water', railTools.join(','));
 
   // panel Mapa 2.5D: los cuatro estilos de arte, uno a uno, con captura
   await gm.click('[data-tab="scene"]');
@@ -260,7 +260,29 @@ try {
   await gm.mouse.click(box.x + box.width / 2 - 90, box.y + box.height / 2 + 60);
   await pl.waitForFunction(() => window.D3.debug().chars >= 2, null, { timeout: 40000 });
   step('2.5D: el director crea una ficha tocando una casilla', true);
+
+  // luz suelta con la herramienta Luz: el jugador la recibe como sprite
+  const lights0 = await pl.evaluate(() => window.D3.debug().lights);
+  await gm.click('#rail [data-tool="light"]');
+  await gm.waitForSelector('#subbar .chip', { timeout: 40000 });
+  const lampChips = await gm.$$eval('#subbar .chip', (els) => els.map((e) => e.textContent.trim()));
+  step('2.5D: la subbarra de Luz lista los presets de JA-VTT', lampChips.includes('Farol') && lampChips.includes('Linterna sorda'), lampChips.slice(0, 5).join(','));
+  await gm.click('#subbar .chip:has-text("Farol")');
+  const posL = (await gm.evaluate(() => window.D3.debug().screen))[0];
+  await gm.mouse.click(posL.x - 70, posL.y - 40);
+  await pl.waitForFunction((n) => window.D3.debug().lights > n, lights0, { timeout: 40000 });
+  step('2.5D: el director coloca un farol y el jugador lo ve', true);
   await gm.click('#rail [data-tool="select"]');
+  await shot(pl, '17-farol-25d');
+
+  // clic derecho sobre la ficha: menú contextual de JA-VTT
+  const posR = (await gm.evaluate(() => window.D3.debug().screen))[0];
+  await gm.mouse.click(posR.x, posR.y, { button: 'right' });
+  await gm.waitForFunction(() => getComputedStyle(document.getElementById('ctx')).display !== 'none', null, { timeout: 8000 });
+  const ctxTitle = await gm.textContent('#ctx .ctxTitle');
+  step('2.5D: el clic derecho sobre una ficha abre su menú', /Prueba/.test(ctxTitle), ctxTitle.trim());
+  await shot(gm, '18-menu-ficha-25d');
+  await gm.keyboard.press('Escape');
 
   // el tablero nuevo nace con visión compartida; la desactivamos para probar el caso ciego
   await gm.evaluate(() => { $('#sharedVision').checked = false; $('#sharedVision').dispatchEvent(new Event('change')); Net.tick(); });

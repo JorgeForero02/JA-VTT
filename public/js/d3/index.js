@@ -11,7 +11,7 @@ import { ENVS, decor, charsGroup, propGroup, restyle, removeLight, charAt, updat
 import { CAM, envCur, rt, postMat, postScene, postCam, initCamera, tickCamera, applyEnv, stepEnv, resize, rotate } from './camera.js';
 import { initTerrain, terrainMat } from './terrain.js';
 import { initWorld, loadScene, loadTerrain, applyTerrainOp, applyView, placeMarks, relayout, refreshTufts, terrainChanged, removeObj, removeMount, blocksMove, closedDoor, blocksSight, maybeGrow } from './world.js';
-import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt, sendOp } from './input.js';
+import { initInput, setTool as setToolInput, setToolOption as setToolOptionInput, bindPointers, unbindPointers, bindKeys, unbindKeys, updateKeys, updateInput, onTerrainOp, pickAt, sendOp, pickPlace as pickPlaceInput } from './input.js';
 const T3 = THREE;
 // Colores como en r128: sin conversión sRGB→lineal al asignar, sin codificar a la salida.
 THREE.ColorManagement.enabled=false;
@@ -55,6 +55,7 @@ onTerrainOp(op=>opts.onTerrainOp&&opts.onTerrainOp(op));
 hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
 hooks.envEm=()=>envCur.em;hooks.blocksMove=blocksMove;hooks.closedDoor=closedDoor;hooks.blocksSight=blocksSight;hooks.flashLight=flashLight;hooks.relayout=relayout;hooks.maybeGrow=maybeGrow;hooks.moved=c=>{if(!opts.onMove)return;const p=pxOfCell(c.cell);opts.onMove(c.vid,p.x,p.y);};
 hooks.selected=c=>{if(opts.onSelect)opts.onSelect(c?c.vid:null);};
+hooks.context=(info,x,y)=>{if(opts.onContext&&info)opts.onContext(info,x,y);};
 
 /* =====================================================================
    BUCLE
@@ -148,6 +149,8 @@ function settings25(){return {style:ART.art?ART.art.style:'packs', fogAlpha:S.fo
 function selectVid(vid){G.selected=vid==null?null:(G.chars.find(c=>c.vid===vid)||null);}
 // Qué casilla del tablero hay bajo un punto de la pantalla, en píxeles de JA-VTT.
 function pickCell(px,py){const p=pickAt(px,py);const i=p?(p.char?p.char.cell:p.cell):null;return i==null?null:pxOfCell(i);}
+// Dónde colocar algo (luz suelta o colgada) bajo un punto de la pantalla, en píxeles de JA-VTT.
+function pickPlace(px,py){return pickPlaceInput(px,py);}
 
 /* ---------- API interna: lo que expone createEngine ---------- */
 function exploredOut(){return visionExploredBytes();}
@@ -173,7 +176,7 @@ function setEnv(env,amb,snap){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored, resetExplored:visionResetExplored };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, pickPlace, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored, resetExplored:visionResetExplored };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -208,9 +211,10 @@ export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatc
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
+export function pickPlace(x,y){return eng?eng.pickPlace(x,y):null;}
 export function selectToken(vid){if(eng)eng.select(vid);}
 export function exploredBytes(){return eng?eng.exploredBytes():null;}
 export function exploredDirty(){return eng?eng.exploredDirty():false;}
 export function loadExplored(bytes){if(eng)eng.loadExplored(bytes);}
 export function resetExplored25(){if(eng)eng.resetExplored();}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,styles};
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,pickPlace,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,styles};

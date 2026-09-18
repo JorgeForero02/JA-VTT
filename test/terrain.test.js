@@ -211,3 +211,30 @@ test('cleanTerrainOp(settings) recorta los rangos que usa el panel 2.5D', () => 
   assert.equal(op.focus, false); assert.equal(op.autoGrow, true); assert.equal(op.edgeDrain, false);
   assert.equal(cleanTerrainOp({ type: 'settings', style: 'oleo' }), null);
 });
+
+test('mount: sólo en la cara de un muro más alto que la casilla contigua; quitar siempre vale', () => {
+  const { mountValid } = require('../server/terrain');
+  const t = blankTerrain(22);
+  const wall = 5 * 22 + 5, east = wall + 1;
+  t.h[wall] = 4; t.h[east] = 1;
+  t.h[wall - 1] = 4;
+  assert.equal(mountValid(t, wall, 0), true, 'cara este: la contigua está más baja');
+  assert.equal(mountValid(t, wall, 1), false, 'cara oeste: misma altura');
+  applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':0', kind: 'estandarte' }));
+  assert.equal(t.extras.mounts[wall + ':0'].kind, 'estandarte');
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':1', kind: 'estandarte' })), /muro más alto/);
+  assert.equal(t.extras.mounts[wall + ':1'], undefined);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: wall + ':0', kind: null }));
+  assert.equal(t.extras.mounts[wall + ':0'], undefined);
+  assert.equal(mountValid(t, 21, 0), false, 'borde: la contigua cae fuera');
+});
+
+test('obj: open viaja con la op y sobrevive a girar o bloquear', () => {
+  const t = blankTerrain(22);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 30, kind: 'puerta', rot: 0 }));
+  applyTerrainOp(t, cleanTerrainOp({ type: 'door', i: 30, open: true }));
+  applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 30, kind: 'puerta', rot: Math.PI / 2, open: true, locked: false }));
+  assert.equal(t.extras.objs[30].open, true);
+  assert.equal(t.extras.objs[30].rot, Math.PI / 2);
+  assert.equal(cleanTerrainOp({ type: 'obj', i: 30, kind: 'puerta', open: 'sí' }).open, undefined);
+});

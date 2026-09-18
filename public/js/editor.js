@@ -173,7 +173,7 @@ function hitHandle(p){
 
 /* ---------- Puntero ---------- */
 function evScreen(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua',player:'ficha',enemy:'ficha'};
+const D3_TOOLS={select:'mover',pan:'mover',up:'subir',down:'bajar',paint:'pintar',object:'objeto',water:'agua',player:'ficha',enemy:'ficha',light:'luz'};
 /* El motor 2.5D pregunta si esta ficha se puede mover y avisa cuando termina su camino. */
 function canMove25(vid){const t=byId(vid);return !!t&&(isGM()||canControl(t));}
 /* El motor eligió una ficha: la barra de selección y el panel siguen a la ficha, como en 2D. */
@@ -206,8 +206,13 @@ function hitWallVertex(p){
 }
 stage.addEventListener('pointerdown',e=>{
   if(is25()){
-    if(!isGM()||!['player','enemy'].includes(UI.tool))return;
+    if(!isGM()||!['player','enemy','light'].includes(UI.tool))return;
     if(e.button!==0)return;
+    if(UI.tool==='light'){
+      const q=window.D3&&window.D3.pickPlace(e.clientX,e.clientY);if(!q)return;
+      pushUndo();const l=newLight({x:q.x,y:q.y},UI.lightPreset);if(q.mount)l.mount=q.mount;addObj(l);UI.selected=[l.id];changed(true);
+      return;
+    }
     const q=window.D3&&window.D3.pickCell(e.clientX,e.clientY);
     if(!q)return;
     pushUndo();const t=addObj(newToken(q,UI.tool));UI.selected=[t.id];changed();
@@ -516,6 +521,33 @@ function openContext(o,sp){
   placePop(ctxEl,sp);
 }
 
+/* Clic derecho en el mapa 2.5D: fichas y luces abren su menú de siempre; los objetos del terreno, el suyo. */
+function onTerrain25Context(info,cx,cy){
+  const r=stage.getBoundingClientRect(),sp={x:cx-r.left,y:cy-r.top};
+  if(info.type==='token'||info.type==='light'){const o=byId(info.vid);if(o)openContext(o,sp);return}
+  if(!isGM())return;
+  if(info.type==='obj'||info.type==='mount')openTerrainContext(info,sp);
+}
+function openTerrainContext(info,sp){
+  closePops();
+  const cat=window.D3.catalog(),name=(cat.OBJS.find(o=>o.key===info.kind)||{}).name||info.kind;
+  const items=[];const add=(ic,txt,fn,cls)=>items.push({ic,txt,fn,cls});
+  const op=o=>window.D3.terrainOp(o);
+  if(info.type==='obj'){
+    if(info.door){
+      add(info.open?'door-closed':'door-open',info.open?'Cerrar puerta':'Abrir puerta',()=>op({type:'door',i:info.cell,open:!info.open}));
+      add(info.locked?'lock-open':'lock',info.locked?'Quitar llave':'Cerrar con llave',()=>op({type:'obj',i:info.cell,kind:info.kind,rot:info.rot,open:info.locked?info.open:false,locked:!info.locked}));
+    }
+    add('rotate-cw','Girar',()=>op({type:'obj',i:info.cell,kind:info.kind,rot:(info.rot+Math.PI/2)%(Math.PI*2),open:info.open,locked:info.locked}));
+    add('trash-2','Quitar',()=>op({type:'obj',i:info.cell,kind:null}),'danger');
+  }else{
+    add('trash-2','Quitar de la pared',()=>op({type:'mount',key:info.key,kind:null}),'danger');
+  }
+  ctxEl.innerHTML=`<div class="ctxTitle"></div>`;ctxEl.firstChild.textContent=name;
+  for(const it of items){const b=document.createElement('button');b.setAttribute('role','menuitem');if(it.cls)b.className=it.cls;b.innerHTML=svgIcon(it.ic);const s=document.createElement('span');s.textContent=it.txt;b.appendChild(s);b.onclick=()=>{ctxEl.style.display='none';it.fn()};ctxEl.appendChild(b)}
+  placePop(ctxEl,sp);
+}
+
 /* ---------- Editor de propiedades ---------- */
 let edState=null;
 function openEditor(o,sp){
@@ -818,6 +850,9 @@ function render25Sub(){
   }else if(t==='water'){
     for(const[k,n,ic]of[['verter','Verter','cloud-fog'],['manantial','Manantial','sparkles'],['desague','Desagüe','circle-off'],['secar','Secar','sun']])chip(ic,n,UI.waterMode===k,()=>{UI.waterMode=k;window.D3.setToolOption('waterMode',k);renderSubbar();});
     hint('Manantial y desagüe se guardan; verter y secar son locales.');
+  }else if(t==='light'){
+    for(const[k,P]of Object.entries(LIGHT_PRESETS))chip(P.icon,P.name,UI.lightPreset===k,()=>{UI.lightPreset=k;renderSubbar();renderLibrary()});
+    hint('Clic en una casilla para colocarla; en la cara de un muro para colgarla.');
   }else if(t==='up'||t==='down'){
     hint('Clic en un bloque.');
   }

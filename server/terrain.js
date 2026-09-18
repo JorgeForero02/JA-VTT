@@ -380,6 +380,13 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+/* Una pieza sólo cuelga de la cara `dir` de `wall` si la casilla contigua existe y está más baja:
+   la misma regla que world.js mountValid en el cliente. */
+function mountValid(t, wall, dir) {
+  const N = t.n, x = cxOf(wall, N) + DIRS[dir][0], z = czOf(wall, N) + DIRS[dir][1];
+  return inb(x, z, N) && t.h[wall] > t.h[I(x, z, N)];
+}
+
 function cleanTerrainOp(op) {
   if (!op || typeof op !== 'object') return null;
   const out = {};
@@ -434,6 +441,7 @@ function cleanTerrainOp(op) {
       out.kind = kind;
       out.rot = typeof op.rot === 'number' ? op.rot : null;
       if ('locked' in op && typeof op.locked === 'boolean') out.locked = op.locked;
+      if ('open' in op && typeof op.open === 'boolean') out.open = op.open;
       return out;
     }
     case 'door': {
@@ -614,6 +622,7 @@ function applyTerrainOp(t, op) {
       } else {
         const o = { kind: op.kind, rot: op.rot };
         if ('locked' in op) o.locked = op.locked;
+        if ('open' in op) o.open = op.open;
         t.extras.objs[op.i] = o;
       }
       break;
@@ -627,12 +636,15 @@ function applyTerrainOp(t, op) {
       break;
     }
     case 'mount': {
-      need(Number(op.key.split(':')[0]));
+      const wallNum = Number(op.key.split(':')[0]);
+      need(wallNum);
       if (op.kind === null) {
         delete t.extras.mounts[op.key];
       } else {
         const [wallStr, dirStr] = op.key.split(':');
-        t.extras.mounts[op.key] = { kind: op.kind, wall: Number(wallStr), dir: Number(dirStr) };
+        const dir = Number(dirStr);
+        if (!mountValid(t, wallNum, dir)) throw new Error('La pieza necesita un muro más alto que la casilla de al lado');
+        t.extras.mounts[op.key] = { kind: op.kind, wall: Number(wallStr), dir };
       }
       break;
     }
@@ -671,5 +683,6 @@ module.exports = {
   encode,
   decode,
   cleanTerrainOp,
-  applyTerrainOp
+  applyTerrainOp,
+  mountValid
 };

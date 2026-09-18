@@ -64,7 +64,7 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .tool kbd{position:absolute;right:3px;bottom:1px;font:600 9px var(--sans);opacity:.55}
 .railsep{width:28px;height:1px;background:var(--line);margin:5px 0}
 .tool.gmOnly.hiddenTool{display:none}
-#app.d3 #rail .tool:not([data-tool="select"]):not([data-tool="pan"]):not([data-tool="player"]):not([data-tool="enemy"]):not(.d3Only),#app.d3 #rail .railsep:not(.d3Only){display:none}
+#app.d3 #rail .tool:not([data-tool="select"]):not([data-tool="pan"]):not([data-tool="player"]):not([data-tool="enemy"]):not([data-tool="light"]):not(.d3Only),#app.d3 #rail .railsep:not(.d3Only){display:none}
 #app:not(.d3) .d3Only{display:none}
 #app.d3 .d2Only{display:none}
 

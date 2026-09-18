@@ -297,7 +297,7 @@ test('shell 2.5D: el stage delega en D3 y el 2D no dibuja ni recibe punteros', (
   assert.match(idx, /opts\.terrain\?loadTerrain\(opts\.terrain\):loadScene\('valle'\)/);
   const css = read('css/app.css');
   assert.match(css, /#stage\.d3 canvas:not\(\.d3\)\{display:none\}/);
-  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\):not\(\[data-tool="player"\]\):not\(\[data-tool="enemy"\]\):not\(\.d3Only\),#app\.d3 #rail \.railsep:not\(\.d3Only\)\{display:none\}/);
+  assert.match(css, /#app\.d3 #rail \.tool:not\(\[data-tool="select"\]\):not\(\[data-tool="pan"\]\):not\(\[data-tool="player"\]\):not\(\[data-tool="enemy"\]\):not\(\[data-tool="light"\]\):not\(\.d3Only\),#app\.d3 #rail \.railsep:not\(\.d3Only\)\{display:none\}/);
 });
 
 test('ctx.js: el estado del mundo 2.5D vive en G/S/R/U; ningún módulo declara N ni H por su cuenta', () => {
@@ -395,7 +395,7 @@ test('fichas 2.5D: selección, movimiento por ops y creación desde el rail', ()
   const input = read('js/d3/input.js');
   assert.ok(!/G\.tool!=='mover'/.test(input), 'la herramienta mover ya no está desactivada');
   assert.match(input, /R\.canMove\(p\.char\.vid\)/);
-  assert.match(input, /if\(G\.tool==='ficha'\)return/);
+  assert.match(input, /if\(G\.tool==='ficha'\|\|G\.tool==='luz'\)return/);
   const chars = read('js/d3/chars.js');
   assert.match(chars, /hooks\.moved\(c\)/);
   assert.match(read('js/d3/fx.js'), /moved:/);
@@ -510,4 +510,27 @@ test('fix D1: niebla explorada no se descarta al recargar con el tablero crecido
   assert.match(ed, /\$\$\('#tab-scene \[data-fold="mapa25"\] input,#tab-scene \[data-fold="mapa25"\] button'\)\.forEach\(el=>\{el\.disabled=ro\}\);/);
   assert.match(ed, /\$\('#cutH25'\)\.disabled=ro\|\|!st\.cutOn;/);
   assert.match(ed, /\$\('#grow25'\)\.disabled=ro\|\|st\.n\+16>st\.nMax;/);
+});
+
+test('2.5D: luces sueltas y colgadas desde el rail, menú contextual con clic derecho', () => {
+  const input = read('js/d3/input.js');
+  assert.match(input, /export function describePick\(p\)/);
+  assert.match(input, /export function pickPlace\(px,py\)/);
+  assert.match(input, /if\(e\.button===2\)\{hooks\.context\(describePick\(pickAt\(e\.clientX,e\.clientY\)\),e\.clientX,e\.clientY\);\}/);
+  assert.match(input, /if\(G\.tool==='ficha'\|\|G\.tool==='luz'\)return;/);
+  assert.ok(!/llegan en la fase|todavía no se colocan desde el mapa/.test(input), 'la herramienta luz ya funciona');
+  assert.match(read('js/d3/fx.js'), /context: \(\) => \{\}/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /hooks\.context=\(info,x,y\)=>\{if\(opts\.onContext&&info\)opts\.onContext\(info,x,y\);\}/);
+  assert.match(idx, /pickPlace/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /light:'luz'/);
+  assert.match(ed, /if\(q\.mount\)l\.mount=q\.mount;/);
+  assert.match(ed, /function onTerrain25Context\(info,cx,cy\)/);
+  assert.match(ed, /function openTerrainContext\(info,sp\)/);
+  assert.match(ed, /\{type:'door',i:info\.cell,open:!info\.open\}/);
+  assert.match(read('js/render.js'), /onContext:onTerrain25Context/);
+  assert.match(read('css/app.css'), /:not\(\[data-tool="light"\]\)/);
+  const T = require('../server/terrain');
+  assert.equal(typeof T.mountValid, 'function');
 });
