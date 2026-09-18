@@ -44,6 +44,7 @@ export function doorTex(o) { const t = ART.TEX.objs.puerta.clone(); t.needsUpdat
 export function restyle(key) {
   loadStyle(key);
   WU.uPix.value = ART.art.res;
+  hooks.atlasChanged(); // reasigna terrainMat.map: sin esto el suelo se queda con el atlas del estilo anterior
   const done = new Set();
   [decor, charsGroup, propGroup].forEach(g => g.children.forEach(mesh => {
     const a = mesh.userData.art;

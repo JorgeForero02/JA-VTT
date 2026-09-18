@@ -572,3 +572,21 @@ test('D3: arte propio desde la Biblioteca — categoría arte25, op art, recorta
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'app.js'), 'utf8'), /'arte25'/);
   assert.match(read('css/app.css'), /\.cutwrap\{/);
 });
+
+test('aspecto de ficha en 2.5D: catálogo del motor con miniaturas y token.art', () => {
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /function artThumb\(kind\)/);
+  assert.match(idx, /a\.idle\[0\]\*a\.fw/);
+  assert.match(idx, /kind:c\.kind/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function artPicker\(o,done\)/);
+  assert.match(ed, /b\.dataset\.art=ch\.key/);
+  assert.match(ed, /o\.art=ch\.key;done\(\)/);
+  assert.match(ed, /section\('Aspecto'\)/);
+  assert.match(read('css/app.css'), /\.pick\.sprite/);
+  // ítem extra: chars.restyle reasigna el atlas del terreno (si no, el suelo se queda con el estilo anterior)
+  const chars = read('js/d3/chars.js');
+  assert.match(chars, /hooks\.atlasChanged\(\)/);
+  assert.match(read('js/d3/fx.js'), /atlasChanged: \(\) => \{\}/);
+  assert.match(idx, /hooks\.atlasChanged=\(\)=>\{terrainMat\.map=ART\.TEX\.atlas;terrainMat\.needsUpdate=true;\}/);
+});

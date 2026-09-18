@@ -58,6 +58,8 @@ hooks.selected=c=>{if(opts.onSelect)opts.onSelect(c?c.vid:null);};
 // el motor no descarga imágenes: el shell le presta las de su Biblioteca (null hasta que cargan)
 hooks.getImage=opts.getImage||(()=>null);
 hooks.artChanged=()=>syncObjects(); // una criatura propia recién cargada (o quitada) cambia el arte de sus fichas
+// chars.js no puede importar terrainMat de terrain.js sin ciclo (terrain.js -> vision.js -> chars.js): hook relleno aquí.
+hooks.atlasChanged=()=>{terrainMat.map=ART.TEX.atlas;terrainMat.needsUpdate=true;};
 hooks.context=(info,x,y)=>{if(opts.onContext&&info)opts.onContext(info,x,y);};
 
 /* =====================================================================
@@ -140,7 +142,7 @@ function debug(){
   const rect=R.stage.getBoundingClientRect();
   const screen=G.chars.filter(c=>c.vid!=null).map(c=>{
     const v=c.mesh.position.clone();v.y+=.5;v.project(R.cam);
-    return {vid:c.vid,x:rect.left+(v.x+1)/2*rect.width,y:rect.top+(1-v.y)/2*rect.height};
+    return {vid:c.vid,x:rect.left+(v.x+1)/2*rect.width,y:rect.top+(1-v.y)/2*rect.height,kind:c.kind};
   });
   return {chars:G.chars.length, lights:G.lights.length, vids:G.chars.map(c=>c.vid).filter(v=>v!=null), screen,
     view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid), explored:G.exploredUser.reduce((n,v)=>n+(v?1:0),0),
@@ -222,6 +224,13 @@ export function version(){return eng?eng.version():-1;}
 export function setTool(id){if(eng)eng.setTool(id);}
 export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
 export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly,custom:!!o.custom})),CHARS:Object.entries(ART_CHARS).map(([key,c])=>({key,name:c.name,custom:!!c.custom}))};}
+// Miniatura del arte de una criatura (primer cuadro de reposo), para el campo Aspecto del editor.
+function artThumb(kind){
+  const a=ART.art&&ART.art.chars[kind];if(!a)return null;
+  const c=document.createElement('canvas');c.width=a.fw;c.height=a.fh;const x=c.getContext('2d');
+  x.imageSmoothingEnabled=false;x.drawImage(a.sheet,a.idle[0]*a.fw,0,a.fw,a.fh,0,0,a.fw,a.fh);
+  return c.toDataURL();
+}
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
@@ -231,4 +240,4 @@ export function exploredBytes(){return eng?eng.exploredBytes():null;}
 export function exploredDirty(){return eng?eng.exploredDirty():false;}
 export function loadExplored(bytes){if(eng)eng.loadExplored(bytes);}
 export function resetExplored25(){if(eng)eng.resetExplored();}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,pickPlace,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,customArt,styles};
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,pickPlace,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,customArt,styles,artThumb};

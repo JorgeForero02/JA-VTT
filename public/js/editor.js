@@ -603,8 +603,8 @@ function openEditor(o,sp){
       select('Controla',o.owner==null?'':String(o.owner),[['','Nadie (solo el director)'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
       select('Tamaño',String(o.size||1),[['1','Mediano (1 casilla)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
       color('Color',o.color,v=>o.color=v);
-      section('Retrato');
-      body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
+      if(is25()&&window.D3&&window.D3.isMounted()){section('Aspecto');body.appendChild(artPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}))}
+      else{section('Retrato');body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}))}
       check('Oculta para jugadores',o.hidden,v=>o.hidden=v);
       section('Visión');
       check('Tiene visión propia',o.vision!==false,v=>o.vision=v);
@@ -1288,6 +1288,19 @@ function portraitPicker(o,done){
   inp.onchange=async()=>{const f=inp.files[0];if(!f)return;try{const m=await Store.upload(f,{category:pref});o.img=m.id;done()}catch(err){toast(err.message||'No se pudo subir')}};
   up.appendChild(inp);wrap.appendChild(up);
   return wrap;
+}
+/* Aspecto de una ficha en 2.5D: una criatura del catálogo del motor o una propia (arte 2.5D). */
+function artPicker(o,done){
+  const grid=document.createElement('div');grid.className='pickGrid';
+  const chars=window.D3.catalog().CHARS,known=chars.some(ch=>ch.key===o.art);
+  // una criatura propia ya borrada deja su id en la ficha: el motor cae al arte por defecto y aquí se marca ese
+  const cur=known?o.art:(o.kind==='enemy'?'goblin':'guerrera');
+  for(const ch of chars){
+    const b=document.createElement('button');b.className='pick sprite'+(ch.key===cur?' on':'');b.title=ch.name;b.dataset.art=ch.key;
+    const src=window.D3.artThumb(ch.key);if(src){const im=document.createElement('img');im.src=src;im.alt=ch.name;b.appendChild(im)}else b.textContent=ch.name[0];
+    b.onclick=()=>{o.art=ch.key;done()};grid.appendChild(b);
+  }
+  return grid;
 }
 
 /* ---------- Mesa: participantes e invitaciones ---------- */

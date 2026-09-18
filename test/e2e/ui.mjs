@@ -172,17 +172,23 @@ try {
   await gm.waitForFunction(() => document.querySelectorAll('#style25 .chip').length === 4, null, { timeout: 40000 });
   const zonasHidden = await gm.evaluate(() => getComputedStyle(document.querySelector('[data-fold="zonas"]')).display === 'none');
   step('2.5D: el panel Escena muestra «Mapa 2.5D» y esconde las zonas del 2D', zonasHidden);
-  const styleShots = {};
+  const styleShots = {}, groundShots = {};
   for (const [key, label] of [['pixel', 'Píxel 16'], ['pixel32', 'Píxel 32'], ['drawn', 'Dibujado'], ['packs', 'Packs']]) {
     await gm.click(`#style25 .chip:has-text("${label}")`);
     await gm.waitForFunction((k) => window.D3.debug().style === k, key, { timeout: 40000 });
     await gm.waitForTimeout(2500);
     const buf = await gm.screenshot({ clip: { x: 500, y: 300, width: 200, height: 200 } });
     styleShots[key] = buf.toString('base64').slice(0, 4000);
+    // recorte pequeño de una esquina del suelo (sin agua ni fichas todavía): comprueba el ítem extra de
+    // esta tarea, chars.restyle reasignando terrainMat.map — si no lo hace, el suelo se queda con el atlas
+    // del estilo anterior y este recorte sale igual entre packs y pixel32.
+    const gbuf = await gm.screenshot({ clip: { x: 505, y: 305, width: 24, height: 24 } });
+    groundShots[key] = gbuf.toString('base64');
     await shot(gm, `09-estilo-${key}`);
   }
   const distinctStyles = new Set(Object.values(styleShots)).size;
   step('2.5D: los cuatro estilos de arte se aplican y se ven distintos', distinctStyles === 4, String(distinctStyles));
+  step('2.5D: el suelo cambia de atlas entre estilos (chars.restyle reasigna terrainMat.map)', groundShots.packs !== groundShots.pixel32);
   const vStyle = await gm.evaluate(() => window.D3.version());
   step('2.5D: cada cambio de estilo es una op de terreno (version sube)', vStyle >= 4, String(vStyle));
 
@@ -278,6 +284,23 @@ try {
   await gm.waitForFunction(() => getComputedStyle(document.getElementById('selbar')).display !== 'none', null, { timeout: 8000 });
   const selText = await gm.textContent('#selbar .count');
   step('2.5D: elegir una ficha muestra la barra de selección (editar, duplicar, eliminar)', /Prueba/.test(selText), selText.trim());
+
+  // aspecto: el director cambia la criatura de la ficha desde el editor y el jugador ve el sprite nuevo
+  await gm.click('#selbar [data-act="edit"]');
+  await gm.waitForSelector('#edBody .pick.sprite', { timeout: 40000 });
+  const thumbs = await gm.$$eval('#edBody .pick.sprite', (els) => els.map((e) => e.dataset.art));
+  step('2.5D: el editor de la ficha ofrece el catálogo de criaturas', thumbs.includes('guerrera') && thumbs.includes('goblin') && thumbs.length >= 12, thumbs.length + ' criaturas');
+  await gm.click('#edBody .pick.sprite[data-art="esqueleto"]');
+  await pl.waitForFunction(() => (window.D3.debug().screen[0] || {}).kind === 'esqueleto', null, { timeout: 40000 });
+  step('2.5D: cambiar el aspecto cambia el sprite en el jugador', true);
+  await shot(pl, '20-aspecto-esqueleto-25d');
+  await gm.keyboard.press('Escape');
+  await gm.waitForTimeout(400);
+  // Escape cierra el editor pero también suelta la ficha (window.D3.select(null) en editor.js): hay que
+  // volver a pincharla antes del clic que la mueve.
+  await gm.mouse.click(pos.x, pos.y);
+  await gm.waitForFunction(() => getComputedStyle(document.getElementById('selbar')).display !== 'none', null, { timeout: 8000 });
+
   await gm.mouse.click(pos.x + 70, pos.y + 40);
   await pl.waitForFunction((b) => S.tokens[0] && S.tokens[0].x + ',' + S.tokens[0].y !== b, before, { timeout: 60000 });
   const after = await pl.evaluate(() => S.tokens[0].x + ',' + S.tokens[0].y);
