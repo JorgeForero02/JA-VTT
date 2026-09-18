@@ -8,9 +8,12 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 `UI.selected`), así que en 2.5D aparece la barra Editar/Duplicar/Eliminar y el panel sigue a la
 ficha; `D3.select(null)` desde Escape; borrar quita el anillo. En 2.5D pasan al editor Supr/Retroceso
 y los atajos con Ctrl (flechas y WASD siguen siendo de la cámara). Icono `chevron-up` para Subir
-bloque (antes `move`, flechas en cruz). Detectado por el usuario probando a mano tras el cierre de C.
-**Evidencia** — `check` 115/115 · `test:ui` 31/31 (paso nuevo: la barra aparece con «Prueba»).
-**Revertir** — `git revert 4d9ad0f`.
+bloque (antes `move`, flechas en cruz). Tocar la ficha elegida la suelta (con el ratón no había manera:
+clic en casilla = mover). `test:ui` con esperas de 40/60 s y diagnóstico al fallar (P-12). Detectado por el
+usuario probando a mano tras el cierre de C.
+**Evidencia** — `check` 115/115 · `test:ui` 32/32 (pasos nuevos: la barra aparece con «Prueba»; el
+segundo clic la quita).
+**Revertir** — `git revert 7ff816b 4d9ad0f`.
 
 ## 2026-09-17 — Modo 2.5D, fase C cerrada: fichas, luces, ver como y niebla por celda
 
