@@ -238,3 +238,36 @@ test('obj: open viaja con la op y sobrevive a girar o bloquear', () => {
   assert.equal(t.extras.objs[30].rot, Math.PI / 2);
   assert.equal(cleanTerrainOp({ type: 'obj', i: 30, kind: 'puerta', open: 'sí' }).open, undefined);
 });
+
+test('art: claves válidas, límites de cuadros y de entradas, objetos propios', () => {
+  const { CHAR_KINDS } = require('../server/terrain');
+  assert.ok(CHAR_KINDS.includes('guerrera') && CHAR_KINDS.length === 12);
+  const t = blankTerrain(22);
+  assert.deepEqual(t.extras.art, {}, 'el terreno nace con extras.art vacío');
+  const rect = [0, 0, 16, 16];
+  const ok = cleanTerrainOp({ type: 'art', add: { key: 'tile:0:top', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect] } });
+  assert.equal(ok.add.key, 'tile:0:top');
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'tile:0:top', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect, rect] } }), null, 'un tile lleva un solo cuadro');
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'tile:9:top', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect] } }), null, 'material fuera de catálogo');
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'char:dragon:idle', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect] } }), null);
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'obj:barril', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: Array(65).fill(rect) } }), null, 'más de 64 cuadros');
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'obj:barril', imgId: '../x', fw: 16, fh: 16, ppc: 16, frames: [rect] } }), null, 'imgId inválido');
+  assert.equal(cleanTerrainOp({ type: 'art', add: { key: 'obj:barril', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [{ x: 0, y: 0, w: 16, h: 16 }] } }), null, 'los cuadros son arrays [x,y,w,h], no objetos');
+  applyTerrainOp(t, ok);
+  assert.deepEqual(t.extras.art['tile:0:top'].frames, [rect]);
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'obj:propio-abc', imgId: 'img_1', fw: 16, fh: 16, ppc: 16, frames: [rect] } })), /Primero define/);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'newobj:propio-abc', name: 'Tótem', move: true, sight: false, fixed: true, mount: false } }));
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'obj:propio-abc', imgId: 'img_1', fw: 16, fh: 24, ppc: 16, frames: [rect] } }));
+  assert.equal(t.extras.art['newobj:propio-abc'].name, 'Tótem');
+  applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 40, kind: 'propio-abc', rot: 0 }));
+  assert.equal(t.extras.objs[40].kind, 'propio-abc');
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: 41, kind: 'propio-zzz', rot: 0 })), /desconocido/);
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'mount', key: '5:0', kind: 'propio-abc' })), /muro más alto|colgar/);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', remove: 'tile:0:top' }));
+  assert.equal(t.extras.art['tile:0:top'], undefined);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', clear: true }));
+  for (let k = 0; k < 200; k++) applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'newchar:propio-' + k.toString(36).padStart(2, 'a'), name: 'C' + k } }));
+  assert.throws(() => applyTerrainOp(t, cleanTerrainOp({ type: 'art', add: { key: 'newchar:propio-zzz', name: 'X' } })), /máximo 200/);
+  applyTerrainOp(t, cleanTerrainOp({ type: 'art', clear: true }));
+  assert.deepEqual(t.extras.art, {});
+});

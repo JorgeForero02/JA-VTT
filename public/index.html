@@ -246,6 +246,24 @@
           <div class="meter"><div class="bar"><i id="usageBar"></i></div><span id="usageText"></span></div>
         </div>
       </details>
+      <details class="fold d3Only" data-fold="arte25" open>
+        <summary><span class="foldTitle">Arte 2.5D</span></summary>
+        <div class="foldBody" id="arte25Body">
+          <p class="gmOnly">Sube un PNG con piezas (categoría «Arte 2.5D»), elígelo aquí, recorta y di dónde usarlo.</p>
+          <div class="thumbGrid gmOnly" id="arte25Imgs"></div>
+          <div id="arte25Cutter" hidden>
+            <div class="fields" id="arte25Fields"></div>
+            <div class="cutwrap"><canvas id="arte25Canvas" aria-label="Piezas de la imagen. Toca para elegir."></canvas></div>
+            <div class="row"><span class="small muted" id="arte25Sel"></span><button class="btn" id="arte25Clear">Limpiar</button></div>
+            <div class="segCat" id="arte25Target" role="group" aria-label="Destino"></div>
+            <div id="arte25Opts"></div>
+            <div class="row"><button class="btn primary" id="arte25Apply" data-ic="check">Aplicar</button></div>
+          </div>
+          <div class="edSection">Arte propio en uso</div>
+          <div class="list" id="arte25List"></div>
+          <div class="row gmOnly"><button class="btn danger" id="arte25ClearAll" data-ic="trash-2">Quitar todo el arte propio</button></div>
+        </div>
+      </details>
       <details class="fold" data-fold="biblioteca" open>
         <summary><span class="foldTitle">Biblioteca</span></summary>
         <div class="foldBody">

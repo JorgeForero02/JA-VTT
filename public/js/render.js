@@ -39,13 +39,13 @@ function resetExplored(){EXP.chunks.clear();if(is25()&&window.D3&&window.D3.isMo
 function loadFog(list){
   if(is25()){
     const f=(list||[]).find(x=>typeof x.data==='string'&&x.data.startsWith('base64:'));
-    if(!f||!window.D3)return;
-    // el motor puede estar aún montándose: se reintenta en vez de perder la niebla
+    if(!f)return;
+    // el motor puede estar aún cargando (módulo ES) o montándose: se reintenta hasta 60 s en vez de perder la niebla
     function tryLoad(retries){
-      if(window.D3.isMounted()){window.D3.loadExplored(b64ToBytes(f.data.slice(7)));return;}
+      if(window.D3&&window.D3.isMounted()){window.D3.loadExplored(b64ToBytes(f.data.slice(7)));return;}
       if(retries>0)setTimeout(()=>tryLoad(retries-1),150);
     }
-    tryLoad(20);
+    tryLoad(400);
     return;
   }
   for(const f of list||[]){
@@ -103,10 +103,14 @@ function loop(ts){
 
 /* 2.5D: el motor D3 pinta en su propio canvas; los canvas 2D se ocultan y no se dibujan */
 function syncStageMode(terrain){
-  const want=is25(),has=!!(window.D3&&window.D3.isMounted());
+  const want=is25();
+  // el motor (d3/index.js y three) es un módulo ES que carga aparte: si el estado del tablero llega antes de
+  // que exista window.D3, nadie volvería a montar. Se reintenta con el mismo terreno hasta que el módulo esté.
+  if(want&&!window.D3){clearTimeout(syncStageMode.t);syncStageMode.t=setTimeout(()=>syncStageMode(terrain),150);return}
+  const has=!!(window.D3&&window.D3.isMounted());
   stage.classList.toggle('d3',want);$('#app').classList.toggle('d3',want);
   if(want)$('#status').textContent='';
-  if(want&&!has&&window.D3){window.D3.mount(stage,{toast,terrain,env:S.env,ambient:S.ambient,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25,onSelect:onToken25Select,onContext:onTerrain25Context,onBlind:b=>{$('#blindNote').style.display=b?'grid':'none'}}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).then(()=>view25()).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
+  if(want&&!has&&window.D3){window.D3.mount(stage,{toast,terrain,env:S.env,ambient:S.ambient,getImage:getImg,onTerrainOp:op=>Net.terrain(op),onMove:onToken25Move,canMove:canMove25,onSelect:onToken25Select,onContext:onTerrain25Context,onBlind:b=>{$('#blindNote').style.display=b?'grid':'none'}}).then(()=>{window.D3.setEnv(S.env,S.ambient);render25Sub()}).then(()=>view25()).catch(err=>{console.error(err);toast('No se pudo iniciar el mapa 2.5D: '+err.message,4000)})}
   else if(want&&has&&terrain)window.D3.loadTerrain(terrain);
   else if(!want&&has)window.D3.unmount();
   if(!want)$('#subbar').innerHTML='';

@@ -561,7 +561,7 @@ const slotOf=(mi,f)=>16+mi*3+FACES.indexOf(f);
 
 /* ---------- arte y texturas ---------- */
 /* ---------- arte propio: piezas subidas por el usuario ---------- */
-// En JA-VTT no hay arte propio todavía: CUSTOM queda vacío y applyCustom deja el atlas base.
+// Se reconstruye desde extras.art del tablero con setCustomArt(); vacío, applyCustom deja el atlas base.
 const CUSTOM={tiles:{},chars:{},objs:{},newObjs:{},newChars:{}};
 // un solo lienzo con los cuadros en fila, alineados abajo
 function sheetOf(frames){
@@ -615,6 +615,54 @@ function applyCustom(base){
   return a;
 }
 export const ART={art:null,TEX:null,styleKey:'packs'}; const BASE={}; const STYLE_CACHE={};
+// quita filas vacías arriba y abajo (igual en todos los cuadros) para que los pies toquen el suelo
+function trimFrames(frames){
+  let top=1e9,bot=-1;
+  frames.forEach(f=>{const d=f.getContext('2d').getImageData(0,0,f.width,f.height).data;
+    for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(d[(y*f.width+x)*4+3]>8){top=Math.min(top,y);bot=Math.max(bot,y);}});
+  if(bot<0)return null;
+  return frames.map(f=>{const c=mkCanvas(f.width,bot-top+1);c.getContext('2d').drawImage(f,0,-top);return c;});
+}
+function cropFrames(im,rects){
+  return rects.map(([x,y,w,h])=>{const c=mkCanvas(w,h);c.getContext('2d').drawImage(im,x,y,w,h,0,0,w,h);return c;});
+}
+export function resetStyleCache(){for(const k of Object.keys(STYLE_CACHE))delete STYLE_CACHE[k];}
+export function customKinds(){return{chars:Object.keys(CUSTOM.newChars),objs:Object.keys(CUSTOM.newObjs)};}
+/* Arte propio desde el tablero: reconstruye CUSTOM a partir de extras.art y de las imágenes de JA-VTT.
+   `list` son las entradas de extras.art con su `key`; `getImage(id)` devuelve un HTMLImageElement cargado
+   o null. Las entradas cuya imagen aún no está se dejan para el siguiente intento (devuelve cuántas quedaron
+   pendientes). Una criatura u objeto nuevo sólo existe en CHAR_INFO/OBJ_KINDS cuando su arte ya está
+   recortado: así ningún módulo intenta dibujar un kind sin hoja de sprites. */
+export function setCustomArt(list, getImage){
+  for(const k of Object.keys(CUSTOM))CUSTOM[k]={};
+  Object.keys(CHAR_INFO).forEach(k=>{if(CHAR_INFO[k].custom)delete CHAR_INFO[k];});
+  Object.keys(OBJ_KINDS).forEach(k=>{if(OBJ_KINDS[k].custom)delete OBJ_KINDS[k];});
+  for(const e of list){
+    const [p,id]=e.key.split(':');
+    if(p==='newchar')CUSTOM.newChars[id]={name:e.name};
+    else if(p==='newobj')CUSTOM.newObjs[id]={name:e.name,move:e.move?1:0,sight:e.sight?1:0,fixed:e.fixed?1:0,mount:e.mount?1:0};
+  }
+  let pending=0;
+  for(const e of list){
+    const [p,kind,face]=e.key.split(':');
+    if(p!=='tile'&&p!=='char'&&p!=='obj')continue;
+    if(p!=='tile'&&/^propio-/.test(kind)&&!(p==='char'?CUSTOM.newChars:CUSTOM.newObjs)[kind])continue;
+    const im=getImage(e.imgId);
+    if(!im){pending++;continue;}
+    let frames=cropFrames(im,e.frames);
+    if(p==='tile'){CUSTOM.tiles[kind+':'+face]={frames:[frames[0]],fw:e.fw,fh:e.fh,ppc:e.ppc};continue;}
+    frames=trimFrames(frames);if(!frames)continue;
+    const s={frames,fw:e.fw,fh:frames[0].height,ppc:e.ppc};
+    if(p==='char'){const c=CUSTOM.chars[kind]||(CUSTOM.chars[kind]={idle:null,run:null});c[face]=s;}
+    else CUSTOM.objs[kind]=s;
+  }
+  Object.keys(CUSTOM.newChars).forEach(k=>{if(CUSTOM.chars[k])CHAR_INFO[k]={name:CUSTOM.newChars[k].name,custom:1};});
+  Object.keys(CUSTOM.newObjs).forEach(k=>{if(CUSTOM.objs[k])OBJ_KINDS[k]=Object.assign({custom:1,mw:.8,my:.55},CUSTOM.newObjs[k]);});
+  Object.keys(CUSTOM.chars).forEach(k=>{if(!CHAR_INFO[k])delete CUSTOM.chars[k];});
+  Object.keys(CUSTOM.objs).forEach(k=>{if(!OBJ_KINDS[k])delete CUSTOM.objs[k];});
+  resetStyleCache();
+  return pending;
+}
 function toTex(c,px,repeat){
   const t=new T3.CanvasTexture(c);
   if(px){t.magFilter=T3.NearestFilter;t.minFilter=T3.NearestFilter;t.generateMipmaps=false;}

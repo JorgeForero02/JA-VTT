@@ -5,7 +5,8 @@ const CATS={
   board:{name:'Tableros',one:'Tablero',icon:'map'},
   prop:{name:'Objetos',one:'Objeto',icon:'armchair'},
   pc:{name:'Personajes',one:'Personaje',icon:'circle-user-round'},
-  npc:{name:'Enemigos',one:'Enemigo',icon:'skull'}
+  npc:{name:'Enemigos',one:'Enemigo',icon:'skull'},
+  arte25:{name:'Arte 2.5D',one:'Arte 2.5D',icon:'shapes'} // piezas para el recortador del mapa 2.5D (Biblioteca → Arte 2.5D)
 };
 async function apiJson(url,opt){
   const r=await fetch(url,Object.assign({credentials:'same-origin',headers:{'Content-Type':'application/json'}},opt||{}));

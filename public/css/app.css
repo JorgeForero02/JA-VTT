@@ -172,6 +172,16 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .segCat{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
 .segCat button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:9px;border:1px solid var(--line);background:var(--raise);cursor:pointer;font-size:12px}
 .segCat button[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+#app.d3 #upCat{grid-template-columns:repeat(5,1fr)}
+/* recortador de Arte 2.5D (Biblioteca) */
+.cutwrap{overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:8px;margin-top:8px;background:var(--ink-deep) repeating-conic-gradient(rgba(128,128,128,.12) 0 25%,transparent 0 50%) 0 0/16px 16px}
+.cutwrap canvas{display:block;image-rendering:pixelated}
+#arte25Fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-top:8px}
+#arte25Fields .field{display:flex;flex-direction:column;align-items:stretch;gap:3px;margin-top:0}
+#arte25Fields .field>span{font-size:12px}
+#arte25Target{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+#arte25Body .row{margin-top:8px}
+#arte25Imgs .thumb{padding:0;color:inherit;font:inherit}
 .drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:1.5px dashed var(--line);border-radius:12px;text-align:center;cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--amber);background:var(--amber-soft)}
 .drop .ic{width:26px;height:26px;color:var(--amber)}

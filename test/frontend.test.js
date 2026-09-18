@@ -534,3 +534,36 @@ test('2.5D: luces sueltas y colgadas desde el rail, menú contextual con clic de
   const T = require('../server/terrain');
   assert.equal(typeof T.mountValid, 'function');
 });
+
+test('D3: arte propio desde la Biblioteca — categoría arte25, op art, recortador y motor sin localStorage', () => {
+  assert.match(read('js/store.js'), /arte25:\{name:'Arte 2\.5D'/);
+  const html = read('index.html');
+  assert.match(html, /data-fold="arte25"/);
+  assert.match(html, /id="arte25Canvas"/);
+  assert.match(html, /id="arte25Apply"/);
+  const art = read('js/d3/art.js');
+  assert.match(art, /export function setCustomArt\(list, getImage\)/);
+  assert.match(art, /export function resetStyleCache\(\)/);
+  assert.match(art, /export function customKinds\(\)/);
+  assert.ok(/resetStyleCache\(\);/.test(art.slice(art.indexOf('export function setCustomArt'))), 'setCustomArt debe vaciar STYLE_CACHE: si no, el atlas no cambia');
+  const world = read('js/d3/world.js');
+  assert.match(world, /case 'art':/);
+  assert.match(world, /export function refreshCustomArt\(\)/);
+  assert.match(world, /G\.customArt=X\.art\|\|\{\}/);
+  assert.match(read('js/d3/ctx.js'), /customArt:\{\}/);
+  assert.match(read('js/d3/fx.js'), /getImage: null/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /hooks\.getImage=opts\.getImage\|\|\(\(\)=>null\)/);
+  assert.match(idx, /customArt/);
+  assert.match(idx, /CHARS:/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function renderArte25\(\)/);
+  assert.match(ed, /'tile:'\+/);
+  assert.match(ed, /'newobj:'\+/);
+  assert.match(ed, /'newchar:'\+/);
+  assert.ok(!/arte25.*localStorage|localStorage.*arte25|AU25.*localStorage|localStorage.*AU25/.test(ed), 'el arte propio no se guarda en localStorage');
+  assert.match(read('js/render.js'), /getImage:getImg/);
+  assert.match(read('js/net.js'), /if\(typeof renderArte25==='function'\)renderArte25\(\);/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'app.js'), 'utf8'), /'arte25'/);
+  assert.match(read('css/app.css'), /\.cutwrap\{/);
+});

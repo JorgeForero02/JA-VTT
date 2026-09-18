@@ -10,7 +10,9 @@ const TERRAIN_LIMITS = {
   MAT_COUNT: 7,
   MAX_CELLS_PER_OP: 2000,
   MAX_SPRINGS: 64,
-  MAX_SINKS: 512
+  MAX_SINKS: 512,
+  MAX_ART: 200,
+  MAX_ART_FRAMES: 64
 };
 
 const MATS = [
@@ -48,6 +50,13 @@ const OBJ_KINDS = {
   pocion: { move: 0 },
   pinchos: { move: 0, flat: 1 }
 };
+
+// Criaturas del motor (CHAR_INFO de art.js): el arte propio sólo puede vestir a éstas o a ids `propio-…`.
+const CHAR_KINDS = ['guerrera', 'mago', 'arquera', 'enana', 'goblin', 'esqueleto', 'demonio', 'nigromante', 'fantasma', 'murcielago', 'arana', 'rata'];
+// Ids de criaturas y objetos creados desde la Biblioteca: `propio-<base36>`.
+const CUSTOM_ID = /^propio-[a-z0-9]{1,12}$/;
+const ART_KEY = /^(tile:\d{1,2}:(top|side|fill)|char:[a-z0-9_-]{1,20}:(idle|run)|obj:[a-z0-9_-]{1,20}|newchar:propio-[a-z0-9]{1,12}|newobj:propio-[a-z0-9]{1,12})$/;
+const objKindOk = (kind) => !!OBJ_KINDS[kind] || CUSTOM_ID.test(kind);
 
 const BORDERS = {
   valle: (ax, az) => ({ h: Math.max(1, Math.min(6, Math.round(2.6 + .55 * Math.sin(ax * .33 + .5) + .55 * Math.cos(az * .29) + .4 * Math.sin((ax - az) * .17)))), m: 0 }),
@@ -96,7 +105,8 @@ function blankTerrain(n, h = 1, m = 0) {
       cutOn: false,
       cutH: 3,
       scene: 'blank',
-      off: 0
+      off: 0,
+      art: {}
     },
     version: 0
   };
@@ -314,7 +324,8 @@ function finalize(cfg) {
       evap: cfg.extras.evap,
       edgeDrain: cfg.extras.edgeDrain,
       cutOn: cfg.extras.cutOn,
-      cutH: cfg.extras.cutH
+      cutH: cfg.extras.cutH,
+      art: {}
     },
     version: 0
   };
@@ -387,6 +398,11 @@ function mountValid(t, wall, dir) {
   return inb(x, z, N) && t.h[wall] > t.h[I(x, z, N)];
 }
 
+// Definición (`newobj:`) de un objeto creado desde la Biblioteca, o null si no existe en este terreno.
+function customObj(t, kind) {
+  return (t.extras.art && t.extras.art['newobj:' + kind]) || null;
+}
+
 function cleanTerrainOp(op) {
   if (!op || typeof op !== 'object') return null;
   const out = {};
@@ -435,7 +451,7 @@ function cleanTerrainOp(op) {
     case 'obj': {
       if (!Number.isInteger(op.i) || op.i < 0) return null;
       const kind = op.kind === null ? null : op.kind;
-      if (kind !== null && !OBJ_KINDS[kind]) return null;
+      if (kind !== null && !(typeof kind === 'string' && objKindOk(kind))) return null;
       out.type = 'obj';
       out.i = op.i;
       out.kind = kind;
@@ -459,8 +475,10 @@ function cleanTerrainOp(op) {
       if (dir < 0 || dir > 3) return null;
       const kind = op.kind === null ? null : op.kind;
       if (kind !== null) {
+        if (typeof kind !== 'string') return null;
         const K = OBJ_KINDS[kind];
-        if (!K || (!K.mount && !K.mountOnly)) return null;
+        // los propios se comprueban en applyTerrainOp contra su `newobj`
+        if (!CUSTOM_ID.test(kind) && (!K || (!K.mount && !K.mountOnly))) return null;
       }
       out.type = 'mount';
       out.key = op.key;
@@ -532,9 +550,52 @@ function cleanTerrainOp(op) {
       out.type = 'settings';
       return out;
     }
+    case 'art': {
+      out.type = 'art';
+      if (op.clear === true) { out.clear = true; return out; }
+      if (typeof op.remove === 'string') {
+        if (!ART_KEY.test(op.remove)) return null;
+        out.remove = op.remove;
+        return out;
+      }
+      const a = op.add;
+      if (!a || typeof a !== 'object' || typeof a.key !== 'string' || !ART_KEY.test(a.key)) return null;
+      const [prefix, kind] = a.key.split(':');
+      if (prefix === 'newchar') {
+        const name = cleanName(a.name);
+        if (!name) return null;
+        out.add = { key: a.key, name };
+        return out;
+      }
+      if (prefix === 'newobj') {
+        const name = cleanName(a.name);
+        if (!name) return null;
+        out.add = { key: a.key, name, move: a.move === true, sight: a.sight === true, fixed: a.fixed === true, mount: a.mount === true };
+        return out;
+      }
+      if (prefix === 'tile' && Number(kind) >= TERRAIN_LIMITS.MAT_COUNT) return null;
+      if (prefix === 'char' && !CHAR_KINDS.includes(kind) && !CUSTOM_ID.test(kind)) return null;
+      if (prefix === 'obj' && !objKindOk(kind)) return null;
+      if (typeof a.imgId !== 'string' || !/^[\w-]{1,64}$/.test(a.imgId)) return null;
+      const intIn = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+      if (!intIn(a.fw, 4, 256) || !intIn(a.fh, 4, 256) || !intIn(a.ppc, 4, 512)) return null;
+      if (!Array.isArray(a.frames) || a.frames.length < 1 || a.frames.length > TERRAIN_LIMITS.MAX_ART_FRAMES) return null;
+      if (prefix === 'tile' && a.frames.length !== 1) return null;
+      const frames = [];
+      for (const f of a.frames) {
+        if (!Array.isArray(f) || f.length !== 4 || !f.every((v) => intIn(v, 0, 8192)) || f[2] < 1 || f[3] < 1) return null;
+        frames.push([f[0], f[1], f[2], f[3]]);
+      }
+      out.add = { key: a.key, imgId: a.imgId, fw: a.fw, fh: a.fh, ppc: a.ppc, frames };
+      return out;
+    }
     default:
       return null;
   }
+}
+
+function cleanName(v) {
+  return typeof v === 'string' ? v.trim().slice(0, 28) : '';
 }
 
 function applyTerrainOp(t, op) {
@@ -620,6 +681,7 @@ function applyTerrainOp(t, op) {
       if (op.kind === null) {
         delete t.extras.objs[op.i];
       } else {
+        if (CUSTOM_ID.test(op.kind) && !customObj(t, op.kind)) throw new Error('Objeto propio desconocido');
         const o = { kind: op.kind, rot: op.rot };
         if ('locked' in op) o.locked = op.locked;
         if ('open' in op) o.open = op.open;
@@ -643,6 +705,11 @@ function applyTerrainOp(t, op) {
       } else {
         const [wallStr, dirStr] = op.key.split(':');
         const dir = Number(dirStr);
+        if (CUSTOM_ID.test(op.kind)) {
+          const def = customObj(t, op.kind);
+          if (!def) throw new Error('Objeto propio desconocido');
+          if (def.mount !== true) throw new Error('Ese objeto propio no se puede colgar en una pared');
+        }
         if (!mountValid(t, wallNum, dir)) throw new Error('La pieza necesita un muro más alto que la casilla de al lado');
         t.extras.mounts[op.key] = { kind: op.kind, wall: Number(wallStr), dir };
       }
@@ -664,6 +731,24 @@ function applyTerrainOp(t, op) {
       }
       break;
     }
+    case 'art': {
+      if (!t.extras.art) t.extras.art = {};
+      const art = t.extras.art;
+      if (op.clear) {
+        t.extras.art = {};
+      } else if (op.remove) {
+        delete art[op.remove];
+      } else {
+        const [prefix, kind] = op.add.key.split(':');
+        if ((prefix === 'char' || prefix === 'obj') && CUSTOM_ID.test(kind) && !art[(prefix === 'char' ? 'newchar:' : 'newobj:') + kind]) {
+          throw new Error('Primero define la criatura u objeto nuevo');
+        }
+        if (!art[op.add.key] && Object.keys(art).length >= TERRAIN_LIMITS.MAX_ART) throw new Error('Demasiado arte propio (máximo ' + TERRAIN_LIMITS.MAX_ART + ' piezas)');
+        const { key, ...val } = op.add;
+        art[key] = val;
+      }
+      break;
+    }
     default:
       throw new Error('Op de terreno desconocida');
   }
@@ -675,6 +760,7 @@ module.exports = {
   TERRAIN_LIMITS,
   MATS,
   OBJ_KINDS,
+  CHAR_KINDS,
   BORDERS,
   SCENE_INFO,
   rng,

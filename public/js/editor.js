@@ -969,7 +969,8 @@ function refreshAll(){
 /* ---------- Biblioteca de imágenes ---------- */
 function renderUploadCats(){
   const box=$('#upCat');box.innerHTML='';
-  for(const[k,C]of Object.entries(CATS)){const b=document.createElement('button');b.setAttribute('aria-pressed',String(UI.upCat===k));b.innerHTML=svgIcon(C.icon);const sp=document.createElement('span');sp.textContent=C.one;b.appendChild(sp);b.onclick=()=>{UI.upCat=k;renderUploadCats()};box.appendChild(b)}
+  if(!is25()&&UI.upCat==='arte25')UI.upCat='prop';
+  for(const[k,C]of Object.entries(CATS)){if(k==='arte25'&&!is25())continue;const b=document.createElement('button');b.setAttribute('aria-pressed',String(UI.upCat===k));b.innerHTML=svgIcon(C.icon);const sp=document.createElement('span');sp.textContent=C.one;b.appendChild(sp);b.onclick=()=>{UI.upCat=k;renderUploadCats()};box.appendChild(b)}
   $('#dropHint').textContent=`Se guardarán como ${CATS[UI.upCat].name.toLowerCase()}`;
 }
 async function uploadFiles(files,cat,at){
@@ -994,6 +995,7 @@ dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const fs=[...e.dataTransfer.files].filter(f=>/^image\//.test(f.type));if(fs.length)uploadFiles(fs,UI.upCat)});
 function placeImage(m,at,free){
   if(!isGM())return;
+  if(m.category==='arte25'){openArte25(m);return} // las piezas de Arte 2.5D no se colocan: se recortan
   pushUndo();let o;
   const p=at||{x:UI.cam.x,y:UI.cam.y};
   if(m.category==='board'){
@@ -1019,7 +1021,7 @@ function placeImage(m,at,free){
 function renderLibraryGrid(){
   const grid=$('#thumbGrid'),filt=$('#libFilter');if(!grid)return;
   filt.innerHTML='';
-  for(const[k,n]of[['all','Todas'],...Object.entries(CATS).map(([k,C])=>[k,C.name])]){const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(UI.libCat===k));b.textContent=n;b.onclick=()=>{UI.libCat=k;renderLibraryGrid()};filt.appendChild(b)}
+  for(const[k,n]of[['all','Todas'],...Object.entries(CATS).filter(([k])=>k!=='arte25'||is25()).map(([k,C])=>[k,C.name])]){const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(UI.libCat===k));b.textContent=n;b.onclick=()=>{UI.libCat=k;renderLibraryGrid()};filt.appendChild(b)}
   const items=Store.list(UI.libCat);grid.innerHTML='';
   if(!items.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">No hay imágenes en esta categoría. Sube alguna arriba.</div>'}
   for(const m of items){
@@ -1030,13 +1032,219 @@ function renderLibraryGrid(){
     const more=document.createElement('button');more.className='more';more.innerHTML=svgIcon('more-horizontal');more.setAttribute('aria-label','Detalles de '+m.name);
     more.onclick=ev=>{ev.stopPropagation();openImageEditor(m.id)};
     card.append(im,tag,cap,more);
-    card.onclick=()=>placeImage(m);
+    card.onclick=()=>m.category==='arte25'?openArte25(m):placeImage(m);
     card.ondragstart=e=>{e.dataTransfer.setData('text/x-image',m.id);e.dataTransfer.effectAllowed='copy'};
     grid.appendChild(card);
   }
+  if(is25())renderArte25();
   const u=Store.usage();
   $('#usageBar').style.width=Math.min(100,u.bytes/u.quota*100).toFixed(1)+'%';
   $('#usageText').textContent=`${u.count} ${u.count===1?'imagen':'imágenes'}, ${fmtBytes(u.bytes)} de ${fmtBytes(u.quota)}`+(Store.persistent?'':' (solo en memoria: este navegador no permite la caché)');
+}
+/* ---------- Arte 2.5D: recortar piezas de una imagen de la Biblioteca y mandarlas al tablero como ops `art` ----------
+   Portado de renderArte del diorama. Aquí no se guarda nada en el navegador: los recortes viajan como rects
+   [x,y,w,h] en píxeles de la imagen dentro de extras.art y cada cliente recorta desde su copia de la imagen. */
+const AU25={img:null,imgId:null,tw:16,th:16,sp:0,mg:0,zoom:2,sel:[],target:'terreno',mat:0,face:'top',
+  kind:'guerrera',anim:'ambas',obj:'barril',ppc:16,newName:'',move:true,sight:false,fixed:false,mount:false};
+const ARTE25_FACES=[['top','Arriba'],['side','Lados'],['fill','Bloques de abajo']];
+function arte25CellRect(cx,cy){return[AU25.mg+cx*(AU25.tw+AU25.sp),AU25.mg+cy*(AU25.th+AU25.sp),AU25.tw,AU25.th]}
+function arte25GridSize(){
+  if(!AU25.img)return[0,0];
+  return[Math.max(0,Math.floor((AU25.img.naturalWidth-AU25.mg+AU25.sp)/(AU25.tw+AU25.sp))),Math.max(0,Math.floor((AU25.img.naturalHeight-AU25.mg+AU25.sp)/(AU25.th+AU25.sp)))];
+}
+function arte25Ready(){return !!window.D3&&window.D3.isMounted()&&!!window.D3.customArt}
+function arte25Op(op){if(isGM()&&window.D3)window.D3.terrainOp(op)}
+let arte25Timer=0;
+// dibuja la imagen ampliada con la rejilla de piezas y las elegidas numeradas; espera a que la imagen cargue
+function arte25Draw(retries){
+  const cv=$('#arte25Canvas');if(!cv||!AU25.imgId)return;
+  AU25.img=getImg(AU25.imgId);
+  clearTimeout(arte25Timer);
+  if(!AU25.img){if(retries==null)retries=40;if(retries>0)arte25Timer=setTimeout(()=>arte25Draw(retries-1),150);return}
+  const img=AU25.img,z=AU25.zoom,x=cv.getContext('2d');
+  cv.width=img.naturalWidth*z;cv.height=img.naturalHeight*z;cv.style.width=cv.width+'px';
+  x.imageSmoothingEnabled=false;x.clearRect(0,0,cv.width,cv.height);x.drawImage(img,0,0,cv.width,cv.height);
+  const[gw,gh]=arte25GridSize();
+  AU25.sel=AU25.sel.filter(([cx,cy])=>cx<gw&&cy<gh);
+  x.strokeStyle='rgba(255,210,120,.55)';x.lineWidth=1;
+  for(let cy=0;cy<gh;cy++)for(let cx=0;cx<gw;cx++){const[rx,ry,rw,rh]=arte25CellRect(cx,cy);x.strokeRect(rx*z+.5,ry*z+.5,rw*z-1,rh*z-1)}
+  AU25.sel.forEach(([cx,cy],k)=>{const[rx,ry,rw,rh]=arte25CellRect(cx,cy);
+    x.fillStyle='rgba(216,172,88,.35)';x.fillRect(rx*z,ry*z,rw*z,rh*z);
+    x.strokeStyle='#d8ac58';x.lineWidth=2;x.strokeRect(rx*z+1,ry*z+1,rw*z-2,rh*z-2);
+    x.fillStyle='#1e1a12';x.fillRect(rx*z+1,ry*z+1,14,13);x.fillStyle='#fff';x.font='bold 10px sans-serif';x.fillText(String(k+1),rx*z+3,ry*z+11)});
+  $('#arte25Sel').textContent=AU25.sel.length?`${AU25.sel.length} pieza(s) elegida(s)`:'Ninguna pieza elegida';
+}
+function arte25Field(label,el){const w=document.createElement('label');w.className='field';const sp=document.createElement('span');sp.textContent=label;w.append(sp,el);return w}
+function arte25Num(label,key,min,max,after){
+  const i=document.createElement('input');i.type='number';i.min=min;i.max=max;i.value=AU25[key];i.inputMode='numeric';i.dataset.key=key;
+  i.onchange=()=>{const v=Math.max(min,Math.min(max,parseInt(i.value,10)||min));AU25[key]=v;i.value=v;if(after)after();arte25Draw()};
+  return arte25Field(label,i);
+}
+function arte25Select(label,key,options){
+  const s=document.createElement('select');for(const[v,n]of options){const o=document.createElement('option');o.value=v;o.textContent=n;s.appendChild(o)}
+  s.value=String(AU25[key]);s.onchange=()=>{AU25[key]=typeof AU25[key]==='number'?+s.value:s.value};
+  return arte25Field(label,s);
+}
+function arte25Check(label,key){
+  const l=document.createElement('label');l.className='check';const i=document.createElement('input');i.type='checkbox';i.checked=!!AU25[key];i.onchange=()=>{AU25[key]=i.checked};
+  l.append(i,document.createTextNode(label));return l;
+}
+function arte25Note(txt){const p=document.createElement('p');p.className='small muted';p.textContent=txt;return p}
+function openArte25(m){
+  AU25.imgId=m.id;AU25.img=null;AU25.sel=[];
+  renderArte25();
+  const f=$('[data-fold="arte25"]');if(f)f.open=true;
+}
+function renderArte25(){
+  const body=$('#arte25Body');if(!body||!is25())return;
+  if(window.D3&&!window.D3.isMounted()){renderArte25Wait(20);return} // el motor arranca async: como render25PanelWait
+  const gm=isGM(),cutter=$('#arte25Cutter'),imgs=$('#arte25Imgs');
+  // 1. imágenes de la categoría Arte 2.5D
+  imgs.innerHTML='';
+  const list=Store.list('arte25');
+  if(gm&&!list.length){const e=document.createElement('div');e.className='empty';e.style.gridColumn='1/-1';e.textContent='Todavía no hay imágenes de Arte 2.5D. Súbelas arriba eligiendo esa categoría.';imgs.appendChild(e)}
+  for(const m of list){
+    const b=document.createElement('button');b.className='thumb';b.type='button';b.title=m.name;b.setAttribute('aria-pressed',String(m.id===AU25.imgId));
+    const im=document.createElement('img');im.src=m.thumb;im.alt=m.name;const cap=document.createElement('span');cap.className='cap';cap.textContent=m.name;
+    b.append(im,cap);b.onclick=()=>openArte25(m);imgs.appendChild(b);
+  }
+  if(AU25.imgId&&!Store.has(AU25.imgId)){AU25.imgId=null;AU25.img=null;AU25.sel=[]}
+  // 2. recortador
+  const show=gm&&!!AU25.imgId&&arte25Ready();
+  cutter.hidden=!show;
+  if(show){
+    const cat=window.D3.catalog();
+    const fields=$('#arte25Fields');fields.innerHTML='';
+    fields.append(arte25Num('Ancho','tw',4,256,()=>{AU25.ppc=AU25.tw;const p=fields.querySelector('[data-key="ppc"]');if(p)p.value=AU25.ppc}),
+      arte25Num('Alto','th',4,256),arte25Num('Separación','sp',0,16),arte25Num('Margen','mg',0,32),arte25Num('Zoom','zoom',1,6));
+    if(AU25.target!=='terreno')fields.append(arte25Num('Píxeles por casilla','ppc',4,512));
+    const cv=$('#arte25Canvas');
+    cv.onclick=e=>{
+      if(!AU25.img)return;
+      const r=cv.getBoundingClientRect(),ix=(e.clientX-r.left)/r.width*AU25.img.naturalWidth,iy=(e.clientY-r.top)/r.height*AU25.img.naturalHeight;
+      const cx=Math.floor((ix-AU25.mg)/(AU25.tw+AU25.sp)),cy=Math.floor((iy-AU25.mg)/(AU25.th+AU25.sp));
+      const[gw,gh]=arte25GridSize();if(cx<0||cy<0||cx>=gw||cy>=gh)return;
+      const[rx,ry]=arte25CellRect(cx,cy);if(ix>rx+AU25.tw||iy>ry+AU25.th)return;
+      const k=AU25.sel.findIndex(p=>p[0]===cx&&p[1]===cy);
+      if(k>=0)AU25.sel.splice(k,1);else AU25.sel.push([cx,cy]);
+      arte25Draw();
+    };
+    $('#arte25Clear').onclick=()=>{AU25.sel=[];arte25Draw()};
+    arte25Draw();
+    // 3. destino
+    const tg=$('#arte25Target');tg.innerHTML='';
+    for(const[k,n,ic]of[['terreno','Terreno','square'],['personaje','Personaje','circle-user-round'],['objeto','Objeto','box'],['nuevoObjeto','Nuevo objeto','plus'],['criatura','Nueva criatura','skull']]){
+      const b=document.createElement('button');b.className='chip';b.type='button';b.setAttribute('aria-pressed',String(AU25.target===k));b.innerHTML=svgIcon(ic);const s=document.createElement('span');s.textContent=n;b.appendChild(s);
+      b.onclick=()=>{AU25.target=k;renderArte25()};tg.appendChild(b);
+    }
+    const opts=$('#arte25Opts');opts.innerHTML='';
+    const t=AU25.target;
+    if(t==='terreno'){
+      opts.append(arte25Select('Material','mat',cat.MATS.map(m=>[String(m.i),m.hidden?'Muro recortado':m.name])),
+        arte25Select('Cara','face',ARTE25_FACES),arte25Note('Se usa la primera pieza elegida. Afecta a todos los estilos.'));
+    }else if(t==='personaje'){
+      if(!cat.CHARS.some(c=>c.key===AU25.kind))AU25.kind='guerrera';
+      opts.append(arte25Select('Personaje','kind',cat.CHARS.map(c=>[c.key,c.name])),
+        arte25Select('Animación','anim',[['ambas','Reposo y movimiento'],['reposo','Solo reposo'],['movimiento','Solo movimiento']]),
+        arte25Note('Varias piezas = cuadros de animación, en el orden en que las tocaste.'));
+    }else if(t==='objeto'){
+      if(!cat.OBJS.some(o=>o.key===AU25.obj))AU25.obj='barril';
+      opts.append(arte25Select('Objeto','obj',cat.OBJS.map(o=>[o.key,o.name])),arte25Note('Para una puerta: primera pieza cerrada, segunda abierta.'));
+    }else if(t==='nuevoObjeto'){
+      const nm=document.createElement('input');nm.type='text';nm.maxLength=28;nm.value=AU25.newName;nm.placeholder='Objeto propio';nm.oninput=()=>{AU25.newName=nm.value};
+      opts.append(arte25Field('Nombre',nm),arte25Check('Bloquea el paso','move'),arte25Check('Tapa la vista','sight'),
+        arte25Check('No gira con la cámara (muros, vallas, carteles)','fixed'),arte25Check('Se puede colgar en una pared','mount'));
+    }else{
+      const nm=document.createElement('input');nm.type='text';nm.maxLength=28;nm.value=AU25.newName;nm.placeholder='Criatura';nm.oninput=()=>{AU25.newName=nm.value};
+      opts.append(arte25Field('Nombre',nm),arte25Note('Aparece como ficha de enemigo en el centro de la vista; cámbiala en Fichas.'));
+    }
+    if(t!=='terreno')opts.append(arte25Note('«Píxeles por casilla»: cuántos píxeles del dibujo miden lo que una casilla del mapa. Define su tamaño en el mundo.'));
+    $('#arte25Apply').onclick=arte25Apply;
+  }
+  // 4. arte propio en uso
+  renderArte25List();
+  $('#arte25ClearAll').onclick=arte25RemoveAll;
+  $('#arte25ClearAll').disabled=!gm||!arte25Ready()||!Object.keys(window.D3.customArt().art).length;
+}
+function renderArte25Wait(retries){if(retries<=0)return;setTimeout(()=>{if(is25()&&window.D3&&window.D3.isMounted())renderArte25();else renderArte25Wait(retries-1)},150)}
+function arte25Rects(){return AU25.sel.map(([cx,cy])=>arte25CellRect(cx,cy))}
+function arte25Apply(){
+  if(!isGM()||!arte25Ready())return;
+  if(!AU25.img||!AU25.sel.length){toast('Primero elige una imagen y toca las piezas que quieres usar.',2600);return}
+  const frames=arte25Rects(),imgId=AU25.imgId,fw=AU25.tw,fh=AU25.th,ppc=AU25.ppc,t=AU25.target;
+  const art=window.D3.customArt().art;
+  const piece=extra=>Object.assign({imgId,fw,fh,ppc,frames},extra||{});
+  if(t==='terreno'){
+    arte25Op({type:'art',add:piece({key:'tile:'+AU25.mat+':'+AU25.face,frames:[frames[0]]})});
+  }else if(t==='personaje'){
+    const k=AU25.kind;
+    if(AU25.anim==='ambas'){arte25Op({type:'art',add:piece({key:'char:'+k+':idle'})});if(art['char:'+k+':run'])arte25Op({type:'art',remove:'char:'+k+':run'})}
+    else arte25Op({type:'art',add:piece({key:'char:'+k+':'+(AU25.anim==='reposo'?'idle':'run')})});
+  }else if(t==='objeto'){
+    arte25Op({type:'art',add:piece({key:'obj:'+AU25.obj})});
+  }else if(t==='nuevoObjeto'){
+    const id='propio-'+Date.now().toString(36),name=(AU25.newName||'Objeto propio').trim();
+    arte25Op({type:'art',add:{key:'newobj:'+id,name,move:!!AU25.move,sight:!!AU25.sight,fixed:!!AU25.fixed,mount:!!AU25.mount}});
+    arte25Op({type:'art',add:piece({key:'obj:'+id})});
+    AU25.obj=id;UI.objKind=id;window.D3.setToolOption('objKind',id);renderSubbar();
+  }else{
+    const id='propio-'+Date.now().toString(36),name=(AU25.newName||'Criatura').trim();
+    arte25Op({type:'art',add:{key:'newchar:'+id,name}});
+    arte25Op({type:'art',add:piece({key:'char:'+id+':idle'})});
+    AU25.kind=id;
+    const r=stage.getBoundingClientRect(),q=window.D3.pickCell(r.left+r.width/2,r.top+r.height/2)||{x:UI.cam.x,y:UI.cam.y};
+    pushUndo();const tk=addObj(newToken(snapCell(q),'enemy',{art:id,name}));UI.selected=[tk.id];changed();
+  }
+  AU25.sel=[];
+  toast('Arte aplicado al tablero.',2200);
+  renderArte25();
+}
+// etiqueta legible de una entrada de extras.art; null para las que se muestran a través de su `new*`
+function arte25Label(key,v,cat,art){
+  const[p,a,b]=key.split(':');
+  if(p==='tile'){const m=cat.MATS.find(x=>x.i===+a);return`${m?(m.hidden?'Muro recortado':m.name):'Material '+a}, ${(ARTE25_FACES.find(f=>f[0]===b)||['',b])[1].toLowerCase()}`}
+  if(p==='newchar')return'Criatura nueva: '+v.name;
+  if(p==='newobj')return'Objeto nuevo: '+v.name;
+  if(/^propio-/.test(a)&&art[(p==='char'?'newchar:':'newobj:')+a])return null;
+  if(p==='char'){const c=cat.CHARS.find(x=>x.key===a);return`Personaje: ${c?c.name:a} (${b==='run'?'movimiento':'reposo'})`}
+  const o=cat.OBJS.find(x=>x.key===a);return'Objeto: '+(o?o.name:a);
+}
+function renderArte25List(){
+  const box=$('#arte25List');box.innerHTML='';
+  if(!arte25Ready())return;
+  const{art}=window.D3.customArt(),cat=window.D3.catalog(),gm=isGM();
+  const rows=Object.entries(art).map(([key,v])=>[key,arte25Label(key,v,cat,art)]).filter(r=>r[1]);
+  if(!rows.length){box.appendChild(arte25Note(gm?'Todavía no cambiaste nada.':'El director no ha cambiado el arte de este tablero.'));return}
+  for(const[key,label]of rows){
+    const row=document.createElement('div');row.className='item';const n=document.createElement('span');n.className='name';n.textContent=label;row.appendChild(n);
+    if(gm){const b=document.createElement('button');b.className='btn';b.setAttribute('aria-label','Quitar '+label);b.innerHTML=svgIcon('x');b.append('Quitar');b.onclick=()=>arte25Remove(key);row.appendChild(b)}
+    box.appendChild(row);
+  }
+}
+// quita del tablero los objetos y piezas de pared de un kind propio (ruling: antes de borrar su arte)
+function arte25ClearUses(kind){
+  const{uses}=window.D3.customArt();
+  for(const u of uses.filter(u=>u.kind===kind)){if(u.key!=null)arte25Op({type:'mount',key:u.key,kind:null});else arte25Op({type:'obj',i:u.i,kind:null})}
+  if(UI.objKind===kind){UI.objKind='arbol';window.D3.setToolOption('objKind','arbol')}
+  if(AU25.obj===kind)AU25.obj='barril';
+  if(AU25.kind===kind)AU25.kind='guerrera';
+}
+function arte25Remove(key){
+  if(!isGM()||!arte25Ready())return;
+  const{art}=window.D3.customArt(),[p,id]=key.split(':');
+  if(p==='newobj'){arte25ClearUses(id);if(art['obj:'+id])arte25Op({type:'art',remove:'obj:'+id})}
+  if(p==='newchar'){arte25ClearUses(id);for(const f of['idle','run'])if(art[`char:${id}:${f}`])arte25Op({type:'art',remove:`char:${id}:${f}`})}
+  arte25Op({type:'art',remove:key});
+  renderArte25();
+}
+function arte25RemoveAll(){
+  if(!isGM()||!arte25Ready())return;
+  const{kinds}=window.D3.customArt();
+  for(const k of kinds.objs)arte25ClearUses(k);
+  for(const k of kinds.chars)arte25ClearUses(k);
+  arte25Op({type:'art',clear:true});
+  toast('Arte propio quitado.',2200);
+  renderArte25();
 }
 function openImageEditor(id){
   const m=Store.meta(id);if(!m)return;

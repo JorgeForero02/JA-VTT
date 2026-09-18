@@ -146,6 +146,21 @@ test('imágenes: subir, descargar bytes idénticos, cuota y permisos', async () 
   assert.equal((await stranger.call('GET', `/api/images/${up.data.image.id}`)).status, 403);
 });
 
+test('imágenes: la categoría arte25 (Arte 2.5D) se acepta y se lista como las demás', async () => {
+  const gm = client();
+  await gm.call('POST', '/api/login', { name: 'Ana', password: 'secreto1' });
+  const boardId = (await gm.call('POST', '/api/boards', { name: 'Arte', mode: '2.5d' })).data.board.id;
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+  const up = await gm.call('POST', `/api/boards/${boardId}/images`, { name: 'piezas', category: 'arte25', data: 'data:image/png;base64,' + png.toString('base64'), width: 32, height: 16 });
+  assert.equal(up.status, 201);
+  assert.equal(up.data.image.category, 'arte25');
+  const list = await gm.call('GET', `/api/boards/${boardId}/images`);
+  assert.equal(list.data.images.filter((m) => m.category === 'arte25').length, 1);
+  const patched = await gm.call('PATCH', `/api/images/${up.data.image.id}`, { category: 'arte25', name: 'piezas 2' });
+  assert.equal(patched.status, 200);
+  assert.equal((await gm.call('GET', `/api/boards/${boardId}/images`)).data.images[0].category, 'arte25');
+});
+
 test('persistencia: los objetos volcados sobreviven a vaciar la caché en memoria', async () => {
   const gm = client();
   await gm.call('POST', '/api/login', { name: 'Ana', password: 'secreto1' });

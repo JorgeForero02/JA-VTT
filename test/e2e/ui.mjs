@@ -191,6 +191,42 @@ try {
   await gm.waitForFunction((n) => window.D3.settings25().n === n + 16, n0, { timeout: 40000 });
   step('2.5D: «Ampliar 8 casillas» crece el tablero en local y en el servidor', (await gm.evaluate(() => window.D3.version())) >= 5, `${n0} → ${n0 + 16}`);
 
+  // arte propio: PNG de 32×16 generado aquí (dos piezas de 16), subido a la Biblioteca como Arte 2.5D,
+  // la primera pieza pasa a ser la cara superior del material Pasto
+  const png = await gm.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 16; const x = c.getContext('2d');
+    x.fillStyle = '#ff00ff'; x.fillRect(0, 0, 16, 16); x.fillStyle = '#00ffff'; x.fillRect(16, 0, 16, 16);
+    const b = await new Promise((r) => c.toBlob(r, 'image/png'));
+    return { size: b.size };
+  });
+  step('2.5D arte: PNG de prueba generado', png.size > 0, String(png.size));
+  await gm.click('[data-tab="library"]');
+  await gm.click('#upCat button:has-text("Arte 2.5D")');
+  await gm.setInputFiles('#libFile', { name: 'piezas.png', mimeType: 'image/png', buffer: await gm.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 16; const x = c.getContext('2d');
+    x.fillStyle = '#ff00ff'; x.fillRect(0, 0, 16, 16); x.fillStyle = '#00ffff'; x.fillRect(16, 0, 16, 16);
+    return Array.from(new Uint8Array(await (await new Promise((r) => c.toBlob(r, 'image/png'))).arrayBuffer()));
+  }).then((a) => Buffer.from(a)) });
+  await gm.waitForFunction(() => document.querySelectorAll('#arte25Imgs button.thumb').length >= 1, null, { timeout: 40000 });
+  await gm.click('#arte25Imgs button.thumb');
+  await gm.waitForSelector('#arte25Cutter:not([hidden])', { timeout: 40000 });
+  // el lienzo se pinta cuando la imagen llega del servidor: el contador de piezas se escribe al final del pintado
+  await gm.waitForFunction(() => /pieza/.test(document.getElementById('arte25Sel').textContent), null, { timeout: 40000 });
+  const cv = await gm.locator('#arte25Canvas').boundingBox();
+  await gm.mouse.click(cv.x + 8, cv.y + 8);   // primera pieza (zoom 2 → 32 px por pieza)
+  await gm.click('#arte25Target .chip:has-text("Terreno")');
+  const vArt0 = await gm.evaluate(() => window.D3.version());
+  await gm.click('#arte25Apply');
+  await gm.waitForFunction((v) => window.D3.version() > v && Object.keys(window.D3.customArt().art).length === 1, vArt0, { timeout: 40000 });
+  const artKeys = await gm.evaluate(() => Object.keys(window.D3.customArt().art));
+  step('2.5D arte: la pieza recortada se aplica al terreno como op y aparece en «Arte en uso»', artKeys[0] === 'tile:0:top' && (await gm.locator('#arte25List .item').count()) >= 1, artKeys.join(','));
+  await gm.waitForTimeout(2500);
+  await shot(gm, '19-arte-propio-25d');
+  await gm.click('#arte25List button:has-text("Quitar")');
+  await gm.waitForFunction(() => Object.keys(window.D3.customArt().art).length === 0, null, { timeout: 40000 });
+  step('2.5D arte: quitar devuelve el atlas original', true);
+  await gm.click('[data-tab="scene"]');
+
   // el jugador abre el mismo tablero 2.5D y recibe las ops de terreno del director
   const invite25 = (await gm.textContent('#inviteCode')).trim();
   await pl.goto(BASE + '/#/');

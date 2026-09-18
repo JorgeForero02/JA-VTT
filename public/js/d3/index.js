@@ -3,7 +3,7 @@
    mount/unmount/… se exponen en window.D3. No toca el DOM fuera de su canvas. */
 import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, U, MAXN } from './ctx.js';
-import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as ART_OBJ } from './art.js';
+import { PROP_KINDS, loadPacks, disposeTex, ART, MATS as ART_MATS, OBJ_KINDS as ART_OBJ, CHAR_INFO as ART_CHARS, customKinds } from './art.js';
 import { WU, initWater, simWater, buildWater, updateParts, TICK } from './water.js';
 import { initFx, updateMist, updateFireflies, updateBooms, flashLight, shakeOff, hooks } from './fx.js';
 import { initVision, refreshLights, composeLightmap, computeVision, blendVision, viewers, exploredBytes as visionExploredBytes, exploredDirty as visionExploredDirty, loadExplored as visionLoadExplored, resetExplored as visionResetExplored } from './vision.js';
@@ -55,6 +55,9 @@ onTerrainOp(op=>opts.onTerrainOp&&opts.onTerrainOp(op));
 hooks.terrainChanged=terrainChanged;hooks.removeObj=removeObj;hooks.removeMount=removeMount;hooks.removeLight=removeLight;hooks.charAt=charAt;hooks.refreshTufts=refreshTufts;
 hooks.envEm=()=>envCur.em;hooks.blocksMove=blocksMove;hooks.closedDoor=closedDoor;hooks.blocksSight=blocksSight;hooks.flashLight=flashLight;hooks.relayout=relayout;hooks.maybeGrow=maybeGrow;hooks.moved=c=>{if(!opts.onMove)return;const p=pxOfCell(c.cell);opts.onMove(c.vid,p.x,p.y);};
 hooks.selected=c=>{if(opts.onSelect)opts.onSelect(c?c.vid:null);};
+// el motor no descarga imágenes: el shell le presta las de su Biblioteca (null hasta que cargan)
+hooks.getImage=opts.getImage||(()=>null);
+hooks.artChanged=()=>syncObjects(); // una criatura propia recién cargada (o quitada) cambia el arte de sus fichas
 hooks.context=(info,x,y)=>{if(opts.onContext&&info)opts.onContext(info,x,y);};
 
 /* =====================================================================
@@ -143,6 +146,14 @@ function debug(){
     view:S.view, env:S.env, amb:S.amb, blind:lastBlind, viewers:viewers().map(c=>c.vid), explored:G.exploredUser.reduce((n,v)=>n+(v?1:0),0),
     style:ART.art?ART.art.style:null};
 }
+// Arte propio vivo (extras.art), los kinds nuevos que define y dónde se usan en el terreno (objetos y piezas
+// de pared de kinds propios), para la lista «Arte en uso» del panel y para limpiar antes de quitar uno.
+function customArt(){
+  const uses=[];
+  G.objs.forEach((o,i)=>{if(ART_OBJ[o.kind]&&ART_OBJ[o.kind].custom)uses.push({kind:o.kind,i});});
+  G.mounts.forEach((o,key)=>{if(ART_OBJ[o.kind]&&ART_OBJ[o.kind].custom)uses.push({kind:o.kind,key});});
+  return {art:Object.assign({},G.customArt),kinds:customKinds(),uses};
+}
 // Ajustes 2.5D de la escena tal como están ahora, para pintar el panel del director.
 function settings25(){return {style:ART.art?ART.art.style:'packs', fogAlpha:S.fogAlpha, mist:S.mist, cutOn:G.cutOn, cutH:G.cutH, focus:S.focus, autoGrow:G.autoGrow, evap:G.evap, edgeDrain:G.edgeDrain, n:G.N, nMax:MAXN};}
 // El shell elige (o suelta) una ficha por su id de JA-VTT: Escape, listas del panel…
@@ -176,7 +187,7 @@ function setEnv(env,amb,snap){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, pickPlace, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored, resetExplored:visionResetExplored };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, customArt, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, pickPlace, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored, resetExplored:visionResetExplored };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */
@@ -202,12 +213,13 @@ export function loadTerrainBlob(blob){if(eng)eng.loadTerrain(blob);}
 export function applyRemoteOp(op,version){return eng?eng.applyTerrainOp(op,version):false;}
 export function terrainOp(op){if(eng)eng.terrainOp(op);}
 export function settings25(){return eng?eng.settings25():null;}
+export function customArt(){return eng?eng.customArt():{art:{},kinds:{chars:[],objs:[]},uses:[]};}
 export const STYLES=[['packs','Packs'],['pixel','Píxel 16'],['pixel32','Píxel 32'],['drawn','Dibujado']];
 export function styles(){return STYLES;}
 export function version(){return eng?eng.version():-1;}
 export function setTool(id){if(eng)eng.setTool(id);}
 export function setToolOption(k,v){if(eng)eng.setToolOption(k,v);}
-export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly}))};}
+export function catalog(){return {MATS:ART_MATS.map((m,i)=>({i,name:m.name,swatch:m.swatch,hidden:!!m.hidden})),OBJS:Object.entries(ART_OBJ).map(([key,o])=>({key,name:o.name,mount:!!o.mount,mountOnly:!!o.mountOnly,custom:!!o.custom})),CHARS:Object.entries(ART_CHARS).map(([key,c])=>({key,name:c.name,custom:!!c.custom}))};}
 export function syncObjects(){if(eng)eng.syncObjects();}
 export function debugInfo(){return eng&&location.hostname==='localhost'?eng.debug():null;}
 export function pickCell(x,y){return eng?eng.pickCell(x,y):null;}
@@ -217,4 +229,4 @@ export function exploredBytes(){return eng?eng.exploredBytes():null;}
 export function exploredDirty(){return eng?eng.exploredDirty():false;}
 export function loadExplored(bytes){if(eng)eng.loadExplored(bytes);}
 export function resetExplored25(){if(eng)eng.resetExplored();}
-window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,pickPlace,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,styles};
+window.D3={mount,unmount,resize:resizeEngine,rotate:rotateEngine,setEnv,setView,isMounted,loadTerrain:loadTerrainBlob,applyRemoteOp,version,setTool,setToolOption,catalog,syncObjects,debug:debugInfo,pickCell,pickPlace,select:selectToken,exploredBytes,exploredDirty,loadExplored,resetExplored:resetExplored25,terrainOp,settings25,customArt,styles};

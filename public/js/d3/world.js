@@ -2,12 +2,12 @@
    puertas, marcas de agua y recolocación de todo lo que se apoya en el terreno. */
 import * as THREE from '../vendor/three.module.min.js';
 import { G, S, R, U, MAXH, MAXN, BASE_N, DIRS, I, cxOf, czOf, wx, wz, inb } from './ctx.js';
-import { rng, OBJ_KINDS, ART } from './art.js';
+import { rng, OBJ_KINDS, CHAR_INFO, CUSTOM, ART, setCustomArt } from './art.js';
 import { resetWater, simWater, buildWater, clearParts, resizeWater, WET, pours } from './water.js';
-import { undoStack, boomQueue } from './fx.js';
+import { undoStack, boomQueue, hooks } from './fx.js';
 import { resizeVision } from './vision.js';
 import { ENVS, decor, charsGroup, propGroup, spriteMats, makeSprite, spriteMaterial, depthMat, spriteGeo, flatGeo, sharedSpriteMats, doorTex, mountGeo, tuftMat, objMats, addChar, addLight, restyle } from './chars.js';
-import { vh, sizePedestal, buildTerrain } from './terrain.js';
+import { vh, sizePedestal, buildTerrain, terrainMat } from './terrain.js';
 import { CAM, applyEnv, fitDistance } from './camera.js';
 const T3 = THREE;
 const chars=G.chars, objs=G.objs, lights=G.lights, mounts=G.mounts,
@@ -210,6 +210,7 @@ export function loadScene(key){
   clearGroup(decor);clearGroup(charsGroup);clearGroup(propGroup);
   spriteMats.forEach(m=>m.dispose());spriteMats.clear();sharedSpriteMats();
   objs.clear();mounts.clear();G.tufts.length=0;lights.length=0;chars.length=0;clearParts();
+  deferred.length=0;G.customArt={};refreshCustomArt(); // la escena de muestra no trae arte propio
   const r=rng(2026);
   cfg.objs.forEach(([k,x,z,q])=>addObj(I(x,z),k,q==null?null:q*Math.PI/2));
   (cfg.mounts||[]).forEach(([k,x,z,d])=>addMount(I(x,z),d,k));
@@ -255,8 +256,9 @@ export function loadTerrain(blob){
   clearGroup(decor);clearGroup(charsGroup);clearGroup(propGroup);
   spriteMats.forEach(m=>m.dispose());spriteMats.clear();sharedSpriteMats();
   objs.clear();mounts.clear();G.tufts.length=0;lights.length=0;chars.length=0;clearParts();
-  for(const [k,o] of Object.entries(X.objs||{})){const i=Number(k);if(!OBJ_KINDS[o.kind]||i>=G.CELLS)continue;addObj(i,o.kind,o.rot);const w=objs.get(i);if(o.locked)w.locked=true;if(o.open&&OBJ_KINDS[o.kind].door){w.open=true;w.mesh.userData.tex.offset.x=.5;}}
-  for(const o of Object.values(X.mounts||{})){if(OBJ_KINDS[o.kind]&&o.wall<G.CELLS)addMount(o.wall,o.dir,o.kind);}
+  deferred.length=0;G.customArt=X.art||{};refreshCustomArt(); // antes de addObj: los objetos propios necesitan su material
+  for(const [k,o] of Object.entries(X.objs||{})){const i=Number(k);if(!objKnown(o.kind)||i>=G.CELLS)continue;addObj(i,o.kind,o.rot);const w=objs.get(i);if(!w)continue;if(o.locked)w.locked=true;if(o.open&&OBJ_KINDS[o.kind].door){w.open=true;w.mesh.userData.tex.offset.x=.5;}}
+  for(const o of Object.values(X.mounts||{})){if(objKnown(o.kind)&&o.wall<G.CELLS)addMount(o.wall,o.dir,o.kind);}
   const r=rng(2027);
   for(let i=0;i<G.CELLS;i++){if(G.M[i]!==0||G.chan[i]||objs.has(i))continue;if(r()<.45){const m=makeSprite({t:'tuft'},.42,.42,false,tuftMat);m.userData.cell=i;m.userData.ox=(r()-.5)*.6;m.userData.oz=(r()-.5)*.6;decor.add(m);tufts.push(m);}}
   explored.clear();pcVis.clear();undoStack.length=0;boomQueue.length=0;
@@ -270,14 +272,57 @@ export function loadTerrain(blob){
 export function applyTerrainOp(op,version){
   switch(op.type){
     case 'cells':for(const c of op.cells){if(c.i>=G.CELLS)continue;if(c.h!=null)G.H[c.i]=c.h;if(c.m!=null)G.M[c.i]=c.m;}terrainChanged();refreshTufts();break;
-    case 'obj':{if(objs.has(op.i))removeObj(op.i);if(op.kind){addObj(op.i,op.kind,op.rot);const w=objs.get(op.i);if(op.locked)w.locked=true;}refreshTufts();relayout();G.visionDirty=true;break;}
+    case 'obj':{if(objs.has(op.i))removeObj(op.i);if(op.kind){addObj(op.i,op.kind,op.rot);const w=objs.get(op.i);if(w&&op.locked)w.locked=true;}refreshTufts();relayout();G.visionDirty=true;break;}
     case 'door':{const o=objs.get(op.i);if(!o||!OBJ_KINDS[o.kind].door)break;o.open=!!op.open;o.mesh.userData.tex.offset.x=o.open?.5:0;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;break;}
     case 'mount':{if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
     case 'water':G.springs.length=0;G.springs.push(...op.springs);G.sinks.length=0;G.sinks.push(...op.sinks);G.evap=op.evap;G.edgeDrain=op.edgeDrain;updateMarks();resetWater();break;
     case 'settings':if(op.style)restyle(op.style);if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
     case 'grow':growWorld(op.pad,true);G.terrainVersion=version;return true;
+    case 'art':{
+      if(op.clear)G.customArt={};
+      else if(op.remove)delete G.customArt[op.remove];
+      else if(op.add){const a=Object.assign({},op.add);delete a.key;G.customArt[op.add.key]=a;}
+      refreshCustomArt();break;
+    }
   }
   G.terrainVersion=version;return true;
+}
+
+/* ---------- arte propio: extras.art → CUSTOM del motor → texturas y sprites ---------- */
+// objetos y piezas de pared cuyo kind propio existe pero su imagen aún no ha llegado: se colocan al llegar
+const deferred=[];
+const isCustomId=k=>/^propio-/.test(k);
+// un kind se conoce si es del catálogo o si el tablero define ese objeto propio (aunque su arte esté cargando)
+const objKnown=k=>!!OBJ_KINDS[k]||(isCustomId(k)&&!!G.customArt['newobj:'+k]);
+const objArtReady=k=>!!OBJ_KINDS[k]&&(!OBJ_KINDS[k].custom||!!CUSTOM.objs[k]);
+let artTries=0,artTimer=0;
+function dropChar(c){
+  charsGroup.remove(c.mesh);c.mesh.geometry.dispose();spriteMats.delete(c.mesh.material);c.mesh.material.dispose();
+  if(c.carried){lights.splice(lights.indexOf(c.carried),1);c.carried=null;}
+  if(G.selected===c){G.selected=null;hooks.selected(null);}
+  chars.splice(chars.indexOf(c),1);
+}
+export function refreshCustomArt(){
+  const pending=setCustomArt(Object.entries(G.customArt).map(([key,v])=>Object.assign({key},v)),hooks.getImage||(()=>null));
+  // lo que ya no tiene arte no puede seguir en escena: las fichas las vuelve a crear el shell (syncTokens)
+  // con el arte por defecto; los objetos con imagen pendiente esperan en `deferred`
+  chars.slice().forEach(c=>{if(!CHAR_INFO[c.kind])dropChar(c);});
+  objs.forEach((o,i)=>{if(objArtReady(o.kind))return;if(objKnown(o.kind))deferred.push({i,kind:o.kind,rot:o.rot});removeObj(i);});
+  mounts.forEach((o,key)=>{if(objArtReady(o.kind))return;if(objKnown(o.kind))deferred.push({wall:o.wall,dir:o.dir,kind:o.kind});removeMount(key);});
+  if(ART.art){
+    restyle(ART.art.style);
+    terrainMat.map=ART.TEX.atlas;terrainMat.needsUpdate=true;
+    // materiales compartidos de los kinds nuevos; fuera los de kinds que ya no existen
+    Object.keys(objMats).forEach(k=>{if(!OBJ_KINDS[k]){objMats[k].dispose();spriteMats.delete(objMats[k]);delete objMats[k];}});
+    Object.keys(OBJ_KINDS).forEach(k=>{if(!objMats[k]&&ART.TEX.objs[k])objMats[k]=spriteMaterial(ART.TEX.objs[k]);});
+    deferred.splice(0).forEach(d=>{if(!objKnown(d.kind))return;if(!objArtReady(d.kind)){deferred.push(d);return;}if(d.wall!=null)addMount(d.wall,d.dir,d.kind);else addObj(d.i,d.kind,d.rot);});
+    relayout();
+  }
+  G.lightsDirty=true;G.visionDirty=true;
+  hooks.artChanged();
+  clearTimeout(artTimer);
+  if(pending&&++artTries<=20)artTimer=setTimeout(refreshCustomArt,400); // alguna imagen aún cargaba
+  else{if(pending)R.toast('No se pudo cargar una imagen del arte propio');artTries=0;}
 }
 
 export const isDoor=j=>objs.has(j)&&OBJ_KINDS[objs.get(j).kind].door;
@@ -295,6 +340,7 @@ export function autoRot(i,kind){
 }
 export function canGrow(i){return G.autoGrow&&nearEdge(i,2)&&G.N+GROW_STEP*2<=MAXN;}
 export function addObj(i,kind,rot){
+  if(!objArtReady(kind)){if(objKnown(kind))deferred.push({i,kind,rot});return;}
   const K=OBJ_KINDS[kind],a=ART.art.objs[kind],flat=!!K.flat,fixed=!!K.fixed;
   const tex=K.door?doorTex():ART.TEX.objs[kind];
   const mat=K.door?spriteMaterial(tex):objMats[kind];
@@ -324,6 +370,7 @@ export function mountValid(wall,d){
 }
 export function addMount(wall,d,kind){
   if(!mountValid(wall,d))return false;
+  if(!objArtReady(kind)){if(objKnown(kind))deferred.push({wall,dir:d,kind});return false;}
   const key=mountKey(wall,d);if(mounts.has(key))removeMount(key);
   const m=new T3.Mesh(mountGeo(kind),objMats[kind]);
   m.castShadow=false;m.customDepthMaterial=depthMat(ART.TEX.objs[kind]);
