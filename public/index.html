@@ -174,7 +174,7 @@
           <label class="check"><input type="checkbox" id="animToggle"> Animar llamas y pulsos</label>
         </div>
       </details>
-      <details class="fold" data-fold="zonas" open>
+      <details class="fold d2Only" data-fold="zonas" open>
         <summary><span class="foldTitle">Zonas interiores</span></summary>
         <div class="foldBody">
           <p>En un exterior con edificios o cuevas, dentro de una zona no llega la luz ambiental.</p>
@@ -189,7 +189,23 @@
           <div class="row"><button class="btn" id="fogReset" data-ic="rotate-ccw">Reiniciar exploración</button></div>
         </div>
       </details>
-      <details class="fold" data-fold="contenido" open>
+      <details class="fold d3Only" data-fold="mapa25" open>
+        <summary><span class="foldTitle">Mapa 2.5D</span></summary>
+        <div class="foldBody">
+          <p>Aspecto y comportamiento del mapa en relieve. Todo se guarda con la escena.</p>
+          <div class="segCat" id="style25" role="group" aria-label="Estilo de arte"></div>
+          <div class="rangeRow"><span>Opacidad de la niebla</span><input id="fogAlpha25" type="range" min="0" max="100" step="1"><output id="fogAlpha25Out"></output></div>
+          <div class="rangeRow"><span>Niebla ambiental</span><input id="mist25" type="range" min="0" max="100" step="1"><output id="mist25Out"></output></div>
+          <label class="check"><input type="checkbox" id="cutOn25"> Recortar los muros altos</label>
+          <div class="rangeRow"><span>Altura del recorte</span><input id="cutH25" type="range" min="1" max="9" step="1"><output id="cutH25Out"></output></div>
+          <label class="check"><input type="checkbox" id="focus25"> Efecto maqueta (desenfoque)</label>
+          <div class="row"><span class="small muted" id="size25"></span><button class="btn" id="grow25" data-ic="plus">Ampliar 8 casillas</button></div>
+          <label class="check"><input type="checkbox" id="autoGrow25"> Crecer solo al editar cerca del borde</label>
+          <div class="rangeRow"><span>Evaporación</span><input id="evap25" type="range" min="0" max="100" step="1"><output id="evap25Out"></output></div>
+          <label class="check"><input type="checkbox" id="edgeDrain25"> El agua se va por el borde</label>
+        </div>
+      </details>
+      <details class="fold d2Only" data-fold="contenido" open>
         <summary><span class="foldTitle">Contenido</span></summary>
         <div class="foldBody">
           <p>El tablero de fondo se elige en Imágenes. Vaciar la escena se puede deshacer.</p>

@@ -349,7 +349,7 @@ test('herramientas 2.5D del director: rail, subbar, ops y puentes', () => {
     assert.match(html, new RegExp(`<button(?=[^>]*data-tool="${t}")(?=[^>]*class="[^"]*d3Only[^"]*")[^>]*>`), `botón ${t} con clase d3Only`);
   }
   const css = read('css/app.css');
-  assert.match(css, /#app:not\(\.d3\) #rail \.d3Only\{display:none\}/);
+  assert.match(css, /#app:not\(\.d3\) \.d3Only\{display:none\}/);
 
   const editor = read('js/editor.js');
   assert.match(editor, /const D3_TOOLS=\{[^}]*up:'subir'[^}]*water:'agua'/);
@@ -468,4 +468,28 @@ test('selección 2.5D: el motor avisa al shell, la barra de selección aparece y
   assert.match(read('js/render.js'), /onSelect:onToken25Select/);
   assert.match(read('index.html'), /data-tool="up" data-ic="chevron-up"/);
   assert.match(read('js/icons.js'), /"chevron-up":/);
+});
+
+test('panel Mapa 2.5D: ajustes del motor con ops settings/grow y estilo persistente', () => {
+  const html = read('index.html');
+  assert.match(html, /<details class="fold d3Only" data-fold="mapa25"/);
+  for (const id of ['style25', 'fogAlpha25', 'mist25', 'cutOn25', 'cutH25', 'focus25', 'size25', 'grow25', 'autoGrow25', 'evap25', 'edgeDrain25']) assert.match(html, new RegExp('id="' + id + '"'), id);
+  assert.match(html, /class="fold d2Only" data-fold="zonas"/);
+  assert.match(html, /class="fold d2Only" data-fold="contenido"/);
+  const css = read('css/app.css');
+  assert.match(css, /#app:not\(\.d3\) \.d3Only\{display:none\}/);
+  assert.match(css, /#app\.d3 \.d2Only\{display:none\}/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function render25Panel\(\)/);
+  assert.match(ed, /window\.D3\.terrainOp\(op\)/);
+  assert.match(ed, /\{type:'grow',pad:8\}/);
+  const idx = read('js/d3/index.js');
+  assert.match(idx, /terrainOp:sendOp/);
+  assert.match(idx, /function settings25\(\)/);
+  assert.match(idx, /export const STYLES=\[\['packs'/);
+  const world = read('js/d3/world.js');
+  assert.match(world, /case 'settings':if\(op\.style\)restyle\(op\.style\);/);
+  assert.match(world, /if\(X\.style&&X\.style!==ART\.art\.style\)restyle\(X\.style\)/);
+  assert.match(read('js/d3/input.js'), /export function sendOp\(op\)/);
+  assert.match(read('js/net.js'), /render25Panel\(\)/);
 });

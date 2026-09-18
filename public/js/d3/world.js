@@ -6,7 +6,7 @@ import { rng, OBJ_KINDS, ART } from './art.js';
 import { resetWater, simWater, buildWater, clearParts, resizeWater, WET, pours } from './water.js';
 import { undoStack, boomQueue } from './fx.js';
 import { resizeVision } from './vision.js';
-import { ENVS, decor, charsGroup, propGroup, spriteMats, makeSprite, spriteMaterial, depthMat, spriteGeo, flatGeo, sharedSpriteMats, doorTex, mountGeo, tuftMat, objMats, addChar, addLight } from './chars.js';
+import { ENVS, decor, charsGroup, propGroup, spriteMats, makeSprite, spriteMaterial, depthMat, spriteGeo, flatGeo, sharedSpriteMats, doorTex, mountGeo, tuftMat, objMats, addChar, addLight, restyle } from './chars.js';
 import { vh, sizePedestal, buildTerrain } from './terrain.js';
 import { CAM, applyEnv, fitDistance } from './camera.js';
 const T3 = THREE;
@@ -248,6 +248,7 @@ export function loadTerrain(blob){
   G.springs.length=0;G.springs.push(...(X.springs||[]));G.sinks.length=0;G.sinks.push(...(X.sinks||[]));
   (X.pools||[]).forEach(p=>{if(p.cell<G.CELLS)G.W[p.cell]=p.level;});
   G.evap=X.evap??.0012;G.edgeDrain=X.edgeDrain!==false;G.cutOn=!!X.cutOn;G.cutH=X.cutH||3;
+  if(X.style&&X.style!==ART.art.style)restyle(X.style);
   if(X.fogAlpha!=null)S.fogAlpha=X.fogAlpha;if(X.mist!=null)S.mist=X.mist;if(X.focus!=null)S.focus=X.focus;if(X.autoGrow!=null)G.autoGrow=X.autoGrow;
   CAM.target.set(0,2.2,0);CAM.targetT.copy(CAM.target);
   clearGroup(decor);clearGroup(charsGroup);clearGroup(propGroup);
@@ -272,7 +273,7 @@ export function applyTerrainOp(op,version){
     case 'door':{const o=objs.get(op.i);if(!o||!OBJ_KINDS[o.kind].door)break;o.open=!!op.open;o.mesh.userData.tex.offset.x=o.open?.5:0;lights.forEach(l=>{l.cache=null;});G.lightsDirty=true;G.visionDirty=true;break;}
     case 'mount':{if(mounts.has(op.key))removeMount(op.key);if(op.kind){const [w,d]=op.key.split(':').map(Number);addMount(w,d,op.kind);}relayout();break;}
     case 'water':G.springs.length=0;G.springs.push(...op.springs);G.sinks.length=0;G.sinks.push(...op.sinks);G.evap=op.evap;G.edgeDrain=op.edgeDrain;updateMarks();resetWater();break;
-    case 'settings':if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
+    case 'settings':if(op.style)restyle(op.style);if(op.fogAlpha!=null)S.fogAlpha=op.fogAlpha;if(op.mist!=null)S.mist=op.mist;if(op.focus!=null)S.focus=op.focus;if(op.autoGrow!=null)G.autoGrow=op.autoGrow;if(op.evap!=null)G.evap=op.evap;if(op.edgeDrain!=null)G.edgeDrain=op.edgeDrain;if(op.cutOn!=null||op.cutH!=null){if(op.cutOn!=null)G.cutOn=op.cutOn;if(op.cutH!=null)G.cutH=op.cutH;terrainChanged();}break;
     case 'grow':growWorld(op.pad,true);G.terrainVersion=version;return true;
   }
   G.terrainVersion=version;return true;

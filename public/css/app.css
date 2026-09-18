@@ -65,7 +65,8 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .railsep{width:28px;height:1px;background:var(--line);margin:5px 0}
 .tool.gmOnly.hiddenTool{display:none}
 #app.d3 #rail .tool:not([data-tool="select"]):not([data-tool="pan"]):not([data-tool="player"]):not([data-tool="enemy"]):not(.d3Only),#app.d3 #rail .railsep:not(.d3Only){display:none}
-#app:not(.d3) #rail .d3Only{display:none}
+#app:not(.d3) .d3Only{display:none}
+#app.d3 .d2Only{display:none}
 
 #stageWrap{position:relative;min-width:0;min-height:0;overflow:hidden;background:#12171A}
 #stage{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:default}

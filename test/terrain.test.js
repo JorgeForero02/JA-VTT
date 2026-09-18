@@ -204,3 +204,10 @@ test('applyTerrainOp lanza si la casilla cae fuera del tablero (obj, door, mount
   applyTerrainOp(t, cleanTerrainOp({ type: 'obj', i: out - 1, kind: 'barril' }));
   assert.equal(t.version, 1);
 });
+
+test('cleanTerrainOp(settings) recorta los rangos que usa el panel 2.5D', () => {
+  const op = cleanTerrainOp({ type: 'settings', style: 'pixel32', fogAlpha: 1.5, mist: -1, cutOn: true, cutH: 12, focus: false, autoGrow: true, evap: 0.2, edgeDrain: false });
+  assert.equal(op.style, 'pixel32'); assert.equal(op.fogAlpha, 1); assert.equal(op.mist, 0); assert.equal(op.cutH, 9); assert.equal(op.evap, 0.05);
+  assert.equal(op.focus, false); assert.equal(op.autoGrow, true); assert.equal(op.edgeDrain, false);
+  assert.equal(cleanTerrainOp({ type: 'settings', style: 'oleo' }), null);
+});

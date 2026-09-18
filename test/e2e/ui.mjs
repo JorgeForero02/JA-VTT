@@ -167,6 +167,30 @@ try {
   const railTools = await gm.$$eval('#rail .tool', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').map((e) => e.dataset.tool));
   step('rail 2.5D del director: select, pan, fichas y herramientas de terreno (regla y planos llegan después)', railTools.join(',') === 'select,pan,player,enemy,up,down,paint,object,water', railTools.join(','));
 
+  // panel Mapa 2.5D: los cuatro estilos de arte, uno a uno, con captura
+  await gm.click('[data-tab="scene"]');
+  await gm.waitForFunction(() => document.querySelectorAll('#style25 .chip').length === 4, null, { timeout: 40000 });
+  const zonasHidden = await gm.evaluate(() => getComputedStyle(document.querySelector('[data-fold="zonas"]')).display === 'none');
+  step('2.5D: el panel Escena muestra «Mapa 2.5D» y esconde las zonas del 2D', zonasHidden);
+  const styleShots = {};
+  for (const [key, label] of [['pixel', 'Píxel 16'], ['pixel32', 'Píxel 32'], ['drawn', 'Dibujado'], ['packs', 'Packs']]) {
+    await gm.click(`#style25 .chip:has-text("${label}")`);
+    await gm.waitForFunction((k) => window.D3.debug().style === k, key, { timeout: 40000 });
+    await gm.waitForTimeout(2500);
+    const buf = await gm.screenshot({ clip: { x: 500, y: 300, width: 200, height: 200 } });
+    styleShots[key] = buf.toString('base64').slice(0, 4000);
+    await shot(gm, `09-estilo-${key}`);
+  }
+  const distinctStyles = new Set(Object.values(styleShots)).size;
+  step('2.5D: los cuatro estilos de arte se aplican y se ven distintos', distinctStyles === 4, String(distinctStyles));
+  const vStyle = await gm.evaluate(() => window.D3.version());
+  step('2.5D: cada cambio de estilo es una op de terreno (version sube)', vStyle >= 4, String(vStyle));
+
+  const n0 = await gm.evaluate(() => window.D3.settings25().n);
+  await gm.click('#grow25');
+  await gm.waitForFunction((n) => window.D3.settings25().n === n + 16, n0, { timeout: 40000 });
+  step('2.5D: «Ampliar 8 casillas» crece el tablero en local y en el servidor', (await gm.evaluate(() => window.D3.version())) >= 5, `${n0} → ${n0 + 16}`);
+
   // el jugador abre el mismo tablero 2.5D y recibe las ops de terreno del director
   const invite25 = (await gm.textContent('#inviteCode')).trim();
   await pl.goto(BASE + '/#/');
@@ -181,18 +205,21 @@ try {
   const cx = stageBox.x + stageBox.width / 2;
   const cy = stageBox.y + stageBox.height / 2;
 
+  // el panel Mapa 2.5D ya adelantó la versión (4 cambios de estilo + 1 «Ampliar»): las comprobaciones
+  // de aquí en adelante son relativas a esa base, no absolutas
+  const vBase = await gm.evaluate(() => window.D3.version());
   await gm.click('#rail [data-tool="up"]');
   await gm.waitForSelector('#subbar .hint', { timeout: 5000 });
   await gm.mouse.click(cx, cy);
-  await pl.waitForFunction(() => window.D3.version() === 1, null, { timeout: 40000 });
-  step('2.5D: la edición del director llega al jugador (version 1)', true);
+  await pl.waitForFunction((v) => window.D3.version() === v, vBase + 1, { timeout: 40000 });
+  step('2.5D: la edición del director llega al jugador (version +1)', true);
 
   await gm.click('#rail [data-tool="paint"]');
   await gm.waitForSelector('#subbar .chip:nth-of-type(2)', { timeout: 5000 });
   await gm.click('#subbar .chip:nth-of-type(2)');
   await gm.mouse.click(cx, cy);
-  await pl.waitForFunction(() => window.D3.version() === 2, null, { timeout: 40000 });
-  step('2.5D: el material pintado llega al jugador (version 2)', true);
+  await pl.waitForFunction((v) => window.D3.version() === v, vBase + 2, { timeout: 40000 });
+  step('2.5D: el material pintado llega al jugador (version +2)', true);
 
   await gm.evaluate(() => {
     const t = { id: S.nextId++, type: 'token', kind: 'player', name: 'Prueba', x: 11 * 50 + 25, y: 11 * 50 + 25,
@@ -262,7 +289,10 @@ try {
   await pl.evaluate(() => Net.flushFog());
   await pl.waitForTimeout(800);
   await pl.reload();
-  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug(), null, { timeout: 60000 });
+  // el tablero pasó a 38×38 (panel Mapa 2.5D → «Ampliar 8 casillas»): remontar tarda más que con
+  // 22×22 bajo swiftshader y con el resto de la sesión ya cargada; 60 s se quedaba corto (medido: ~45 s
+  // en un repro aislado, más con dos pestañas y todo lo demás abierto), así que se amplía a 120 s.
+  await pl.waitForFunction(() => window.D3 && window.D3.isMounted() && window.D3.debug(), null, { timeout: 120000 });
   await pl.waitForFunction((n) => window.D3.debug().explored >= n, Math.max(1, exp0 - 2), { timeout: 60000 });
   const exp1 = await pl.evaluate(() => window.D3.debug().explored);
   step('2.5D: la niebla explorada sigue ahí tras recargar', exp0 > 0 && exp1 >= exp0 - 2, `${exp0} → ${exp1}`);
@@ -281,7 +311,7 @@ try {
   await pl.waitForTimeout(1000);
   const plVersion = await pl.evaluate(() => window.D3.version());
   const gmVersion = await gm.evaluate(() => window.D3.version());
-  step('2.5D: el jugador no puede editar el terreno', plVersion === 2 && gmVersion === 2, `pl=${plVersion}, gm=${gmVersion}`);
+  step('2.5D: el jugador no puede editar el terreno', plVersion === vBase + 2 && gmVersion === vBase + 2, `pl=${plVersion}, gm=${gmVersion}`);
 
   await shot(pl, '09-tablero-25d-jugador');
   await gm.click('#rail [data-tool="paint"]');

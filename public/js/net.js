@@ -40,7 +40,7 @@ const Net=(()=>{
       case 'images':Store.refresh();break;
       case 'pong':toast(`El servidor respondió en ${Date.now()-d.at} ms`);break;
       case 'kicked':onKicked(!!d.deleted);break;
-      case 'terrain':if(!UI.scene||d.scene!==UI.scene.id||!window.D3)break;if(d.full)window.D3.loadTerrain(d.full);else if(d.op&&!window.D3.applyRemoteOp(d.op,d.version))Net.sendRaw({t:'terrain',scene:UI.scene.id,want:'full'});if(d.fix)toast('No puedes editar el terreno de esta escena');break;
+      case 'terrain':if(!UI.scene||d.scene!==UI.scene.id||!window.D3)break;if(d.full)window.D3.loadTerrain(d.full);else if(d.op&&!window.D3.applyRemoteOp(d.op,d.version))Net.sendRaw({t:'terrain',scene:UI.scene.id,want:'full'});if(d.fix)toast('No puedes editar el terreno de esta escena');if(typeof render25Panel==='function')render25Panel();break;
       case 'error':toast(d.error||'Error del servidor',2600);break;
     }
   }

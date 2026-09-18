@@ -35,7 +35,7 @@ export function setToolOption(k,v){if(k==='paintMat')G.paintMat=v;else if(k==='o
 let emitOp=null;
 export function onTerrainOp(cb){emitOp=cb;}
 /* Edición del director: la op sale con la version actual y se aplica en local como version+1; el servidor confirma con ack o manda el terreno completo si hubo conflicto */
-function sendOp(op){const v=G.terrainVersion;if(emitOp)emitOp(Object.assign({},op,{version:v}));applyTerrainOp(op,v+1);}
+export function sendOp(op){const v=G.terrainVersion;if(emitOp)emitOp(Object.assign({},op,{version:v}));applyTerrainOp(op,v+1);}
 
 /* ---------- selección en el mapa ---------- */
 const ray=new T3.Raycaster(),ndc=new T3.Vector2();
