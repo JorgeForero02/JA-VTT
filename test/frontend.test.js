@@ -493,3 +493,21 @@ test('panel Mapa 2.5D: ajustes del motor con ops settings/grow y estilo persiste
   assert.match(read('js/d3/input.js'), /export function sendOp\(op\)/);
   assert.match(read('js/net.js'), /render25Panel\(\)/);
 });
+
+test('fix D1: niebla explorada no se descarta al recargar con el tablero crecido; el panel se reactiva al volver a Director', () => {
+  const idx = read('js/d3/index.js');
+  // loadExplored espera a `ready` (como ya hace setView con pendingView), si no G.CELLS todavía es el
+  // tamaño por defecto cuando llegan bytes de un tablero ya crecido y vision.loadExplored los descarta
+  assert.match(idx, /function loadExplored\(bytes\)\{if\(!ready\)\{pendingExplored=bytes;return;\}visionLoadExplored\(bytes\);\}/);
+  assert.match(idx, /if\(pendingExplored\)\{const b=pendingExplored;pendingExplored=null;visionLoadExplored\(b\);\}/);
+  assert.match(idx, /loadExplored,\s*resetExplored:visionResetExplored/, 'el objeto de createEngine expone el loadExplored propio, no el de vision.js directo');
+  const world = read('js/d3/world.js');
+  // la niebla reproyectada por growWorld tiene que marcarse sucia o el servidor se queda con la copia vieja
+  assert.match(world, /G\.exploredUser\[re\(i\)\]=oEU\[i\];\s*\n\s*G\.exploredDirty=true;/);
+  const ed = read('js/editor.js');
+  // el estado disabled se recalcula en cada pintado del panel, no sólo la primera vez que se detecta jugador
+  assert.match(ed, /const ro=!isGM\(\);/);
+  assert.match(ed, /\$\$\('#tab-scene \[data-fold="mapa25"\] input,#tab-scene \[data-fold="mapa25"\] button'\)\.forEach\(el=>\{el\.disabled=ro\}\);/);
+  assert.match(ed, /\$\('#cutH25'\)\.disabled=ro\|\|!st\.cutOn;/);
+  assert.match(ed, /\$\('#grow25'\)\.disabled=ro\|\|st\.n\+16>st\.nMax;/);
+});

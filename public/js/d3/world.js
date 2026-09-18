@@ -57,6 +57,7 @@ export function growWorld(pad,quiet){
   }
   explored.clear();oExp.forEach((a,c)=>{const e=new Uint8Array(G.CELLS);for(let i=0;i<a.length;i++)if(a[i])e[re(i)]=1;explored.set(c,e);});
   for(let i=0;i<oEU.length;i++)if(oEU[i])G.exploredUser[re(i)]=oEU[i];
+  G.exploredDirty=true; // la niebla reproyectada tiene que llegar al servidor, si no el próximo reload la descarta
   pcVis.clear();
   const oObjs=new Map(objs);objs.clear();oObjs.forEach((o,i)=>{const j=re(i);o.mesh.userData.cell=j;objs.set(j,o);});
   const oM2=new Map(mounts);mounts.clear();oM2.forEach(o=>{o.wall=re(o.wall);const k=mountKey(o.wall,o.dir);o.mesh.userData.mount=k;mounts.set(k,o);});

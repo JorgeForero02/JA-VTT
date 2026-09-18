@@ -896,17 +896,19 @@ function render25Panel(){
   for(const[k,name]of window.D3.styles()){const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(st.style===k));b.textContent=name;b.onclick=()=>{op25({type:'settings',style:k})};seg.appendChild(b)}
   $('#fogAlpha25').value=Math.round(st.fogAlpha*100);$('#fogAlpha25Out').textContent=Math.round(st.fogAlpha*100)+' %';
   $('#mist25').value=Math.round(st.mist*100);$('#mist25Out').textContent=Math.round(st.mist*100)+' %';
-  $('#cutOn25').checked=!!st.cutOn;$('#cutH25').value=st.cutH;$('#cutH25Out').textContent=st.cutH+' bloques';$('#cutH25').disabled=!st.cutOn;
+  $('#cutOn25').checked=!!st.cutOn;$('#cutH25').value=st.cutH;$('#cutH25Out').textContent=st.cutH+' bloques';
   $('#focus25').checked=!!st.focus;
-  $('#size25').textContent=`Tablero de ${st.n} × ${st.n} casillas`;$('#grow25').disabled=st.n+16>st.nMax;
+  $('#size25').textContent=`Tablero de ${st.n} × ${st.n} casillas`;
   $('#autoGrow25').checked=!!st.autoGrow;
   $('#evap25').value=Math.round(st.evap/0.0001);$('#evap25Out').textContent=(st.evap*1000).toFixed(1)+' ‰';
   $('#edgeDrain25').checked=!!st.edgeDrain;
-  // el jugador ve el fold con los valores reales pero no puede tocar nada: el servidor lo rechazaría igual, pero que no falle en silencio
-  if(!isGM()){
-    $$('#tab-scene [data-fold="mapa25"] input').forEach(el=>el.disabled=true);
-    $$('#tab-scene [data-fold="mapa25"] button').forEach(el=>el.disabled=true);
-  }
+  // el jugador ve el fold con los valores reales pero no puede tocar nada: el servidor lo rechazaría igual, pero
+  // que no falle en silencio. Se recalcula en cada pintado (no sólo al detectar !isGM) para que el fold se
+  // reactive al volver de «Vista de jugador» a «Director» sin recargar la página.
+  const ro=!isGM();
+  $$('#tab-scene [data-fold="mapa25"] input,#tab-scene [data-fold="mapa25"] button').forEach(el=>{el.disabled=ro});
+  $('#cutH25').disabled=ro||!st.cutOn;
+  $('#grow25').disabled=ro||st.n+16>st.nMax;
 }
 // Al montar tarde (el motor arranca async), reintenta hasta 20 veces cada 150 ms, como sync25() en net.js.
 function render25PanelWait(retries){if(retries<=0)return;setTimeout(()=>{if(is25()&&window.D3&&window.D3.isMounted())render25Panel();else render25PanelWait(retries-1)},150)}

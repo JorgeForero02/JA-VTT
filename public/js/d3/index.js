@@ -120,7 +120,10 @@ function setView(cfg){
   computeVision();           // recalcula ya, sin esperar al frame
   reportBlind();
 }
-let lastBlind=null,pendingView=null;
+let lastBlind=null,pendingView=null,pendingExplored=null;
+// Igual que setView: si aún no ha corrido start() (y por tanto loadTerrain), G.CELLS es todavía el
+// tamaño por defecto y vision.loadExplored descartaría los bytes guardados de un tablero ya crecido.
+function loadExplored(bytes){if(!ready){pendingExplored=bytes;return;}visionLoadExplored(bytes);}
 function reportBlind(){
   const b=S.view!=='gm'&&!viewers().length;
   if(b===lastBlind)return;
@@ -159,6 +162,7 @@ async function start(){
   if(opts.env)setEnv(opts.env,opts.ambient||0,true);
   setToolInput('mover');bindPointers();bindKeys();raf=requestAnimationFrame(frame);
   ready=true;syncObjects();if(pendingView){const v=pendingView;pendingView=null;setView(v);}
+  if(pendingExplored){const b=pendingExplored;pendingExplored=null;visionLoadExplored(b);}
 }
 function stop(){stopped=true;cancelAnimationFrame(raf);unbindKeys();unbindPointers();disposeTex();renderer.dispose();rt.dispose();canvas.remove();}
 // Los cuatro entornos de JA-VTT existen con el mismo nombre en ENVS del diorama.
@@ -169,7 +173,7 @@ function setEnv(env,amb,snap){
   const P=ENVS[S.env];S.amb=amb;S.fogAlpha=P.fogA;S.mist=P.mist;S.dark=null;G.visionDirty=true;
   applyEnv(!!snap);
 }
-return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored:visionLoadExplored, resetExplored:visionResetExplored };
+return { start, stop, resize, rotate, setEnv, setView, loadTerrain, applyTerrainOp, terrainOp:sendOp, settings25, version:()=>G.terrainVersion, setTool:setToolInput, setToolOption:setToolOptionInput, syncObjects, debug, pickCell, select:selectVid, exploredBytes:exploredOut, exploredDirty:visionExploredDirty, loadExplored, resetExplored:visionResetExplored };
 }
 
 /* ---------- puente con los scripts clásicos ---------- */

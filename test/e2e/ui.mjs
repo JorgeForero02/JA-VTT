@@ -306,6 +306,7 @@ try {
   await gm.click('#roleGm');
   await gm.waitForFunction(() => window.D3.debug().view === 'gm', null, { timeout: 10000 });
   step('2.5D: el director alterna entre su vista y la del grupo', gmView0 === 'gm');
+  step('2.5D: el panel Mapa 2.5D vuelve a estar activo tras alternar la vista', !(await gm.evaluate(() => document.getElementById('fogAlpha25').disabled)));
 
   await pl.evaluate(() => Net.terrain({ type: 'cells', cells: [{ i: 1, h: 9 }] }));
   await pl.waitForTimeout(1000);
