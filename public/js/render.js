@@ -29,6 +29,7 @@ function resize(){
   ldpr=Math.min(dpr,PERF.scale);
   const light=new Set(LIGHT_LAYERS());
   for(const c of[...Object.values(cv),maskC,losC,expC]){const d=light.has(c)?ldpr:dpr;c.__s=d;c.width=Math.round(W*d);c.height=Math.round(H*d)}
+  Weather.resize();
   requestRender();
 }
 /* La niebla del 2.5D es un byte por casilla, no una imagen: viaja en base64 crudo. */
@@ -121,6 +122,7 @@ function syncStageMode(terrain){
   else if(want&&has&&terrain)window.D3.loadTerrain(terrain);
   else if(!want&&has)window.D3.unmount();
   if(!want)$('#subbar').innerHTML='';
+  Weather.sync();
   requestRender();
 }
 
@@ -130,7 +132,7 @@ function hexA(hex,a){let h=(hex||'#ffffff').replace('#','');if(h.length===3)h=h.
 function drawAll(t,lightsOnly){
   const player=!isGM();
   const vs=player?viewers():[];
-  if(!lightsOnly){drawScene(player);if(player)buildLosMask(vs)}
+  if(!lightsOnly){Weather.sync();drawScene(player);Weather.invalidate();if(player)buildLosMask(vs)}
   buildLightMask(t,player,vs);
   drawGlow(t,player);
   drawDarkness(player,vs,lightsOnly);

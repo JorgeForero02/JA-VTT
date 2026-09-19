@@ -179,6 +179,26 @@ try {
   await gm.check('#chatEnabled'); await gm.check('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
 
+  // clima 2D: el director pone tormenta (Escena → Clima); la capa Pixi se monta entre la escena y el brillo en
+  // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
+  await gm.click('[data-tab="scene"]');
+  await gm.click('#envGrid button:nth-child(2)');   // exterior de día: se ve el tablero refractado
+  await gm.selectOption('#weatherId', 'storm');
+  const weatherLayer = (page) => page.evaluate(() => { const c = document.getElementById('cWeather'); return c ? { w: c.width, prev: c.previousElementSibling.id, next: c.nextElementSibling.id, pixi: typeof PIXI } : null; });
+  await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
+  await pl.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
+  const wGm = await weatherLayer(gm), wPl = await weatherLayer(pl);
+  step('clima: tormenta montada en director y jugador entre cScene y cGlow', wGm && wPl && wGm.w > 0 && wPl.w > 0 && wGm.prev === 'cScene' && wGm.next === 'cGlow' && wPl.prev === 'cScene', JSON.stringify(wPl));
+  step('clima: el jugador recibe el ajuste saneado', (await pl.evaluate(() => JSON.stringify(window.S.weather))) === '{"id":"storm","intensity":0.6,"wind":0}', await pl.evaluate(() => JSON.stringify(window.S.weather)));
+  step('clima: el panel del director muestra intensidad y viento sólo con clima', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === ''));
+  await gm.waitForTimeout(2500);
+  await shot(gm, '05c-clima-tormenta');
+  await gm.selectOption('#weatherId', 'none');
+  await gm.waitForFunction(() => !document.getElementById('cWeather') && !Weather.mounted(), null, { timeout: 10000 });
+  await pl.waitForFunction(() => !document.getElementById('cWeather') && !Weather.mounted(), null, { timeout: 10000 });
+  step('clima: «Sin clima» destruye la capa en director y jugador', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === 'none'));
+  await gm.click('#envGrid button:nth-child(1)');
+
   // tablero 2.5D: el motor monta su canvas y pinta algo que no es negro
   // (va antes de la recuperación: ésta cierra todas las sesiones del director y le dejaría fuera)
   await gm.goto(BASE + '/#/');

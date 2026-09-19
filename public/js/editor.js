@@ -735,6 +735,23 @@ function renderEnv(){
     b.onclick=()=>{pushUndo();S.env=k;S.ambient=E.ambient;S.darkColor=E.dark;changed();renderEnv();if(is25()&&window.D3)window.D3.setEnv(S.env,S.ambient)};g.appendChild(b)}
   $('#ambient').value=Math.round(S.ambient*100);$('#ambientOut').textContent=Math.round(S.ambient*100)+' %';
 }
+/* Clima 2D: selector + intensidad/viento. La lista viene de WEATHERS (core.js); la librería se carga sola al elegir. */
+function renderWeather(){
+  const w=S.weather||{id:'none',intensity:.6,wind:0},sel=$('#weatherId');
+  if(sel.options.length!==Object.keys(WEATHERS).length){sel.innerHTML='';for(const[k,w]of Object.entries(WEATHERS)){const o=document.createElement('option');o.value=k;o.textContent=w.name;sel.appendChild(o)}}
+  sel.value=WEATHERS[w.id]?w.id:'none';
+  const on=sel.value!=='none';$$('.weatherOnly').forEach(el=>el.style.display=on?'':'none');
+  if(document.activeElement!==$('#weatherIntensity')){$('#weatherIntensity').value=Math.round(w.intensity*100);$('#weatherIntensityOut').textContent=Math.round(w.intensity*100)+' %'}
+  if(document.activeElement!==$('#weatherWind')){$('#weatherWind').value=Math.round(w.wind*100);$('#weatherWindOut').textContent=Math.round(w.wind*100)+' %'}
+}
+$('#weatherId').onchange=e=>{pushUndo();S.weather=Object.assign({},S.weather,{id:e.target.value});changed();renderWeather()};
+let weatherSnap=null;
+for(const[id,key,div]of[['weatherIntensity','intensity',100],['weatherWind','wind',100]]){
+  const el=$('#'+id);
+  el.addEventListener('pointerdown',()=>weatherSnap=snapshot());
+  el.oninput=e=>{S.weather=Object.assign({},S.weather,{[key]:+e.target.value/div});$('#'+id+'Out').textContent=e.target.value+' %';requestRender()};
+  el.onchange=()=>{pushUndo(weatherSnap||undefined);weatherSnap=null;changed()};
+}
 let ambSnap=null;
 $('#ambient').addEventListener('pointerdown',()=>ambSnap=snapshot());
 $('#ambient').oninput=e=>{S.ambient=+e.target.value/100;$('#ambientOut').textContent=e.target.value+' %';requestRender();if(is25()&&window.D3)window.D3.setEnv(S.env,S.ambient)};
@@ -920,6 +937,7 @@ function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
   $('#chatEnabled').checked=S.chatEnabled!==false;$('#diceEnabled').checked=S.diceEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
+  renderWeather();
   render25Panel();
 }
 /* Panel «Mapa 2.5D»: pinta los ajustes del motor y cada control emite una op `settings` (o `grow`). */

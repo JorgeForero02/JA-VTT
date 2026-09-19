@@ -654,3 +654,40 @@ test('clima: la lista de efectos es la misma en core.js, rules.js y vendor/weath
   assert.match(core, /weather:\{id:'none',intensity:\.6,wind:0\}/);
   assert.match(read('js/net.js'), /const SCENE_KEYS=\[[^\]]*'weather'/);
 });
+
+test('clima: weather.js es el único puente con la librería y render.js lo engancha en los frames completos', () => {
+  const html = read('index.html');
+  assert.ok(html.indexOf('js/render.js') < html.indexOf('js/weather.js') && html.indexOf('js/weather.js') < html.indexOf('js/store.js'), 'weather.js va tras render.js y antes de store.js');
+  assert.doesNotMatch(html, /vendor\/pixi|vendor\/weather-fx/, 'las librerías no se cargan en index.html: sólo con clima');
+  const w = read('js/weather.js');
+  assert.match(w, /^const Weather=\(\(\)=>\{/m);
+  assert.match(w, /'js\/vendor\/pixi\.min\.js','js\/vendor\/weather-fx\.js'/);
+  assert.match(w, /new WeatherFX\(\{container:stage,source:cv\.scene/);
+  assert.match(w, /view\.id='cWeather'/);
+  assert.match(w, /stage\.insertBefore\(view,cv\.glow\)/, 'la capa Pixi va entre la escena y el brillo');
+  assert.match(w, /fx\.pause\(!S\.animate\)/);
+  assert.match(w, /refraction:PERF\.scale<1\?0:/);
+  assert.match(w, /return\{sync,invalidate,resize,mounted/);
+  const r = read('js/render.js');
+  assert.match(r, /function drawAll\(t,lightsOnly\)\{(?:\n[^\n]*){1,3}\n\s*if\(!lightsOnly\)\{Weather\.sync\(\);drawScene\(player\);Weather\.invalidate\(\)/);
+  assert.match(r, /function resize\(\)\{(?:\n[^\n]*){1,8}\n\s*Weather\.resize\(\);\n\s*requestRender\(\);\n\}/);
+  assert.match(r, /if\(!want\)\$\('#subbar'\)\.innerHTML='';\n\s*Weather\.sync\(\);/);
+  // fuera de weather.js nadie habla con la librería
+  for (const f of ['js/core.js', 'js/render.js', 'js/editor.js', 'js/net.js', 'js/main.js', 'js/store.js']) assert.doesNotMatch(read(f), /WeatherFX|PIXI\./, f);
+});
+
+test('clima: panel Escena con selector e intensidad/viento; el director lo cambia con deshacer y sincronía', () => {
+  const html = read('index.html');
+  assert.match(html, /<details class="fold" data-fold="clima"[^>]*>\s*<summary><span class="foldTitle">Clima<\/span><\/summary>/);
+  assert.match(html, /<select id="weatherId" class="gmOnly"><\/select>/);
+  assert.match(html, /<input id="weatherIntensity" type="range" min="0" max="100" step="1">/);
+  assert.match(html, /<input id="weatherWind" type="range" min="-100" max="100" step="5">/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function renderWeather\(\)\{/);
+  assert.match(ed, /for\(const\[k,w\]of Object\.entries\(WEATHERS\)\)/);
+  assert.match(ed, /\$\('#weatherId'\)\.onchange=e=>\{pushUndo\(\);S\.weather=Object\.assign\(\{\},S\.weather,\{id:e\.target\.value\}\);changed\(\);renderWeather\(\)\}/);
+  assert.match(ed, /\[\['weatherIntensity','intensity',100\],\['weatherWind','wind',100\]\]/);
+  assert.match(ed, /el\.oninput=e=>\{S\.weather=Object\.assign\(\{\},S\.weather,\{\[key\]:\+e\.target\.value\/div\}\)/);
+  assert.match(ed, /el\.onchange=\(\)=>\{pushUndo\(weatherSnap\|\|undefined\);weatherSnap=null;changed\(\)\}/);
+  assert.match(ed, /function syncSceneInputs\(\)\{(?:\n[^\n]*){1,6}\n\s*renderWeather\(\);/);
+});
