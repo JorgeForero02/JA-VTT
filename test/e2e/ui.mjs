@@ -246,6 +246,22 @@ try {
   await gm.evaluate(() => { for (const t of S.tokens.filter((t) => ['Ogro', 'Héroe'].includes(t.name))) UI.selected = [t.id], deleteSel(); changed(); });
   await gm.waitForTimeout(400);
 
+  // regla multitramo: arrastre con Espacio en medio → dos tramos y total acumulado (estado de UI, no viaja)
+  await gm.click('[data-tool="ruler"]');
+  const st3 = await gm.evaluate(() => { UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550; requestRender(); const r = document.getElementById('stage').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; });
+  const w2s = (x, y) => [st3.l + st3.w / 2 + (x - 800), st3.t + st3.h / 2 + (y - 550)];
+  await gm.mouse.move(...w2s(625, 525)); await gm.mouse.down();
+  await gm.mouse.move(...w2s(775, 525), { steps: 4 });
+  await gm.keyboard.press('Space');
+  await gm.mouse.move(...w2s(775, 675), { steps: 4 });
+  const ruler = await gm.evaluate(() => { const A = UI.act; return A && A.kind === 'ruler' ? Object.assign({ n: A.pts.length }, rulerSegments([...A.pts, A.b])) : null; });
+  await shot(gm, '10-regla-multitramo');
+  await gm.mouse.up();
+  step('regla: Espacio fija un quiebre; 3 casillas + 3 casillas = 30 ft (21 en línea recta)', !!ruler && ruler.n === 2 && ruler.total === 30 && ruler.straight === 21, JSON.stringify(ruler));
+  const rulerGone = await gm.evaluate(() => UI.act === null);
+  step('regla: al soltar se limpia', rulerGone);
+  await gm.click('[data-tool="select"]');
+
   // clima 2D: el director pone tormenta (Escena → Clima); la capa Pixi se monta entre la escena y el brillo en
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
   await gm.click('[data-tab="scene"]');

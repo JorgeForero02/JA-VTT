@@ -203,7 +203,7 @@ stage.addEventListener('pointerdown',e=>{
   const gm=isGM();
   if(UI.tool==='select'||(!gm)){const d=hitDoor(p);if(d&&UI.tool!=='ruler'){if(d.kind==='portal')portalClick(d,sp);else toggleDoor(d);return}}
   switch(UI.tool){
-    case 'ruler':UI.act={kind:'ruler',a:snapCell(p),b:snapCell(p)};requestRender();return;
+    case 'ruler':UI.act={kind:'ruler',pts:[snapCell(p)],b:snapCell(p)};requestRender();return;
     case 'wall':{
       // con la herramienta de muros, pinchar una articulación existente la arrastra en vez de empezar un tramo
       if(!UI.chain&&!UI.curve&&!UI.arc&&UI.wallShape==='chain'){const v=hitWallVertex(p);if(v){startWallEnd(v);return}}
@@ -368,6 +368,7 @@ stage.addEventListener('dblclick',e=>{
 });
 stage.addEventListener('contextmenu',e=>{
   e.preventDefault();
+  if(UI.act&&UI.act.kind==='ruler'){rulerAddPoint();return}
   if(UI.chain){finishChain();return}
   if(UI.curve||UI.arc){UI.curve=null;UI.arc=null;requestRender();return}
   if(UI.zpoly){finishZonePoly();return}
@@ -396,6 +397,9 @@ stage.addEventListener('drop',e=>{
   if(files.length)uploadFiles(files,UI.upCat,p);
 });
 
+/* Regla: fija el punto vivo como quiebre (Espacio o clic derecho mientras se arrastra) */
+function rulerAddPoint(){const A=UI.act;if(!A||A.kind!=='ruler')return;const q=A.b,last=A.pts[A.pts.length-1];if(q.x!==last.x||q.y!==last.y)A.pts.push({x:q.x,y:q.y});requestRender()}
+
 /* ---------- Teclado ---------- */
 window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
@@ -406,7 +410,7 @@ window.addEventListener('keydown',e=>{
   if(mod&&k==='y'){e.preventDefault();redo();return}
   if(mod&&k==='d'){e.preventDefault();duplicateSel();return}
   if(mod)return;
-  if(e.code==='Space'){UI.space=true;stage.style.cursor='grab';e.preventDefault();return}
+  if(e.code==='Space'){if(UI.act&&UI.act.kind==='ruler'){rulerAddPoint();e.preventDefault();return}UI.space=true;stage.style.cursor='grab';e.preventDefault();return}
   if(k==='enter'&&UI.zpoly){finishZonePoly();return}
   if(k==='escape'){UI.curve=null;UI.arc=null;UI.zpoly=null;if(UI.chain)finishChain();else if(UI.act)UI.act=null;else{UI.selected=[];refreshPanels()}closePops();requestRender();return}
   if(k==='delete'||k==='backspace'){e.preventDefault();deleteSel();return}
@@ -868,7 +872,7 @@ function renderSubbar(){
     hint({poly:'Clic en cada esquina; Intro, doble clic o clic en el primer punto para cerrar.',rect:'Arrastra sobre un edificio o cueva.',circle:'Arrastra desde el centro.'}[UI.zoneShape]+' Con clic derecho en una figura de muros puedes crear la zona con su forma.');
   }
   else if(t==='player'||t==='enemy'){hint(t==='player'?'Clic para colocar un personaje. Lleva antorcha por defecto.':'Clic para colocar un enemigo. Aparece oculto para los jugadores.')}
-  else if(t==='ruler'){hint('Arrastra para medir. Distancia en casillas de 5 pies.')}
+  else if(t==='ruler'){hint('Arrastra para medir. Espacio o clic derecho para fijar un punto y rodear esquinas. Distancia en casillas de 5 pies.')}
   else if(t==='pan'){hint('Arrastra para desplazar la vista.')}
   else if(!isGM()){hint('Arrastra a tu personaje. Clic en una puerta para abrirla o en un portal para cruzarlo.')}
   if(chips.childElementCount)bar.appendChild(chips);

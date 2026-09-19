@@ -427,10 +427,11 @@ function drawOverlay(player){
   }
   if(gm&&UI.tool==='wall'&&UI.hover&&!UI.act){const q=snapWallPoint(UI.hover,UI.lastEvent);c.beginPath();c.arc(q.x,q.y,px(5),0,Math.PI*2);c.fillStyle=WALL_TYPES[wallKindForShape()].color;c.fill()}
   if(A&&A.kind==='ruler'){
-    const d=Math.max(Math.abs(A.b.x-A.a.x),Math.abs(A.b.y-A.a.y))/CELL*FT;
-    c.save();c.strokeStyle='#F0B35A';c.lineWidth=px(3);c.setLineDash([px(8),px(6)]);c.beginPath();c.moveTo(A.a.x,A.a.y);c.lineTo(A.b.x,A.b.y);c.stroke();c.setLineDash([]);
-    c.fillStyle='#F0B35A';for(const q of[A.a,A.b]){c.beginPath();c.arc(q.x,q.y,px(5),0,Math.PI*2);c.fill()}c.restore();
-    label(c,{x:A.b.x+px(12),y:A.b.y-px(16)},`${Math.round(d)} ft (${Math.round(pxFt(dist(A.a,A.b)))} en línea recta)`,'left');
+    const pts=[...A.pts,A.b],R=rulerSegments(pts);
+    c.save();c.strokeStyle='#F0B35A';c.lineWidth=px(3);c.setLineDash([px(8),px(6)]);c.beginPath();c.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)c.lineTo(pts[i].x,pts[i].y);c.stroke();c.setLineDash([]);
+    c.fillStyle='#F0B35A';for(const q of pts){c.beginPath();c.arc(q.x,q.y,px(5),0,Math.PI*2);c.fill()}c.restore();
+    if(R.segs.length>1)for(let i=1;i<pts.length;i++)label(c,{x:(pts[i-1].x+pts[i].x)/2,y:(pts[i-1].y+pts[i].y)/2-px(14)},`${R.segs[i-1]} ft`);
+    label(c,{x:A.b.x+px(12),y:A.b.y-px(16)},R.segs.length>1?`${R.total} ft en total (${R.straight} en línea recta)`:`${R.total} ft (${R.straight} en línea recta)`,'left');
   }
   // selección de fichas y mapas
   for(const o of selObjs()){

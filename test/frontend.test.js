@@ -388,5 +388,18 @@ test('rulerSegments: tramos con la regla de diagonales del juego, total acumulad
   assert.deepEqual(fn([{ x: 25, y: 25 }, { x: 175, y: 25 }, { x: 175, y: 125 }]), { segs: [15, 10], total: 25, straight: 18 });
 });
 
+test('regla multitramo: pts en UI.act, Espacio y clic derecho añaden punto, el render suma tramos', () => {
+  const editor = read('js/editor.js');
+  assert.match(editor, /case 'ruler':UI\.act=\{kind:'ruler',pts:\[snapCell\(p\)\],b:snapCell\(p\)\};requestRender\(\);return;/);
+  assert.match(editor, /^function rulerAddPoint\(\)\{const A=UI\.act;if\(!A\|\|A\.kind!=='ruler'\)return;const q=A\.b,last=A\.pts\[A\.pts\.length-1\];if\(q\.x!==last\.x\|\|q\.y!==last\.y\)A\.pts\.push\(\{x:q\.x,y:q\.y\}\);requestRender\(\)\}$/m);
+  assert.match(editor, /if\(e\.code==='Space'\)\{if\(UI\.act&&UI\.act\.kind==='ruler'\)\{rulerAddPoint\(\);e\.preventDefault\(\);return\}/, 'Espacio durante la regla añade punto en vez de activar el desplazamiento');
+  assert.match(editor, /if\(UI\.act&&UI\.act\.kind==='ruler'\)\{rulerAddPoint\(\);return\}/, 'clic derecho durante la regla añade punto');
+  assert.match(editor, /Espacio o clic derecho para fijar un punto y rodear esquinas/);
+  const render = read('js/render.js');
+  assert.match(render, /const pts=\[\.\.\.A\.pts,A\.b\],R=rulerSegments\(pts\);/);
+  assert.match(render, /R\.segs\.length>1/, 'con varios tramos se etiqueta cada uno');
+  assert.doesNotMatch(render, /Math\.abs\(A\.b\.x-A\.a\.x\)/, 'la aritmética vieja desaparece del render');
+});
+
 
 
