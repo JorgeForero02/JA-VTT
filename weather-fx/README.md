@@ -16,8 +16,7 @@ extensiones. Se apaga sola cuando la superficie se calma.
 
 | | |
 |---|---|
-| `weather-fx.js` | la librería, legible y comentada |
-| `weather-fx.min.js` | la misma, minificada (25 KB, 9 KB con gzip) |
+| `../public/js/vendor/weather-fx.js` | la librería, legible y comentada (vendorizada en el VTT; este demo la carga de ahí) |
 | `demo.js` | tablero de ejemplo y panel de control |
 | `index.html` | el demo completo |
 

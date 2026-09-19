@@ -632,3 +632,12 @@ test('ola final D: kinds propios sin imagen no tumban el motor; open en op obj; 
   // servidor: la clave tile sólo admite los 7 materiales
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'server', 'terrain.js'), 'utf8'), /tile:\[0-6\]:\(top\|side\|fill\)/);
 });
+
+/* ---------- Clima 2D (WeatherFX sobre PixiJS, vendorizados y cargados sólo con clima) ---------- */
+test('vendor: pixi.min.js 7.4.2 (MIT) y weather-fx.js están vendorizados', () => {
+  const pixi = read('js/vendor/pixi.min.js');
+  assert.match(pixi.slice(0, 400), /pixi\.js - v7\.4\.2/);
+  assert.match(pixi.slice(0, 400), /MIT License/);
+  assert.match(read('js/vendor/pixi.LICENSE'), /The MIT License/);
+  assert.match(read('js/vendor/weather-fx.js'), /class WeatherFX/);
+});
