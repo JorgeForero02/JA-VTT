@@ -95,3 +95,15 @@ test('playerUpsert: el dueño cambia el aspecto (art) de su ficha pero no puede 
   const sinArt = Object.assign({}, neu); delete sinArt.art;
   assert.equal(R.playerUpsert(uid, old, sinArt, { settings: {} }, 1, 0).art, 'guerrera');
 });
+
+test('weather: ajuste de escena con id de la lista, intensidad 0–1 y viento −1–1', () => {
+  assert.deepEqual(R.WEATHER_IDS, ['none', 'rain', 'storm', 'drizzle', 'blizzard', 'sand', 'fog', 'ash', 'embers', 'heat', 'arcane']);
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'rain', intensity: .7, wind: -.3 } }).weather, { id: 'rain', intensity: .7, wind: -.3 });
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'storm', intensity: 4, wind: -9 } }).weather, { id: 'storm', intensity: 1, wind: -1 });
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'none' } }).weather, { id: 'none', intensity: .6, wind: 0 });
+  for (const id of ['tsunami', 'snow', '', 7, null]) assert.equal(R.cleanSettings({ weather: { id } }).weather, undefined, String(id));
+  assert.equal(R.cleanSettings({ weather: 'rain' }).weather, undefined);
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'fog', intensity: 'x', wind: null, extra: 1 } }).weather, { id: 'fog', intensity: .6, wind: 0 });
+  assert.equal(R.cleanSettings({}).weather, undefined);
+  assert.equal(R.splitSettings({ weather: { id: 'rain' } }).scene.weather.id, 'rain');
+});

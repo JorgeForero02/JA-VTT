@@ -10,6 +10,8 @@ const LIGHT_PRESETS = ['candle', 'torch', 'lantern', 'bullseye', 'campfire', 'br
 const ANIMS = ['none', 'flicker', 'soft', 'pulse'];
 const ENVS = ['interior', 'day', 'dusk', 'night'];
 const MODES = ['2d', '2.5d'];
+/* Clima 2D: `none` + los efectos que registra public/js/vendor/weather-fx.js (un test los compara) */
+const WEATHER_IDS = ['none', 'rain', 'storm', 'drizzle', 'blizzard', 'sand', 'fog', 'ash', 'embers', 'heat', 'arcane'];
 const LAYER_IDS = ['map', 'props', 'zones', 'plans', 'tokens', 'lights', 'walls'];
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -116,6 +118,10 @@ function cleanSettings(sc) {
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
   for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
   if (sc.initiative !== undefined) o.initiative = cleanInitiative(sc.initiative);
+  if (sc.weather && typeof sc.weather === 'object' && WEATHER_IDS.includes(sc.weather.id)) {
+    const w = sc.weather;
+    o.weather = { id: w.id, intensity: fin(w.intensity) ? clamp(w.intensity, 0, 1) : .6, wind: fin(w.wind) ? clamp(w.wind, -1, 1) : 0 };
+  }
   if (sc.layers && typeof sc.layers === 'object') {
     o.layers = {};
     for (const id of LAYER_IDS) {
@@ -224,4 +230,4 @@ function terrainOpAllowed(member, op, boardSettings, terrain) {
   return !!(o && T.OBJ_KINDS[o.kind] && T.OBJ_KINDS[o.kind].door && !o.locked);
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, boardSettingsPatch, DEFAULT_SCENE, DEFAULT_BOARD, MODES, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor, terrainOpAllowed, cleanTerrainOp: T.cleanTerrainOp };
+module.exports = { sanitize, cleanSettings, splitSettings, boardSettingsPatch, DEFAULT_SCENE, DEFAULT_BOARD, MODES, WEATHER_IDS, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor, terrainOpAllowed, cleanTerrainOp: T.cleanTerrainOp };
