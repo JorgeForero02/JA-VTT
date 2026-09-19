@@ -8,14 +8,14 @@ Estado al 2026-09-16: **en producción en https://tablero.supportive.pro** (Cool
 |---|---|
 | Dominio | `https://tablero.supportive.pro` (Let's Encrypt hasta 2026-12-11) |
 | Coolify | proyecto **D&D** · entorno `production` · app `ja-vtt` · uuid `d6qlm5kzdoitlacr5br29fna` |
-| Origen | `git@github.com:JorgeForero02/JA-VTT.git`, rama `main` (punta), compose `/docker-compose.yml` |
+| Origen | `git@github.com:JorgeForero02/JA-VTT.git`, **rama `prod-2d`** (desde 2026-09-18: producción 2D + clima, sin el 2.5D de `main`), compose `/docker-compose.yml` |
 | Clave | `github-deploy-ja-vtt` (Coolify uuid `tvonfo4u5mayl3kxq1owv1cc`), deploy key de sólo lectura en el repo. Privada en `vps1new:/root/.ssh/coolify-keys/ja-vtt-deploy` |
 | Variables | `POSTGRES_USER=jav`, `POSTGRES_DB=jav`, `POSTGRES_PASSWORD` (copia en `vps1new:/root/.ssh/coolify-keys/ja-vtt-postgres-password`) |
 | Contenedores | `app-d6qlm…` y `db-d6qlm…` (el sufijo cambia en cada deploy: resolver por prefijo) |
 | Datos | volumen `d6qlm5kzdoitlacr5br29fna_pgdata` |
 | Dominio en Coolify | `docker_compose_domains = {"app":{"domain":"https://tablero.supportive.pro"}}` |
 
-Desplegar: push a `main` y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
+Desplegar: push a **`prod-2d`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
 UI). **El push solo no despliega** (`instant_deploy: false`, sin webhook): comprobado el 2026-09-18 al
 empujar el modo 2.5D a `main` — los contenedores siguieron «Up 2 days». Producción sirve `34a7ba4`
 hasta que se lance el deploy (previsto al cerrar la fase E; antes, `npm run test:ui` local y `test:e2e`). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
