@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima 2D desplegado en producción desde la rama `prod-2d`
+
+**Qué** — Rama `prod-2d` = `34a7ba4` (lo que servía producción) + cherry-pick de los 4 commits
+`feat(clima)` de `clima-2d`, resueltos a mano para no arrastrar nada del 2.5D (`weather.js` sin
+`is25`, tests sin `window.S`). Coolify pasó de seguir `main` a **`prod-2d`** (`PATCH git_branch`) y
+se desplegó `c4a7fbe` (deploy `kv0sxwxozkntd1mqu1xfrvkm`, 30 s). La rama `clima-2d` (clima sobre
+`main` con 2.5D) queda para mergear en `main` cuando toque.
+**Por qué** — el usuario quiere el clima en producción ya, pero **no** el 2.5D incompleto.
+**Evidencia** — en `prod-2d`: `check` 66/66, `test:ui` 21/21, compose local + `test:e2e` 11/11.
+Desde vps1new: `/`, `/api/health`, `/js/weather.js`, `/js/vendor/pixi.min.js` y `weather-fx.js`
+200; `render.js` servido contiene `Weather.sync`; `index.html` contiene `weatherId`; `/js/d3/index.js`
+**404** (sin 2.5D). Contenedores `app-d6qlm…`/`db-d6qlm…` healthy.
+**Revertir** — `git push -f origin 34a7ba4:prod-2d` + `POST /deploy` (o `PATCH git_branch`).
+
 ## 2026-09-18 — Modo 2.5D: merge de `modo-25d-fase-a` en `main` y push (sin desplegar)
 
 **Qué** — `git merge --ff-only` de la rama (47 commits, `e0d0ffa..2853f49`) en `main` y `git push` de

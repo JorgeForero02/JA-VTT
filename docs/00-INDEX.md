@@ -12,8 +12,9 @@ desplegable: **Node 22 + PostgreSQL 16 + Docker Compose**, login con contraseña
 abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16 —
-**producción sirve `34a7ba4` (2D); `main` ya lleva el modo 2.5D (fases A–D, `2853f49`, mergeado y
-empujado el 2026-09-18) y se despliega al cerrar la fase E.**
+**producción sirve la rama `prod-2d` (`c4a7fbe` = `34a7ba4` + clima 2D, desplegado el 2026-09-18);
+`main` lleva además el modo 2.5D (fases A–D) y no se despliega hasta cerrar la fase E.** El clima
+sobre `main` está en la rama `clima-2d` (pendiente de mergear).
 
 Tamaño real (2026-09-17, rama `modo-25d-fase-a`): servidor ~2300 líneas · cliente ~3100 líneas + `dice3d.js` + motor 2.5D en `public/js/d3/` (14 módulos ES, ~2800 líneas)
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.

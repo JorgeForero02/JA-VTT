@@ -17,8 +17,11 @@ Estado al 2026-09-16: **en producción en https://tablero.supportive.pro** (Cool
 
 Desplegar: push a **`prod-2d`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
 UI). **El push solo no despliega** (`instant_deploy: false`, sin webhook): comprobado el 2026-09-18 al
-empujar el modo 2.5D a `main` — los contenedores siguieron «Up 2 days». Producción sirve `34a7ba4`
-hasta que se lance el deploy (previsto al cerrar la fase E; antes, `npm run test:ui` local y `test:e2e`). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
+empujar el modo 2.5D a `main` — los contenedores siguieron «Up 2 days». Producción sirve **`prod-2d`**
+(`c4a7fbe` = `34a7ba4` + cherry-picks del clima, desplegado el 2026-09-18); **no** lleva 2.5D (decisión
+del usuario: no exponer algo incompleto). Cambiar la rama que sigue Coolify: `PATCH /api/v1/applications/<uuid>`
+con `{"git_branch":"…"}`; cuando el 2.5D esté listo (fase E), volver a `main` con ese PATCH. Antes de
+cualquier deploy: `npm run test:ui` local y `test:e2e`. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
 Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
