@@ -39,6 +39,18 @@ NULL = sin tablero, ya no se usa) · `fog` (un PNG por casilla, por usuario y es
 Tiempos en milisegundos desde época (BIGINT). `pg` devuelve BIGINT como texto: `db.js`
 registra un parser a `Number` (todos los valores caben en 2^53).
 
+Objetos de tipo `token` en `objects.data`:
+- `conditions: string[]` — ids del catálogo `CONDITION_IDS` (`server/rules.js`; espejo `CONDITIONS` en `public/js/core.js`, test de contrato en `frontend.test.js`). Siempre presente.
+- `hp?: {cur, max, temp}` — enteros ≥ 0, `cur ≤ max`. Sólo existe si `max` se ha fijado; sin `hp` no hay barra.
+- `elevation: number` — pies, entero ±9999, 0 por defecto.
+
+Ajuste de **tablero** `hpVisibility: 'all' | 'gm' | 'bar_only'` (`DEFAULT_BOARD`). Con `'gm'` el servidor quita
+`hp` de las fichas ajenas antes de enviarlas a un jugador (`R.objectFor`, aplicada en `stateFor`, `handleOps`
+y `moveUser`; al cambiar el ajuste cada jugador recibe un `state` completo). `'bar_only'` viaja entero y lo
+respeta el cliente al pintar (los números se pueden leer desde la consola: aceptado, es cosmética).
+Permisos: el dueño de la ficha edita `conditions`, `hp` y `elevation` (`playerUpsert`); el resto de campos
+siguen siendo del director.
+
 Migraciones: ficheros `NNN-nombre.sql` aplicados en orden al arrancar, registrados en
 `schema_migrations`, bajo `pg_advisory_lock` para que dos réplicas no choquen.
 

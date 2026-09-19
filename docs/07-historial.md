@@ -2,6 +2,16 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Fichas: condiciones SRD, vida y altura (plan A; P-19, P-20, P-21)
+
+- **Qué:** `token.conditions`, `token.hp {cur,max,temp}`, `token.elevation`; ajuste de tablero `hpVisibility`;
+  proyección `objectFor` en el servidor; popover «Estado», badges, barra y etiqueta en el cliente. Sin migración
+  (jsonb). Tests: `rules.test.js` (+4), `realtime.test.js` (+1), `frontend.test.js` (+3), `ui.mjs` (+5 pasos).
+- **Por qué:** spec `2026-09-19-condiciones-srd-y-tactica-design.md` §1–3.
+- **Revertir:** `git revert` de los commits `feat(rules)…`, `feat(ws)…`, `feat(cliente)…`, `feat(render)…`,
+  `feat(ui)…` y `test(ui)…` de esta fecha. Los campos que queden en `objects.data` son inofensivos: `sanitize`
+  los ignora si no los conoce.
+
 ## 2026-09-19 — P-04 a N2 y limpieza de pendientes
 
 - **Qué:** `npm test` mide cobertura de `server/**` y falla bajo 78/72/82 (líneas/ramas/funciones). `06` reescrito: tabla unificada, P-05 cerrado (ya estaba implementado), P-19…P-24 con sus planes.

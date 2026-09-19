@@ -39,6 +39,17 @@ Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede 
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.
 
+### Condiciones, vida y altura (2026-09-19)
+
+- Clic derecho en una ficha → **Estado**: 20 condiciones (14 del SRD + muerto, concentración, agotamiento,
+  en llamas, bendecido, marcado), vida actual/máxima/temporal con `−`/`+` (Mayús: 5) o rueda del ratón, y
+  altura en pies. Lo abren el director (cualquier ficha) y el jugador (la suya).
+- En el lienzo: badges de dos letras encima de la ficha (máximo 6, luego `+n`), barra de vida bajo la ficha
+  (verde > 50 %, ámbar > 25 %, rojo; franja cian = vida temporal), pastilla `+20'` arriba a la izquierda si
+  la altura no es 0, velo y calavera si está muerta.
+- Ajustes → Reglas para jugadores → **Vida de las fichas**: todos · sólo el director (cada jugador sigue
+  viendo la suya) · los jugadores ven sólo la barra.
+
 ## API (resumen)
 
 | Método y ruta | Quién | Qué |
