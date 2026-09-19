@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Despliegue de prod-2d @ 6a05644 (plan B: regla multitramo, anotaciones, P-27)
+
+- **Qué:** push de `prod-2d` y `POST /api/v1/deploy` (deployment `94gpa6e5pmqgvdrj8iqeqbfg`), 10 commits sobre `d54cc6a`.
+- **Verificado desde el servidor:** `app`/`db` healthy (los primeros ~30 s Traefik da 503 mientras arranca el healthcheck: normal), `GET /` 200, `/api/health` ok, JS servido con `rulerSegments`/`drawNotes`/`noteVisibleToPlayers`; datos intactos (4 usuarios, 5 tableros, 440 objetos).
+- **Revertir:** redeploy del commit `d54cc6a` en Coolify (o `git revert` + deploy). Sin migración.
+
 ## 2026-09-19 — P-27: las notas publicadas se ven sólo donde el grupo ve
 
 - **Qué:** `noteVisibleToPlayers` en `core.js` + salto en `drawNotes` de `render.js`. Una nota publicada sólo se pinta para el jugador si alguna de sus fichas con visión la alcanza a ver (luz o visión en la oscuridad, sin muro por medio). Tests: `frontend.test.js` (+1), `ui.mjs` (paso ciego + paso iluminado con ficha Vigía).
