@@ -191,9 +191,9 @@ try {
   // zona interior (cueva) a la izquierda: bajo techo no se nota el clima salvo que el director marque el tipo
   await gm.evaluate(() => { addObj({ id: nid(), type: 'zone', name: 'Cueva', x: UI.cam.x - 400, y: UI.cam.y - 150, w: 300, h: 300 }); changed(); });
   await gm.waitForTimeout(500);
-  const stageBox = await gm.evaluate(() => { const r = document.getElementById('stage').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; });
+  const zoneStage = await gm.evaluate(() => { const r = document.getElementById('stage').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; });
   const meanAt = async (page, x, y) => { const png = pngPixels(await page.screenshot({ clip: { x, y, width: 60, height: 60 } })); let g = 0; for (let i = 0; i < png.w * png.h; i++) g += png.px[i * png.ch + 1]; return g / (png.w * png.h); };
-  const inZone = [stageBox.l + stageBox.w / 2 - 280, stageBox.t + stageBox.h / 2 - 30], outZone = [stageBox.l + stageBox.w / 2 + 200, stageBox.t + stageBox.h / 2 - 30];
+  const inZone = [zoneStage.l + zoneStage.w / 2 - 280, zoneStage.t + zoneStage.h / 2 - 30], outZone = [zoneStage.l + zoneStage.w / 2 + 200, zoneStage.t + zoneStage.h / 2 - 30];
   const zoneBefore = { in: await meanAt(gm, ...inZone), out: await meanAt(gm, ...outZone) };
   await gm.selectOption('#weatherId', 'fog');
   await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
