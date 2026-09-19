@@ -670,7 +670,10 @@ test('clima: weather.js es el único puente con la librería y render.js lo enga
   // la librería pinta el mapa con 16 px de sobremedida (_fitMap): desalinearía muros, luz y controles
   assert.match(w, /function fit\(\)\{[^}]*mapSprite\.position\.set\(0,0\);[^}]*mapSprite\.width=fx\.w;[^}]*mapSprite\.height=fx\.h\}/);
   assert.match(w, /stage\.insertBefore\(view,cv\.glow\);[^\n]*fit\(\)/);
-  assert.match(w, /fx\.app\.resize\(\);fx\.resize\(\);invalidate\(\);fit\(\)/, 'la textura se redimensiona antes de ajustar el sprite');
+  // el reajuste va en invalidate() tras drawScene, sin renderizar (app.resize renderiza a medias): renderer → fx.resize → textura → sprite
+  assert.match(w, /fx\.app\.resizeTo=null/);
+  assert.match(w, /const resized=fx\.app\.screen\.width!==W\|\|fx\.app\.screen\.height!==H;\n\s*if\(resized\)\{fx\.app\.renderer\.resize\(W,H\);fx\.resize\(\)\}\n\s*fx\.sourceTexture\.baseTexture\.resource\.update\(\);\n\s*if\(resized\|\|fx\.mapSprite\.x!==0\)fit\(\)/);
+  assert.doesNotMatch(w, /fx\.app\.resize\(\)/);
   assert.match(w, /return\{sync,invalidate,resize,mounted/);
   const r = read('js/render.js');
   assert.match(r, /function drawAll\(t,lightsOnly\)\{(?:\n[^\n]*){1,3}\n\s*if\(!lightsOnly\)\{Weather\.sync\(\);drawScene\(player\);Weather\.invalidate\(\)/);
