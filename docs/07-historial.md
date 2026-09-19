@@ -2,6 +2,21 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima 2D con WeatherFX sobre PixiJS (rama `clima-2d`, sin mergear)
+
+**Qué** — Nueva capa `cWeather` (canvas de PixiJS) entre `cScene` y `cGlow` con los 10 efectos de
+`weather-fx.js` (partículas, agua que refracta el tablero, gradación, rayos). `public/js/weather.js`
+es el único puente; `render.js` lo llama en `drawAll`/`resize`/`syncStageMode`. Ajuste de escena
+`weather:{id,intensity,wind}` saneado en `rules.js`; panel Escena → «Clima». PixiJS 7.4.2 (MIT) y
+`weather-fx.js` vendorizados en `public/js/vendor/` y cargados sólo al elegir un efecto. La carpeta
+`weather-fx/` conserva el demo y su README (la librería vive en `vendor/`).
+**Por qué** — el usuario aprobó vendorizar Pixi (~150 KB gz, carga perezosa) para que los efectos
+se vean **igual que en el demo**; se descartó reescribir sobre three.js.
+**Evidencia** — `npm run check` 133/133; `npm run test:ui` 59/59 con captura `05c-clima-tormenta.png`;
+mutaciones en `cleanSettings` (lista de ids y recorte) detectadas por los tests.
+**Revertir** — `git revert` de los commits de `clima-2d` (o no mergear la rama). Los ajustes
+`weather` que queden en `scenes.settings` son inertes sin el cliente.
+
 ## 2026-09-18 — Modo 2.5D: merge de `modo-25d-fase-a` en `main` y push (sin desplegar)
 
 **Qué** — `git merge --ff-only` de la rama (47 commits, `e0d0ffa..2853f49`) en `main` y `git push` de

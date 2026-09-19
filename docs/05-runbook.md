@@ -16,7 +16,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 | Qué | Comando |
 |---|---|
 | Lint | `npm run lint` |
-| Tests (101) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
+| Tests (133) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
 | Lint + tests | `npm run check` |
 | Pila local | `docker compose up -d --build` · `docker compose logs -f app` · `docker compose down` |
 | E2E contra la pila | `npm run test:e2e` (`BASE_URL` para otra URL; `E2E_RESTART=no` si no puede reiniciar el contenedor) |
@@ -29,7 +29,7 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 ```bash
 docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # una vez
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
-npm run test:ui          # 55 pasos: registro, perfil, chat, dados, iniciativa, tablero 2.5D (edición del director, 4 estilos con atlas, ampliar, arte propio y objeto propio con re-recorte, ficha como sprite, aspecto, mover/crear/soltar fichas, farol y luz colgada, menú contextual, ciego / ver con la ficha / Director↔Vista de jugador, niebla que sobrevive a la recarga), recuperación; capturas en test/e2e/capturas
+npm run test:ui          # 59 pasos: registro, perfil, chat, dados, iniciativa, clima 2D (tormenta en director y jugador, Sin clima), tablero 2.5D (edición del director, 4 estilos con atlas, ampliar, arte propio y objeto propio con re-recorte, ficha como sprite, aspecto, mover/crear/soltar fichas, farol y luz colgada, menú contextual, ciego / ver con la ficha / Director↔Vista de jugador, niebla que sobrevive a la recarga), recuperación; capturas en test/e2e/capturas
 # Edge headless con GPU por software (--use-angle=swiftshader …) para que el WebGL del 2.5D renderice (~6 fps); el paso 2.5D va ANTES de la recuperación porque ésta cierra las sesiones del director
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
 ```
@@ -52,6 +52,11 @@ Migraciones aplicadas: 001 inicial · 002 chat/recuperación · 003 sin muestras
 3. Documentar el modelo en [01](01-arquitectura.md) si cambia.
 
 ## Gotchas
+
+- **Clima 2D:** `pixi.min.js` y `weather-fx.js` se cargan con `<script>` dinámico al elegir un
+  efecto, no en `index.html`. Para depurar en una pestaña de fondo (extensión de Chrome, DevTools
+  remoto): `requestAnimationFrame` está parado → `Weather.sync()` no corre hasta que la pestaña se
+  ve; no es un cuelgue. `Weather.mounted()` dice si hay capa.
 
 - `node --test test/` falla con «Cannot find module»: hay que pasar el glob
   `"test/*.test.js"` (ya lo hace `npm test`).

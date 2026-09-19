@@ -19,10 +19,10 @@ Tamaño real (2026-09-17, rama `modo-25d-fase-a`): servidor ~2300 líneas · cli
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
 
 Estado de calidad verificado el 2026-09-17 (rama `modo-25d-fase-a`): `npm run lint` limpio · `npm test` →
-**127 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
-· `npm run test:ui` (Playwright + Edge, GPU por software) → **55/55** con capturas.
+**133 tests, 0 fallos** (contra un Postgres real) · `npm run test:e2e` → 10/10 contra producción
+· `npm run test:ui` (Playwright + Edge, GPU por software) → **59/59** con capturas.
 
-Funciones (2026-09-16): cuentas con contraseña y código de recuperación · tableros, escenas y
+Funciones (2026-09-18): **clima 2D** (10 efectos WeatherFX sobre PixiJS, rama `clima-2d`) · cuentas con contraseña y código de recuperación · tableros, escenas y
 portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad absoluta) · niebla por
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · render adaptativo con lectura de rendimiento en Mesa → Conexión.

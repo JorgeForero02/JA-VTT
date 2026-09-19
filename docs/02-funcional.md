@@ -33,6 +33,13 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 - El director puede regenerar el código, renombrar, expulsar miembros y borrar el tablero
   (borra escenas, objetos, imágenes y niebla). Un jugador puede salir.
 
+## Clima (sólo mapa 2D)
+
+Pestaña Escena → «Clima»: el director elige entre Sin clima, Lluvia, Tormenta, Llovizna, Nieve y
+ventisca, Tormenta de arena, Niebla, Ceniza volcánica, Brasas, Calor abrasador y Polvo arcano, con
+intensidad (0–100 %) y viento (−100–100 %). Es un ajuste por escena: lo ven todos en tiempo real y
+persiste. Con deshacer. La oscuridad lo tapa donde el jugador no ve. En 2.5D no hay clima.
+
 ## Escenas, portales, fichas, imágenes, niebla
 
 Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede hacer cada rol».

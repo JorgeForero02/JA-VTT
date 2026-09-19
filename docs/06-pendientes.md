@@ -1,6 +1,6 @@
 # 06 — Pendientes
 
-Actualizado: 2026-09-18 (cierre de la fase D). Prioridad: P0 bloquea · P1 próxima sesión · P2 cuando toque.
+Actualizado: 2026-09-18 (clima 2D). Prioridad: P0 bloquea · P1 próxima sesión · P2 cuando toque.
 
 | ID | P | Tarea | Evidencia para cerrar |
 |---|---|---|---|
@@ -26,3 +26,4 @@ arregla en el servidor, no aquí.
 | P-10 | P2 | Menores diferidos de la fase A: `.tag` con `var(--amber-ink)`; `img/packs25.png` relativo a la página; tests con tiempos ajustados fallan a veces si la CPU está ocupada (visto 3 veces; siempre verde al repetir); `undoBoom` perdido en el port (se vuelve a portar en la fase E) | Revisión final de la rama |
 | P-08 | P2 | Cuentas de prueba que deja `npm run test:ui` contra producción (`dir-*`, `jug-*`, `pulse-*`…) si algún día se ejecuta contra `tablero.supportive.pro`: borrar a mano | `SELECT name FROM users` sin cuentas de prueba |
 | P-13 | P2 | Deuda de la fase D (menores triados en la revisión final, ninguno bloquea): el servidor no borra `obj:`/`char:` asociados al quitar `newobj`/`newchar` (huérfanos que cuentan para el tope de 200; el cliente los borra en cascada); `refreshCustomArt` restila dos veces en `loadTerrain`; el cliente no comprueba `version` en ops remotas (viene de B; hoy `applyRemoteOp` devuelve `false` al lanzar y pide `full`); slider de evaporación tope 0,01 frente a 0,05 del servidor | Cada punto con su test o cerrado con evidencia |
+| P-14 | P2 | Clima 2D, segunda ola (rama `clima-2d`, sin mergear en `main`): `Weather.drop()` al mover fichas (mundo → pantalla); medir el coste real de Pixi (hoy `PERF` sólo mide las luces) y bajar partículas si no cabe; decidir si el fogonazo del rayo debe verse sobre la oscuridad; la subida de `cScene` a textura en cada frame `dirty` (arrastre de cámara) pesa con dpr 2 | Medida en Mesa → Conexión con clima activo; `test:ui` verde |

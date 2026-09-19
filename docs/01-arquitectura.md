@@ -9,7 +9,7 @@ Estado técnico al 2026-09-15.
 | Runtime | Node.js ≥ 22.5 (imagen `node:22-alpine`) | `fetch` y `WebSocket` globales se usan en tests |
 | HTTP + WebSocket | `node:http` + `server/ws.js` (RFC 6455 propio) | Sin Express ni `ws` |
 | Base de datos | PostgreSQL 16, driver `pg` | Única dependencia de producción |
-| Cliente | HTML + CSS + scripts clásicos (`public/js/*.js`) que comparten ámbito global; `dice3d.js` es un módulo ES | Sin bundler. three.js + cannon-es vendorizados en `public/js/vendor` sólo para los dados 3D |
+| Cliente | HTML + CSS + scripts clásicos (`public/js/*.js`) que comparten ámbito global; `dice3d.js` es un módulo ES | Sin bundler. three.js + cannon-es vendorizados en `public/js/vendor` sólo para los dados 3D; PixiJS 7.4.2 + `weather-fx.js` vendorizados y **cargados sólo cuando una escena 2D tiene clima** |
 | Tests | `node:test` contra un Postgres real | Sin framework |
 
 ## Capas
@@ -64,6 +64,27 @@ Registro abierto (`POST /api/register`) con nombre (2–24 caracteres) y contras
 Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401 para
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
+
+## Clima 2D (`public/js/weather.js`, 2026-09-18)
+
+Spec: [superpowers/specs/2026-09-18-clima-2d-design.md](superpowers/specs/2026-09-18-clima-2d-design.md).
+
+```
+#stage:  cScene → cWeather (Pixi) → cGlow → cDark → cOver
+```
+
+- `Weather` es el **único** puente con `vendor/weather-fx.js` (partículas con paralaje, agua simulada
+  en CPU que refracta el tablero, gradación, rayos). `sync()` en cada frame completo de `drawAll`
+  y en `syncStageMode`: carga las dos librerías con `<script>` dinámico la primera vez, monta,
+  cambia de efecto/parámetros o destruye (id `none` o modo 2.5D). `invalidate()` tras
+  `drawScene` resube `cScene` como textura (nunca en frames `lightsOnly`); `resize()` desde `resize()`.
+- La capa refracta sólo `cScene`; brillo, oscuridad y controles quedan **encima sin deformar**, así la
+  oscuridad tapa el clima donde el jugador no ve (sin fugas). Fogonazo del rayo sólo en zona vista.
+- `S.animate=false` → `pause`. `PERF.scale<1` → `refraction:0` (el shader caro), partículas siguen.
+  Sin WebGL → aviso y sin clima. Rayos y gotas son aleatorios locales, no se sincronizan.
+- Dato: ajuste de escena `weather:{id,intensity,wind}`; `rules.cleanSettings` sanea (`WEATHER_IDS`);
+  `core.js WEATHERS` es la lista para el panel sin cargar la librería. Un test exige que las tres
+  listas coincidan con los `register()` de la librería.
 
 ## Modo 2.5D (rama `modo-25d-fase-a`; fases A–D cerradas, E en curso)
 
