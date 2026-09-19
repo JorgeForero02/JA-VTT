@@ -200,3 +200,12 @@ test('render: dithering de la máscara de luz contra el banding', () => {
   assert.doesNotMatch(render, /dither\(c\);\s*c\.globalCompositeOperation='destination-out';\s*for\(const s of src\)/, 'el ruido nunca va a la máscara: la exploración lo acumularía');
   assert.match(render, /c\.drawImage\(maskC,0,0\);\s*dither\(c,'destination-out'\);/);
 });
+
+/* ---------- Clima 2D (WeatherFX sobre PixiJS, vendorizados y cargados sólo con clima) ---------- */
+test('vendor: pixi.min.js 7.4.2 (MIT) y weather-fx.js están vendorizados', () => {
+  const pixi = read('js/vendor/pixi.min.js');
+  assert.match(pixi.slice(0, 400), /pixi\.js - v7\.4\.2/);
+  assert.match(pixi.slice(0, 400), /MIT License/);
+  assert.match(read('js/vendor/pixi.LICENSE'), /The MIT License/);
+  assert.match(read('js/vendor/weather-fx.js'), /class WeatherFX/);
+});
