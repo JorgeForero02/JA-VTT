@@ -284,6 +284,14 @@ function tryMove(t,target){
 }
 function snapToken(t,p){const s=t.size||1;if(s%2===1)return{x:Math.floor(p.x/CELL)*CELL+CELL/2,y:Math.floor(p.y/CELL)*CELL+CELL/2};return{x:Math.round(p.x/CELL)*CELL,y:Math.round(p.y/CELL)*CELL}}
 const snapCell=p=>({x:Math.floor(p.x/CELL)*CELL+CELL/2,y:Math.floor(p.y/CELL)*CELL+CELL/2});
+/* Regla multitramo: cada tramo con la regla de diagonales del juego (max(dx,dy)); total acumulado y línea recta */
+function rulerSegments(pts){
+  const segs=[];
+  for(let i=1;i<pts.length;i++)segs.push(Math.round(Math.max(Math.abs(pts[i].x-pts[i-1].x),Math.abs(pts[i].y-pts[i-1].y))/CELL*FT));
+  const total=segs.reduce((a,b)=>a+b,0);
+  const straight=pts.length>1?Math.round(pxFt(dist(pts[0],pts[pts.length-1]))):0;
+  return{segs,total,straight};
+}
 const snapVertex=p=>({x:Math.round(p.x/CELL)*CELL,y:Math.round(p.y/CELL)*CELL});
 function snapWallPoint(p,e,ignore){
   const tol=12/UI.cam.zoom;let best=null,bd=tol;

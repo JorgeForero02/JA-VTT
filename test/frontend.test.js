@@ -375,5 +375,18 @@ test('interruptores de vida y condiciones: checkboxes en Ajustes, helpers hpOn/c
   assert.match(editor, /\$\('#hpVisibility'\)\.disabled=!hpOn\(\)/);
 });
 
+test('rulerSegments: tramos con la regla de diagonales del juego, total acumulado y línea recta', () => {
+  const core = read('js/core.js');
+  const m = core.match(/^function rulerSegments\(pts\)\{[\s\S]*?\n\}$/m);
+  assert.ok(m, 'function rulerSegments(pts){...} en core.js, cerrada con } en su propia línea');
+  const fn = new Function('CELL', 'FT', 'dist', 'pxFt', m[0] + '; return rulerSegments;')(50, 5, (a, b) => Math.hypot(a.x - b.x, a.y - b.y), (px) => px / 50 * 5);
+  assert.deepEqual(fn([{ x: 25, y: 25 }]), { segs: [], total: 0, straight: 0 });
+  assert.deepEqual(fn([{ x: 25, y: 25 }, { x: 175, y: 25 }]), { segs: [15], total: 15, straight: 15 });
+  // 3 casillas en diagonal cuentan 3 (no 4,2): max(|dx|,|dy|)
+  assert.deepEqual(fn([{ x: 25, y: 25 }, { x: 175, y: 175 }]), { segs: [15], total: 15, straight: 21 });
+  // rodear una esquina: 3 a la derecha + 2 abajo = 25 ft; en línea recta serían 18
+  assert.deepEqual(fn([{ x: 25, y: 25 }, { x: 175, y: 25 }, { x: 175, y: 125 }]), { segs: [15, 10], total: 25, straight: 18 });
+});
+
 
 
