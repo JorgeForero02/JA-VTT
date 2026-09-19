@@ -2,6 +2,26 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Colisión de fichas y niebla de guerra (2D, desplegados)
+
+**Colisión (`core.js`)** — Antes `tryMove` sólo probaba el objetivo y dos deslizamientos en los ejes X/Y:
+de frente a un muro la ficha no avanzaba nada, contra un muro diagonal se quedaba quieta, y la banda
+de choque (0,8·radio) se medía contra el segmento entero incluidos los extremos → un muro bloqueaba
+~20 px más allá de donde acababa. Ahora: `blockingWall` (cruce o acercarse por debajo de la distancia
+de choque; alejarse siempre se puede), `wallNear` (distancia perpendicular sólo donde hay muro; en los
+extremos tapón de 0,35·r), `furthest` (bisección, 8 pasos) y `tryMove` = avanzar hasta el choque y
+resbalar a lo largo del muro que bloquea (proyección del resto sobre su dirección), sin atravesar otro.
+Tests reales en `test/movimiento.test.js` (core.js en un `vm`); mutaciones «tapón entero» y «sin
+resbalar» detectadas. Probado en navegador como jugador: se acerca, resbala, pasa junto al extremo y
+sigue el muro diagonal. `prod-2d` `6493489`.
+**Niebla (`render.js`)** — La exploración se acumulaba por frame completo (`lighter` ×3): de noche
+(ambiente 0,18) hacían falta 2 frames y quedaban parches según cuántos frames viera cada zona («a veces
+niebla, a veces no» al cambiar la iluminación seguido). Ahora `boost:6` (cualquier luz ≥ 0,17 explora en
+un frame), memoria a 4 px de mundo (`scale:.25`, `max:96` bloques de 1 MB) y desenfoque proporcional al
+zoom (`0,7` px de memoria, mínimo 1,5 px) contra los dientes de sierra. Las nieblas guardadas a 5 px se
+escalan al cargar. `prod-2d` `178fd4a` (`h1y6zfizfhz7paqehavqmvyt`). Ambos en `clima-2d`.
+**Revertir** — revertir los dos commits en `prod-2d` y redesplegar.
+
 ## 2026-09-19 — El panel lateral pasa a ser una capa sobre el lienzo (desplegado)
 
 **Qué** — `main` ya no tiene la columna de 330 px: `#panel` es `position:absolute` a la derecha, encima
