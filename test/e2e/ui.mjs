@@ -184,12 +184,23 @@ try {
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
   await gm.click('[data-tab="scene"]');
   await gm.click('#envGrid button:nth-child(2)');   // exterior de día: se ve el tablero refractado
+  // columnas de la cuadrícula (perfil de brillo por columna): la copia refractada debe caer sobre las mismas
+  const gridCols = async (page) => { const png = pngPixels(await page.screenshot({ clip: { x: 60, y: 60, width: 900, height: 600 } })); const cols = []; for (let x = 0; x < png.w; x++) { let t = 0; for (let y = 0; y < png.h; y++) t += png.px[(y * png.w + x) * png.ch + 1]; cols.push(t / png.h); } const peaks = cols.map((v, i) => [v - (cols[i - 2] + cols[i + 2]) / 2 || 0, i]).filter(([d]) => d > 2).map(([, i]) => i); return peaks.filter((v, i) => i === 0 || v - peaks[i - 1] > 1).slice(0, 10); };
+  await gm.evaluate(() => { UI.cam.zoom = 1; requestRender(); }); await gm.waitForTimeout(400);
+  const colsBefore = await gridCols(gm);
+  await gm.selectOption('#weatherId', 'fog');
+  await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
+  await gm.waitForTimeout(1500);
+  const colsFog = await gridCols(gm);
+  const aligned = colsBefore.length >= 6 && colsFog.length >= 6 && colsBefore.slice(0, 6).every((c, i) => Math.abs(c - colsFog[i]) <= 1);
+  step('clima: la copia refractada del tablero no se escala ni desplaza (cuadrícula en las mismas columnas ±1 px)', aligned, `${colsBefore.slice(0, 6)} → ${colsFog.slice(0, 6)}`);
   await gm.selectOption('#weatherId', 'storm');
   const weatherLayer = (page) => page.evaluate(() => { const c = document.getElementById('cWeather'); return c ? { w: c.width, prev: c.previousElementSibling.id, next: c.nextElementSibling.id, pixi: typeof PIXI } : null; });
   await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   await pl.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   const wGm = await weatherLayer(gm), wPl = await weatherLayer(pl);
   step('clima: tormenta montada en director y jugador entre cScene y cGlow', wGm && wPl && wGm.w > 0 && wPl.w > 0 && wGm.prev === 'cScene' && wGm.next === 'cGlow' && wPl.prev === 'cScene', JSON.stringify(wPl));
+  await pl.waitForFunction(() => S.weather && S.weather.id === 'storm', null, { timeout: 5000 });
   step('clima: el jugador recibe el ajuste saneado', (await pl.evaluate(() => JSON.stringify(S.weather))) === '{"id":"storm","intensity":0.6,"wind":0}', await pl.evaluate(() => JSON.stringify(S.weather)));
   step('clima: el panel del director muestra intensidad y viento sólo con clima', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === ''));
   await gm.waitForTimeout(2500);
