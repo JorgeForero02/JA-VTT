@@ -52,8 +52,9 @@ header{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--p
 .seg button{border:0;background:transparent;padding:0 12px;min-height:32px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .seg button[aria-pressed="true"]{background:var(--amber);color:var(--amber-ink);font-weight:700}
 .hsep{width:1px;height:26px;background:var(--line)}
-#viewAsWrap{display:none;align-items:center;gap:6px}
-#viewAs{background:var(--raise);border:1px solid var(--line);border-radius:8px;min-height:34px;padding:0 8px}
+#viewAsWrap,#fogOfWrap{display:none;align-items:center;gap:6px}
+#fogOfWrap .hideSm{white-space:nowrap}
+#viewAs,#fogOf{background:var(--raise);border:1px solid var(--line);border-radius:8px;min-height:34px;padding:0 8px;color:inherit;font:inherit}
 
 main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;overflow-y:auto}

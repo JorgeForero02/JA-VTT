@@ -206,6 +206,11 @@ try {
   step('clima: la copia refractada del tablero no se escala ni desplaza (cuadrícula en las mismas columnas ±1 px)', aligned, `${colsBefore.slice(0, 6)} → ${colsFog.slice(0, 6)}`);
   const zoneFog = { in: await meanAt(gm, ...inZone), out: await meanAt(gm, ...outZone) };
   step('clima: dentro de la zona interior no hay niebla (píxeles como sin clima); fuera sí', Math.abs(zoneFog.in - zoneBefore.in) <= 6 && zoneFog.out - zoneBefore.out > 10, JSON.stringify({ zoneBefore, zoneFog }));
+  // la zona a medias fuera de la pantalla (desplazar el tablero) no rompe la máscara: el interior sigue sin niebla
+  await gm.evaluate(() => { UI.cam.y -= 260; requestRender(); }); await gm.waitForTimeout(600);
+  const zoneShifted = await meanAt(gm, inZone[0], inZone[1] + 260);
+  await gm.evaluate(() => { UI.cam.y += 260; requestRender(); }); await gm.waitForTimeout(400);
+  step('clima: con la zona saliendo por el borde de la pantalla el interior sigue limpio (sin cuñas de triangulación)', Math.abs(zoneShifted - zoneBefore.in) <= 6, `${zoneBefore.in.toFixed(1)} → ${zoneShifted.toFixed(1)}`);
   await gm.check('#weatherIndoor');
   await gm.waitForTimeout(1500);
   const indoorSync = { gm: await gm.evaluate(() => JSON.stringify(S.weather)), pl: await pl.evaluate(() => JSON.stringify(S.weather)) };

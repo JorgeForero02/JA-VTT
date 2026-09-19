@@ -38,13 +38,27 @@ const Weather=(()=>{
     if(indoors(w)||!S.zones.length){if(fx.scene.mask){fx.scene.mask=null;maskG.clear()}return}
     if(!maskG){maskG=new PIXI.Graphics();fx.app.stage.addChild(maskG)}
     const g=maskG;const sx=x=>W/2+(x-UI.cam.x)*UI.cam.zoom,sy=y=>H/2+(y-UI.cam.y)*UI.cam.zoom;
-    g.clear();g.beginFill(0xffffff);g.drawRect(0,0,fx.w,fx.h);
-    for(const z of S.zones){g.beginHole();
-      if(z.pts&&z.pts.length>2)g.drawPolygon(z.pts.flatMap(p=>[sx(p.x),sy(p.y)]));
-      else g.drawRect(sx(z.x),sy(z.y),z.w*UI.cam.zoom,z.h*UI.cam.zoom);
-      g.endHole()}
+    // el rectángulo exterior sobresale de la pantalla y cada zona se recorta a ella: un agujero que no esté
+    // contenido en la figura rompe la triangulación de Pixi (cuñas al desplazar el tablero)
+    g.clear();g.beginFill(0xffffff);g.drawRect(-64,-64,fx.w+128,fx.h+128);
+    for(const z of S.zones){
+      const pts=z.pts&&z.pts.length>2?z.pts.map(p=>({x:sx(p.x),y:sy(p.y)})):[{x:sx(z.x),y:sy(z.y)},{x:sx(z.x+z.w),y:sy(z.y)},{x:sx(z.x+z.w),y:sy(z.y+z.h)},{x:sx(z.x),y:sy(z.y+z.h)}];
+      const poly=clipPolyRect(pts,0,0,fx.w,fx.h);if(poly.length<3)continue;
+      g.beginHole();g.drawPolygon(poly.flatMap(p=>[p.x,p.y]));g.endHole();
+    }
     g.endFill();
     fx.scene.mask=g;
+  }
+  /* Recorte de un polígono a un rectángulo (Sutherland–Hodgman): un lado cada vez */
+  function clipPolyRect(pts,x0,y0,x1,y1){
+    let out=pts;
+    for(const[inside,cut]of[[p=>p.x>=x0,(a,b)=>{const t=(x0-a.x)/(b.x-a.x);return{x:x0,y:a.y+(b.y-a.y)*t}}],[p=>p.x<=x1,(a,b)=>{const t=(x1-a.x)/(b.x-a.x);return{x:x1,y:a.y+(b.y-a.y)*t}}],[p=>p.y>=y0,(a,b)=>{const t=(y0-a.y)/(b.y-a.y);return{x:a.x+(b.x-a.x)*t,y:y0}}],[p=>p.y<=y1,(a,b)=>{const t=(y1-a.y)/(b.y-a.y);return{x:a.x+(b.x-a.x)*t,y:y1}}]]){
+      const src=out;out=[];if(!src.length)break;
+      for(let i=0;i<src.length;i++){const a=src[i],b=src[(i+1)%src.length],ia=inside(a),ib=inside(b);
+        if(ia)out.push(a);
+        if(ia!==ib)out.push(cut(a,b));}
+    }
+    return out;
   }
   function unmount(){if(!fx)return;fx.destroy();fx=null;maskG=null;key='';const v=$('#cWeather');if(v)v.remove()}
   function sync(){
@@ -69,5 +83,5 @@ const Weather=(()=>{
   }
   function resize(){requestRender()}   // el reajuste real ocurre en invalidate(), tras drawScene
   const mounted=()=>!!fx;
-  return{sync,invalidate,resize,mounted};
+  return{sync,invalidate,resize,mounted,clipPolyRect};
 })();
