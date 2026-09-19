@@ -621,6 +621,7 @@ function setRole(r){
   $$('.gmOnly').forEach(el=>el.style.display=r==='gm'?'':'none');
   $$('.gmSect').forEach(el=>el.style.display=r==='gm'?'':'none');
   $('#viewAsWrap').style.display=r==='player'?'flex':'none';
+  $('#fogOfWrap').style.display=r==='player'&&UI.realRole==='gm'?'flex':'none';
   $('#previewBtn').style.display=r==='gm'?'':'none';
   const realGmTabs=UI.realRole==='gm';
   for(const t of['lights','library'])$(`[data-tab="${t}"]`).style.display=r==='gm'?'':'none';
@@ -633,6 +634,15 @@ function setRole(r){
 $('#roleGm').onclick=()=>setRole('gm');
 $('#rolePlayer').onclick=()=>setRole('player');
 $('#viewAs').onchange=e=>{UI.viewAs=e.target.value==='party'?'party':+e.target.value;requestRender()};
+/* Niebla en «Vista de jugador»: nueva (se reinicia, como siempre) o la guardada de un jugador. Sólo lectura:
+   el director nunca guarda niebla (flushFog), así que reiniciar o explorar aquí no toca la del jugador. */
+function renderFogOf(){
+  const fo=$('#fogOf');if(!fo)return;const cur=String(UI.fogOf);fo.innerHTML='<option value="new">Nueva (se reinicia)</option>';
+  for(const m of Net.members)if(m.role!=='gm'){const op=document.createElement('option');op.value=m.id;op.textContent='La de '+m.name;fo.appendChild(op)}
+  fo.value=[...fo.options].some(o=>o.value===cur)?cur:'new';if(fo.value==='new')UI.fogOf='new';
+}
+$('#fogOf').onchange=e=>{UI.fogOf=e.target.value==='new'?'new':+e.target.value;resetExplored();requestRender();if(UI.fogOf!=='new')Net.fogOf(UI.fogOf)};
+$('#fogMine').onclick=()=>{if(UI.realRole!=='gm')return;resetExplored();requestRender();if(UI.fogOf!=='new')Net.fogOf(UI.fogOf)};
 $('#previewBtn').onclick=()=>{UI.preview=!UI.preview;$('#previewBtn').classList.toggle('on',UI.preview);requestRender()};
 $('#undoBtn').onclick=undo;$('#redoBtn').onclick=redo;
 /* Panel lateral: en pantallas anchas se pliega la columna (y se recuerda); en estrechas se abre como capa */
@@ -768,6 +778,7 @@ function renderLists(){
   const va=$('#viewAs');const cur=String(UI.viewAs);va.innerHTML='<option value="party">Todo el grupo</option>';
   for(const t of pcs){const op=document.createElement('option');op.value=t.id;op.textContent=t.name;va.appendChild(op)}
   va.value=[...va.options].some(o=>o.value===cur)?cur:'party';if(va.value==='party')UI.viewAs='party';
+  renderFogOf();
 }
 function renderLayers(){
   const el=$('#layerList');el.innerHTML='';

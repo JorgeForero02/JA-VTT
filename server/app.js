@@ -541,6 +541,14 @@ async function handleFog(b, c, d) {
   await q.upsertFog(c.sceneId, c.user.id, d.cx, d.cy, buf);
 }
 
+/* El director pide la niebla guardada de un jugador (para verla en «Vista de jugador»). Sólo lectura:
+   lo que el director explore en esa vista nunca se guarda (handleFog ignora al director). */
+async function handleFogOf(b, c, d) {
+  if (c.role !== 'gm' || d.scene !== c.sceneId || !Number.isInteger(d.user)) return;
+  const fog = (await q.fogFor(c.sceneId, d.user)).map((r) => ({ cx: r.cx, cy: r.cy, data: 'data:image/png;base64,' + r.data.toString('base64') }));
+  c.ws.send({ t: 'fogof', scene: c.sceneId, user: d.user, fog });
+}
+
 async function handleRename(b, c, d) {
   if (c.role !== 'gm') return;
   const name = R.str(d.name, 60).trim();
@@ -556,6 +564,7 @@ function handleMessage(b, c, d) {
     case 'scene': return handleScene(b, c, d);
     case 'travel': return handleTravel(b, c, d);
     case 'fog': return handleFog(b, c, d);
+    case 'fogof': return handleFogOf(b, c, d);
     case 'rename': return handleRename(b, c, d);
     case 'chat': return handleChat(b, c, d);
     case 'roll': return handleRoll(b, c, d);

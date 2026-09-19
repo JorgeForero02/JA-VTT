@@ -295,3 +295,23 @@ test('el panel lateral es una capa sobre el lienzo: abrir/cerrar no cambia el ta
   assert.match(css, /^#subbar\{position:absolute;left:12px;top:12px;right:342px;/m);
   assert.match(css, /^#app\.noPanel #subbar\{right:12px\}$/m);
 });
+
+test('vista de jugador: el director elige ver la niebla guardada de un jugador o una vista nueva; reinicio sólo local', () => {
+  const html = read('index.html');
+  assert.match(html, /<label id="fogOfWrap"><span class="muted small hideSm">Niebla<\/span><select id="fogOf"><\/select><button type="button" class="btn sq ghost" id="fogMine" data-ic="eraser" title="Reiniciar mi vista \(sólo la mía\)" aria-label="Reiniciar mi vista"><\/button><\/label>/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /function renderFogOf\(\)\{/);
+  assert.match(ed, /fo\.innerHTML='<option value="new">Nueva \(se reinicia\)<\/option>'/);
+  assert.match(ed, /for\(const m of Net\.members\)if\(m\.role!=='gm'\)/);
+  assert.match(ed, /\$\('#fogOf'\)\.onchange=e=>\{UI\.fogOf=e\.target\.value==='new'\?'new':\+e\.target\.value;resetExplored\(\);requestRender\(\);if\(UI\.fogOf!=='new'\)Net\.fogOf\(UI\.fogOf\)\}/);
+  assert.match(ed, /\$\('#fogMine'\)\.onclick=\(\)=>\{if\(UI\.realRole!=='gm'\)return;resetExplored\(\);requestRender\(\);if\(UI\.fogOf!=='new'\)Net\.fogOf\(UI\.fogOf\)\}/);
+  assert.match(ed, /\$\('#fogOfWrap'\)\.style\.display=r==='player'&&UI\.realRole==='gm'\?'flex':'none'/);
+  const net = read('js/net.js');
+  assert.match(net, /case 'fogof':if\(UI\.scene&&d\.scene===UI\.scene\.id&&UI\.realRole==='gm'&&UI\.fogOf===d\.user\)\{resetExplored\(\);loadFog\(d\.fog\);requestRender\(\)\}break;/);
+  assert.match(net, /fogOf\(user\)\{if\(UI\.scene\)send\(\{t:'fogof',scene:UI\.scene\.id,user\}\)\}/);
+  // al recargar el estado (cambio de escena, reconexión) se vuelve a pedir la niebla elegida
+  assert.match(net, /if\(first\)\{loadFog\(d\.fog\);if\(UI\.realRole==='gm'&&UI\.fogOf!=='new'\)api\.fogOf\(UI\.fogOf\)\}/);
+  // el director nunca guarda niebla: lo que explore en esa vista no toca la del jugador
+  assert.match(net, /function flushFog\(\)\{\n\s*if\(UI\.realRole==='gm'\|\|!UI\.scene\|\|!Net\.synced\)return;/);
+  assert.match(read('js/core.js'), /fogOf:'new'/);
+});

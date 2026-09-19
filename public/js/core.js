@@ -61,7 +61,7 @@ function blankState(){return{
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
 }}
 Object.assign(S,blankState());
-const UI={role:'player',realRole:'player',me:null,board:null,scene:null,scenes:[],where:{},tool:'select',wallType:'wall',wallShape:'chain',zoneShape:'poly',zpoly:null,arc:null,curve:null,libCat:'all',upCat:'board',lightPreset:'torch',planShape:'line',viewAs:'party',preview:true,
+const UI={role:'player',realRole:'player',me:null,board:null,scene:null,scenes:[],where:{},tool:'select',wallType:'wall',wallShape:'chain',zoneShape:'poly',zpoly:null,arc:null,curve:null,libCat:'all',upCat:'board',lightPreset:'torch',planShape:'line',viewAs:'party',fogOf:'new',preview:true,
   cam:{x:800,y:550,zoom:.8},selected:[],act:null,chain:null,hover:null,space:false,pointers:new Map(),pinch:null,tab:'scene'};
 let _lastId=0;
 const nid=()=>{let v=Date.now()*1000+Math.floor(Math.random()*1000);if(v<=_lastId)v=_lastId+1;_lastId=v;return v};
