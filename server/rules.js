@@ -102,6 +102,11 @@ function sanitize(o) {
       light: cleanLight(o.light) || noLight(), img: imgId(o.img), owner: Number.isInteger(o.owner) ? o.owner : null,
       conditions: Array.isArray(o.conditions) ? [...new Set(o.conditions.filter((x) => CONDITION_IDS.includes(x)))] : [],
     });
+    c.elevation = fin(o.elevation) ? clamp(Math.round(o.elevation), -9999, 9999) : 0;
+    if (o.hp && typeof o.hp === 'object' && fin(o.hp.max)) {
+      const max = clamp(Math.round(o.hp.max), 0, 9999);
+      c.hp = { cur: fin(o.hp.cur) ? clamp(Math.round(o.hp.cur), 0, max) : max, max, temp: fin(o.hp.temp) ? clamp(Math.round(o.hp.temp), 0, 9999) : 0 };
+    }
     return c;
   }
   return null;
@@ -182,7 +187,7 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
       if (old.owner !== uid) return null;
       return Object.assign({}, old, {
         x: neu.x, y: neu.y, name: neu.name || old.name, color: neu.color, img: neu.img, light: neu.light,
-        conditions: neu.conditions,
+        conditions: neu.conditions, elevation: neu.elevation,
       });
     }
     if (ownedCount >= 1 || neu.kind !== 'player' || neu.owner !== uid) return null;

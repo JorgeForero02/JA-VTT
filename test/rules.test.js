@@ -57,3 +57,20 @@ test('condiciones: catálogo de 20 ids; sanitize filtra las inventadas, quita du
   assert.deepEqual(R.sanitize(Object.assign({ conditions: 'prone' }, base)).conditions, []);
   assert.deepEqual(R.sanitize(Object.assign({ conditions: R.CONDITION_IDS.concat(['x']) }, base)).conditions, R.CONDITION_IDS);
 });
+
+test('hp y elevación: enteros acotados; cur nunca supera max; sin max no hay hp; elevation siempre presente', () => {
+  const base = { id: 2, type: 'token', x: 0, y: 0 };
+  assert.deepEqual(R.sanitize(Object.assign({ hp: { cur: 15, max: 20 } }, base)).hp, { cur: 15, max: 20, temp: 0 });
+  assert.deepEqual(R.sanitize(Object.assign({ hp: { cur: 25, max: 20, temp: 5.7 } }, base)).hp, { cur: 20, max: 20, temp: 6 });
+  assert.deepEqual(R.sanitize(Object.assign({ hp: { cur: -3, max: 20 } }, base)).hp, { cur: 0, max: 20, temp: 0 });
+  assert.deepEqual(R.sanitize(Object.assign({ hp: { max: 12 } }, base)).hp, { cur: 12, max: 12, temp: 0 });
+  assert.deepEqual(R.sanitize(Object.assign({ hp: { cur: 1, max: 99999 } }, base)).hp, { cur: 1, max: 9999, temp: 0 });
+  assert.equal(R.sanitize(Object.assign({ hp: { cur: 5 } }, base)).hp, undefined);
+  assert.equal(R.sanitize(Object.assign({ hp: 7 }, base)).hp, undefined);
+  assert.equal(R.sanitize(base).hp, undefined);
+  assert.equal(R.sanitize(Object.assign({ elevation: 20 }, base)).elevation, 20);
+  assert.equal(R.sanitize(Object.assign({ elevation: -10.4 }, base)).elevation, -10);
+  assert.equal(R.sanitize(Object.assign({ elevation: 1e9 }, base)).elevation, 9999);
+  assert.equal(R.sanitize(Object.assign({ elevation: 'alto' }, base)).elevation, 0);
+  assert.equal(R.sanitize(base).elevation, 0);
+});
