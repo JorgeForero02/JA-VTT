@@ -428,9 +428,9 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{if(e.code==='Space'){UI.space=false;stage.style.cursor=UI.tool==='pan'?'grab':''}});
 
 /* ---------- Menú contextual ---------- */
-const ctxEl=$('#ctx'),edEl=$('#editor');
-for(const el of[ctxEl,edEl,$('#subbar'),$('#selbar')])for(const ev of['pointerdown','wheel','dblclick','contextmenu'])el.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
-function closePops(){ctxEl.style.display='none';edEl.style.display='none';edState=null}
+const ctxEl=$('#ctx'),edEl=$('#editor'),statusEl=$('#statusPop');
+for(const el of[ctxEl,edEl,statusEl,$('#subbar'),$('#selbar')])for(const ev of['pointerdown','wheel','dblclick','contextmenu'])el.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
+function closePops(){ctxEl.style.display='none';edEl.style.display='none';statusEl.style.display='none';edState=null}
 function placePop(el,sp,w,h){el.style.display='block';el.style.maxHeight='';const r=el.getBoundingClientRect();const top=clamp(sp.y+8,8,Math.max(8,H-(h||r.height)-8));el.style.left=clamp(sp.x+8,8,W-(w||r.width)-8)+'px';el.style.top=top+'px';if(el===edEl)el.style.maxHeight=(H-top-8)+'px'}
 function describe(o){
   if(o.type==='wall'&&o.kind==='portal'){const dst=o.target&&UI.scenes.find(x=>x.id===o.target.scene);return (o.name||'Portal')+(dst?` a ${dst.name}`:' sin destino')}
@@ -458,7 +458,7 @@ function openContext(o,sp){
   }
   if(!gm){
     if(ownsPlan(o))add('trash-2','Borrar este plano',()=>{UI.selected=[o.id];deleteSel()},'danger');
-    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp))}
+    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp));add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp))}
   }else{
     add('settings-2','Editar',()=>openEditor(o,sp));
     if(o.type==='wall'){
@@ -474,6 +474,7 @@ function openContext(o,sp){
     }
     if(o.type==='light')add(o.on?'lightbulb-off':'lightbulb',o.on?'Apagar':'Encender',()=>{pushUndo();o.on=!o.on;changed()});
     if(o.type==='token'){
+      add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp));
       add(o.hidden?'eye':'eye-off',o.hidden?'Mostrar a jugadores':'Ocultar a jugadores',()=>{pushUndo();o.hidden=!o.hidden;changed()});
       if(o.light&&o.light.preset!=='none')add('lightbulb',o.light.on?'Apagar su luz':'Encender su luz',()=>{pushUndo();o.light.on=!o.light.on;changed()});
       if(o.kind==='player')add('scan-eye','Ver como esta ficha',()=>{UI.viewAs=o.id;setRole('player')});
@@ -484,6 +485,36 @@ function openContext(o,sp){
   ctxEl.innerHTML=`<div class="ctxTitle"></div>`;ctxEl.firstChild.textContent=describe(o);
   for(const it of items){const b=document.createElement('button');b.setAttribute('role','menuitem');if(it.cls)b.className=it.cls;b.innerHTML=svgIcon(it.ic);const s=document.createElement('span');s.textContent=it.txt;b.appendChild(s);b.onclick=()=>{ctxEl.style.display='none';it.fn()};ctxEl.appendChild(b)}
   placePop(ctxEl,sp);
+}
+
+/* Popover «Estado»: condiciones, vida y altura. Lo abren el director y el dueño de la ficha. Cada cambio
+   entra en el historial de deshacer una sola vez por apertura (como el editor). */
+function openStatus(o,sp){
+  closePops();
+  let snap=snapshot(),dirty=false;
+  const touch=()=>{if(!dirty){pushUndo(snap);dirty=true}changed();paint()};
+  $('#statusTitle').textContent=o.name||'Ficha';
+  const cur=$('#hpCur'),max=$('#hpMax'),temp=$('#hpTemp'),elev=$('#elevation');
+  const hp=()=>o.hp||(o.hp={cur:0,max:0,temp:0});
+  const setHp=(k,v)=>{const h=hp();h[k]=clamp(Math.round(v)||0,0,9999);if(k==='max')h.cur=Math.min(h.cur,h.max);if(k==='cur')h.cur=Math.min(h.cur,h.max);if(h.max===0)delete o.hp;touch()};
+  const paint=()=>{
+    const h=o.hp||{cur:0,max:0,temp:0};
+    if(document.activeElement!==cur)cur.value=h.cur;if(document.activeElement!==max)max.value=h.max;if(document.activeElement!==temp)temp.value=h.temp||0;
+    if(document.activeElement!==elev)elev.value=o.elevation||0;
+    const chips=$('#statusChips');chips.innerHTML='';
+    for(const[id,C]of Object.entries(CONDITIONS)){
+      const b=document.createElement('button');b.type='button';b.className='chip'+((o.conditions||[]).includes(id)?' on':'');b.title=C.name;b.dataset.cond=id;
+      const d=document.createElement('span');d.className='dot';d.style.background=C.color;d.textContent=C.abbr;
+      b.append(d,document.createTextNode(C.name));
+      b.onclick=()=>{const c=new Set(o.conditions||[]);if(c.has(id))c.delete(id);else c.add(id);o.conditions=[...c];touch()};
+      chips.appendChild(b);
+    }
+  };
+  cur.oninput=()=>setHp('cur',+cur.value);max.oninput=()=>setHp('max',+max.value);temp.oninput=()=>setHp('temp',+temp.value);
+  cur.onwheel=e=>{e.preventDefault();setHp('cur',hp().cur+(e.deltaY<0?1:-1)*(e.shiftKey?5:1))};
+  $('#hpMinus').onclick=e=>setHp('cur',hp().cur-(e.shiftKey?5:1));$('#hpPlus').onclick=e=>setHp('cur',hp().cur+(e.shiftKey?5:1));
+  elev.oninput=()=>{o.elevation=clamp(Math.round(+elev.value)||0,-9999,9999);touch()};
+  paint();placePop(statusEl,sp);
 }
 
 /* ---------- Editor de propiedades ---------- */
@@ -520,7 +551,7 @@ function openEditor(o,sp){
     if(!L.darkness)num('Luz tenue extra (pies)',L.dim,0,300,5,v=>{custom();L.dim=v});
     if(!L.darkness){color('Color',L.color,v=>{custom();L.color=v});range('Intensidad',L.intensity??1,v=>{custom();L.intensity=v});select('Animación',L.anim||'none',animOpts,v=>{custom();L.anim=v})}
     num('Apertura (°)',L.angle||360,10,360,5,v=>{custom();L.angle=v});
-    num('Dirección (°)',L.rot||0,-360,360,15,v=>{L.rot=v});
+    num('Dirección (°)',L.rot||0,-360,360,15,v=>{custom();L.rot=v});
     check('Encendida',L.on,v=>L.on=v);
   };
   if(o.type==='light'){
@@ -531,6 +562,10 @@ function openEditor(o,sp){
     if(!gm){
       text('Nombre',o.name,v=>o.name=v);
       color('Color',o.color,v=>o.color=v);
+      section('Vida y altura');
+      num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
+      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)});
+      num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
       note('Solo el director cambia la visión, el tamaño o la visibilidad.');
@@ -541,6 +576,10 @@ function openEditor(o,sp){
       select('Controla',o.owner==null?'':String(o.owner),[['','Nadie (solo el director)'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
       select('Tamaño',String(o.size||1),[['1','Mediano (1 casilla)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
       color('Color',o.color,v=>o.color=v);
+      section('Vida y altura');
+      num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
+      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)});
+      num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
       check('Oculta para jugadores',o.hidden,v=>o.hidden=v);
@@ -713,6 +752,7 @@ function renderSnapPrefs(){
 $('#animToggle').onchange=e=>{S.animate=e.target.checked;changed()};
 $('#sharedVision').onchange=e=>{S.sharedVision=e.target.checked;changed()};
 $('#playersDoors').onchange=e=>{S.playersDoors=e.target.checked;changed()};
+$('#hpVisibility').onchange=e=>{S.hpVisibility=e.target.value;changed()};
 $('#chatEnabled').onchange=e=>{S.chatEnabled=e.target.checked;changed();syncChatTab()};
 $('#diceEnabled').onchange=e=>{S.diceEnabled=e.target.checked;changed();syncChatTab()};
 $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
@@ -850,6 +890,7 @@ function renderSelbar(){
 function refreshPanels(){renderLists();renderSelbar();syncUndo()}
 function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
+  $('#hpVisibility').value=S.hpVisibility||'all';
   $('#chatEnabled').checked=S.chatEnabled!==false;$('#diceEnabled').checked=S.diceEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
   renderWeather();

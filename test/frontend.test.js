@@ -339,4 +339,19 @@ test('render: drawToken pinta badges de condiciones, barra de HP (números segú
   assert.match(r, /iconImage\('skull'/);
 });
 
+test('estado de la ficha: popover #statusPop con chips, vida ± y altura; entrada en el menú contextual; select hpVisibility', () => {
+  const html = read('index.html');
+  assert.match(html, /<div id="statusPop" class="pop" role="dialog"[^>]*>/);
+  assert.match(html, /<select id="hpVisibility" class="gmOnly">[\s\S]*<option value="all">[\s\S]*<option value="gm">[\s\S]*<option value="bar_only">/);
+  const js = read('js/editor.js');
+  assert.match(js, /^function openStatus\(o,sp\)\{/m);
+  assert.match(js, /add\('heart-pulse','Estado: condiciones, vida y altura',\(\)=>openStatus\(o,sp\)\)/);
+  assert.match(js, /\$\('#hpVisibility'\)\.onchange=e=>\{S\.hpVisibility=e\.target\.value;changed\(\)\}/);
+  assert.match(js, /\$\('#hpVisibility'\)\.value=S\.hpVisibility\|\|'all'/);
+  assert.match(js, /e\.deltaY<0\?1:-1/, 'la rueda sobre la vida suma o resta');
+  assert.match(read('js/icons.js'), /"heart-pulse"/);
+  assert.match(read('css/app.css'), /#statusPop \.chip\.on\{/);
+});
+
+
 

@@ -140,6 +140,22 @@
     <div id="status"></div>
     <div id="toast" role="status"></div>
     <div id="ctx" class="pop" role="menu"></div>
+    <div id="statusPop" class="pop" role="dialog" aria-label="Estado de la ficha">
+      <div class="ctxTitle" id="statusTitle"></div>
+      <div class="statusRow" id="statusHp">
+        <span>Vida</span>
+        <button class="btn sq ghost" id="hpMinus" title="Restar 1 (Mayús: 5)" aria-label="Restar vida">−</button>
+        <input id="hpCur" type="number" min="0" max="9999" step="1" title="Rueda del ratón: ±1 (Mayús: ±5)">
+        <span class="statusSep">/</span>
+        <input id="hpMax" type="number" min="0" max="9999" step="1" title="Vida máxima">
+        <button class="btn sq ghost" id="hpPlus" title="Sumar 1 (Mayús: 5)" aria-label="Sumar vida">+</button>
+        <span class="statusSep">temp</span>
+        <input id="hpTemp" type="number" min="0" max="9999" step="1" title="Vida temporal">
+      </div>
+      <div class="statusRow"><span>Altura (pies)</span><input id="elevation" type="number" min="-9999" max="9999" step="5"></div>
+      <div class="chips" id="statusChips"></div>
+      <div class="edNote">Clic en una condición para ponerla o quitarla. Sin vida máxima no se muestra la barra.</div>
+    </div>
     <div id="editor" class="pop" role="dialog" aria-label="Propiedades">
       <div class="edHead"><h3 id="edTitle">Propiedades</h3><button id="edClose" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
       <div id="edBody" class="edBody"></div>
@@ -302,6 +318,13 @@
           <label class="check"><input type="checkbox" id="sharedVision"> Visión compartida: cada jugador ve lo que ve el grupo</label>
           <label class="check"><input type="checkbox" id="playersDoors"> Pueden abrir y cerrar puertas</label>
           <label class="check"><input type="checkbox" id="initiativeShown"> Mostrar la iniciativa a los jugadores</label>
+          <label class="field"><span>Vida de las fichas</span>
+            <select id="hpVisibility" class="gmOnly">
+              <option value="all">La ven todos (barra y números)</option>
+              <option value="gm">Sólo el director (cada jugador ve la suya)</option>
+              <option value="bar_only">Los jugadores ven sólo la barra</option>
+            </select>
+          </label>
         </div>
       </details>
       <details class="fold gmSect" data-fold="iniciativa" open>

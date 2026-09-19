@@ -95,6 +95,14 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #ctx button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;padding:8px 9px;border-radius:7px;cursor:pointer}
 #ctx button:hover{background:var(--raise)}
 #ctx button.danger{color:var(--rust)}
+#statusPop{min-width:300px;max-width:360px;padding:8px}
+#statusPop .statusRow{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:13px;color:var(--fog)}
+#statusPop .statusRow input{width:58px;text-align:center}
+#statusPop .statusSep{color:var(--fog);opacity:.7}
+#statusPop .chips{display:flex;flex-wrap:wrap;gap:5px;padding:6px}
+#statusPop .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:3px 9px 3px 5px;background:transparent;cursor:pointer;font-size:12px;color:var(--bone)}
+#statusPop .chip .dot{width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 8px/1 var(--sans);color:#F4EEE2}
+#statusPop .chip.on{background:var(--raise);border-color:var(--bone)}
 #editor{width:300px;max-height:calc(100% - 24px);overflow:auto}
 .edHead{display:flex;align-items:center;gap:8px;padding:10px 10px 8px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
 .edHead h3{margin:0;font:700 17px var(--serif);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
