@@ -12,6 +12,7 @@ const Weather=(()=>{
   function mount(){
     try{fx=new WeatherFX({container:stage,source:cv.scene})}
     catch(err){failed=true;fx=null;console.error(err);toast('Este navegador no puede mostrar el clima (sin WebGL)',4000);return}
+    fx.app.resizeTo=null;   // el tamaño lo llevamos nosotros en invalidate(): el ResizePlugin renderizaría a medias
     const view=fx.app.view;view.id='cWeather';stage.insertBefore(view,cv.glow);fit();
     key='';apply();maskZones(wanted());requestRender();
   }
@@ -53,14 +54,20 @@ const Weather=(()=>{
     if(pending)return;pending=true;
     load().then(()=>{pending=false;if(!fx&&wanted())mount()}).catch(err=>{pending=false;failed=true;console.error(err);toast('No se pudo cargar el clima: '+err.message,4000)});
   }
-  /* cScene cambia de tamaño con la ventana, los paneles y la calidad (dpr): `baseTexture.update()` de la
-     librería no relee el tamaño y Pixi haría texSubImage2D con un canvas mayor que la textura
-     (GL_INVALID_VALUE glCopySubTextureCHROMIUM). `resource.update()` redimensiona y luego marca sucia. */
-  function invalidate(){if(fx&&fx.sourceTexture)fx.sourceTexture.baseTexture.resource.update()}
-  /* Orden: primero la textura (invalidate redimensiona) y después el sprite: `width=` calcula la escala con
-     el tamaño de la textura en ese momento y el sprite no vuelve a escuchar cambios de tamaño. Al revés, el
-     mapa quedaba estirado ×(ancho nuevo/ancho viejo) al abrir o cerrar el panel. */
-  function resize(){if(fx){fx.app.resize();fx.resize();invalidate();fit()}}
+  /* cScene cambia de tamaño con la ventana, los paneles y la calidad (dpr). Todo el reajuste va aquí, justo
+     después de drawScene (canvas ya pintado) y sin renderizar: `renderer.resize` (no `app.resize`, que
+     renderiza en el acto con textura, sprite y uniformes viejos → un frame estirado con la aberración
+     cromática disparada). Orden: renderer → filtros/malla (fx.resize) → textura (`resource.update` relee
+     el tamaño del canvas; `baseTexture.update()` no lo haría y Pixi subiría un canvas mayor que la textura:
+     GL_INVALID_VALUE) → sprite (`width=` usa el tamaño de textura del momento y no escucha cambios). */
+  function invalidate(){
+    if(!fx||!fx.sourceTexture)return;
+    const resized=fx.app.screen.width!==W||fx.app.screen.height!==H;
+    if(resized){fx.app.renderer.resize(W,H);fx.resize()}
+    fx.sourceTexture.baseTexture.resource.update();
+    if(resized||fx.mapSprite.x!==0)fit();   // fx.resize() de la librería (resize de ventana) vuelve a la sobremedida
+  }
+  function resize(){requestRender()}   // el reajuste real ocurre en invalidate(), tras drawScene
   const mounted=()=>!!fx;
   return{sync,invalidate,resize,mounted};
 })();
