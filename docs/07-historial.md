@@ -2,6 +2,19 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — El panel lateral pasa a ser una capa sobre el lienzo (desplegado)
+
+**Qué** — `main` ya no tiene la columna de 330 px: `#panel` es `position:absolute` a la derecha, encima
+del `#stageWrap` (lo que ya hacía en pantallas estrechas), con `#subbar{right:342px}` para que las
+opciones de herramienta no queden debajo (`right:12px` con `noPanel`). Abrir/cerrar el panel **ya no
+cambia el tamaño del `#stage`**: no hay reajuste de canvas, luz ni clima. Test de contrato en
+`frontend.test.js`; `test:ui` 26/26 (el paso de abrir/cerrar con clima sigue midiendo la cuadrícula).
+`prod-2d` `09fe180` desplegado (`x7y3vpfyk6pik3kaxvy3zuvl`); en `clima-2d` también.
+**Por qué** — decisión del usuario: seguía viendo desfases al abrir/cerrar el panel con clima e imágenes
+(no reproducidos aquí tras los tres arreglos anteriores: 0 renders inconsistentes de 228 y de 139 en el
+primer montaje) y prefiere que el panel no mueva el lienzo. Coste: el panel tapa 330 px del mapa.
+**Revertir** — revertir `09fe180` en `prod-2d` y redesplegar.
+
 ## 2026-09-19 — Clima: un frame estirado al abrir/cerrar el panel (hotfix desplegado)
 
 **Qué** — Tras el arreglo anterior quedaba un frame malo que se corregía solo. Causa: `fx.app.resize()`
