@@ -157,7 +157,7 @@ try {
   await pl.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   const wGm = await weatherLayer(gm), wPl = await weatherLayer(pl);
   step('clima: tormenta montada en director y jugador entre cScene y cGlow', wGm && wPl && wGm.w > 0 && wPl.w > 0 && wGm.prev === 'cScene' && wGm.next === 'cGlow' && wPl.prev === 'cScene', JSON.stringify(wPl));
-  step('clima: el jugador recibe el ajuste saneado', (await pl.evaluate(() => JSON.stringify(window.S.weather))) === '{"id":"storm","intensity":0.6,"wind":0}', await pl.evaluate(() => JSON.stringify(window.S.weather)));
+  step('clima: el jugador recibe el ajuste saneado', (await pl.evaluate(() => JSON.stringify(S.weather))) === '{"id":"storm","intensity":0.6,"wind":0}', await pl.evaluate(() => JSON.stringify(S.weather)));
   step('clima: el panel del director muestra intensidad y viento sólo con clima', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === ''));
   await gm.waitForTimeout(2500);
   await shot(gm, '05c-clima-tormenta');
