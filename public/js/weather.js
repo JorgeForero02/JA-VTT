@@ -12,7 +12,7 @@ const Weather=(()=>{
   function mount(){
     try{fx=new WeatherFX({container:stage,source:cv.scene})}
     catch(err){failed=true;fx=null;console.error(err);toast('Este navegador no puede mostrar el clima (sin WebGL)',4000);return}
-    const view=fx.app.view;view.id='cWeather';stage.insertBefore(view,cv.glow);
+    const view=fx.app.view;view.id='cWeather';stage.insertBefore(view,cv.glow);fit();
     key='';apply();requestRender();
   }
   /* Ajusta efecto y parámetros sólo si algo cambió (se llama en cada frame completo) */
@@ -24,6 +24,10 @@ const Weather=(()=>{
     fx.set({intensity:w.intensity,wind:w.wind,refraction:PERF.scale<1?0:(fx.def.base&&fx.def.base.refraction!=null?fx.def.base.refraction:1)});
     fx.pause(!S.animate);
   }
+  /* La librería pinta el mapa con 16 px de sobremedida por lado (_fitMap) para que el rayo y la refracción
+     no enseñen el borde; aquí eso escalaría la copia refractada y desalinearía muros, luz y controles,
+     que van encima sin refractar. Ajuste exacto: el borde desplazado se ve transparente un instante. */
+  function fit(){fx.mapSprite.position.set(0,0);fx.mapSprite.width=fx.w;fx.mapSprite.height=fx.h}
   function unmount(){if(!fx)return;fx.destroy();fx=null;key='';const v=$('#cWeather');if(v)v.remove()}
   function sync(){
     const w=wanted();
@@ -36,7 +40,7 @@ const Weather=(()=>{
      librería no relee el tamaño y Pixi haría texSubImage2D con un canvas mayor que la textura
      (GL_INVALID_VALUE glCopySubTextureCHROMIUM). `resource.update()` redimensiona y luego marca sucia. */
   function invalidate(){if(fx&&fx.sourceTexture)fx.sourceTexture.baseTexture.resource.update()}
-  function resize(){if(fx){fx.app.resize();fx.resize();invalidate()}}
+  function resize(){if(fx){fx.app.resize();fx.resize();fit();invalidate()}}
   const mounted=()=>!!fx;
   return{sync,invalidate,resize,mounted};
 })();

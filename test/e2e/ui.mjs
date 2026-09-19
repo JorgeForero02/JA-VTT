@@ -6,6 +6,31 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
+
+/* Píxeles RGBA de una captura PNG de Playwright (8 bits, RGB o RGBA, sin entrelazado): para medir colores
+   con tolerancia en vez de comparar bytes (la bruma y la luz animada cambian la captura entre fotogramas). */
+function pngPixels(buf) {
+  let pos = 8, w = 0, h = 0, ch = 4; const idat = [];
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos), type = buf.toString('ascii', pos + 4, pos + 8), data = buf.subarray(pos + 8, pos + 8 + len);
+    if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); ch = data[9] === 2 ? 3 : 4; }
+    if (type === 'IDAT') idat.push(data);
+    pos += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat)), stride = w * ch, out = Buffer.alloc(h * stride);
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)], src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)), row = out.subarray(y * stride, (y + 1) * stride), prev = y ? out.subarray((y - 1) * stride, y * stride) : null;
+    for (let i = 0; i < stride; i++) {
+      const a = i >= ch ? row[i - ch] : 0, b = prev ? prev[i] : 0, c = prev && i >= ch ? prev[i - ch] : 0;
+      let p = 0;
+      if (f === 1) p = a; else if (f === 2) p = b; else if (f === 3) p = (a + b) >> 1;
+      else if (f === 4) { const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c); p = pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+      row[i] = (src[i] + p) & 255;
+    }
+  }
+  return { w, h, ch, px: out };
+}
 
 const BASE = process.env.BASE_URL || 'http://localhost:3999';
 const OUT = process.argv[2] || path.join(process.cwd(), 'test', 'e2e', 'capturas');
@@ -152,12 +177,23 @@ try {
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
   await gm.click('[data-tab="scene"]');
   await gm.click('#envGrid button:nth-child(2)');   // exterior de día: se ve el tablero refractado
+  // columnas de la cuadrícula (perfil de brillo por columna): la copia refractada debe caer sobre las mismas
+  const gridCols = async (page) => { const png = pngPixels(await page.screenshot({ clip: { x: 60, y: 60, width: 900, height: 600 } })); const cols = []; for (let x = 0; x < png.w; x++) { let t = 0; for (let y = 0; y < png.h; y++) t += png.px[(y * png.w + x) * png.ch + 1]; cols.push(t / png.h); } const peaks = cols.map((v, i) => [v - (cols[i - 2] + cols[i + 2]) / 2 || 0, i]).filter(([d]) => d > 2).map(([, i]) => i); return peaks.filter((v, i) => i === 0 || v - peaks[i - 1] > 1).slice(0, 10); };
+  await gm.evaluate(() => { UI.cam.zoom = 1; requestRender(); }); await gm.waitForTimeout(400);
+  const colsBefore = await gridCols(gm);
+  await gm.selectOption('#weatherId', 'fog');
+  await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
+  await gm.waitForTimeout(1500);
+  const colsFog = await gridCols(gm);
+  const aligned = colsBefore.length >= 6 && colsFog.length >= 6 && colsBefore.slice(0, 6).every((c, i) => Math.abs(c - colsFog[i]) <= 1);
+  step('clima: la copia refractada del tablero no se escala ni desplaza (cuadrícula en las mismas columnas ±1 px)', aligned, `${colsBefore.slice(0, 6)} → ${colsFog.slice(0, 6)}`);
   await gm.selectOption('#weatherId', 'storm');
   const weatherLayer = (page) => page.evaluate(() => { const c = document.getElementById('cWeather'); return c ? { w: c.width, prev: c.previousElementSibling.id, next: c.nextElementSibling.id, pixi: typeof PIXI } : null; });
   await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   await pl.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   const wGm = await weatherLayer(gm), wPl = await weatherLayer(pl);
   step('clima: tormenta montada en director y jugador entre cScene y cGlow', wGm && wPl && wGm.w > 0 && wPl.w > 0 && wGm.prev === 'cScene' && wGm.next === 'cGlow' && wPl.prev === 'cScene', JSON.stringify(wPl));
+  await pl.waitForFunction(() => S.weather && S.weather.id === 'storm', null, { timeout: 5000 });
   step('clima: el jugador recibe el ajuste saneado', (await pl.evaluate(() => JSON.stringify(S.weather))) === '{"id":"storm","intensity":0.6,"wind":0}', await pl.evaluate(() => JSON.stringify(S.weather)));
   step('clima: el panel del director muestra intensidad y viento sólo con clima', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === ''));
   await gm.waitForTimeout(2500);
