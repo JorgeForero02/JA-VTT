@@ -3,7 +3,7 @@
    comparando el estado con la última copia enviada y viaja como operación;
    el servidor valida permisos, guarda en SQLite y reparte a los demás. */
 const COLL_KEYS=Object.values(COLL);
-const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','layers','sharedVision','playersDoors','chatEnabled','diceEnabled','initiativeShown'];
+const SCENE_KEYS=['env','ambient','darkColor','fog','grid','snap','animate','plansReleased','weather','layers','sharedVision','playersDoors','chatEnabled','diceEnabled','initiativeShown'];
 const Net=(()=>{
   let ws=null,boardId=null,closedByUs=true,retry=0,synced=false,retryTimer=0;
   const shadow=new Map();let shadowScene='';

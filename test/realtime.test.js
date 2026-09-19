@@ -115,6 +115,28 @@ test('el estado sobrevive a expulsar el tablero de memoria: reconectar lo recupe
   await player.close();
 });
 
+test('el clima de la escena llega al jugador saneado y sobrevive a recargar de la base', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Lluvioso', mode: '2d' });
+  const boardId2 = created.board.id;
+  const detail2 = await json(gmCookie, 'GET', `/api/boards/${boardId2}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail2.board.invite_code });
+  const gm = connect(base, boardId2, gmCookie);
+  const player = connect(base, boardId2, playerCookie);
+  await gm.opened; await player.opened;
+  const state0 = await gm.next(isState);
+  await player.next(isState);
+  assert.equal(state0.settings.weather, undefined);
+  gm.send({ t: 'ops', scene: state0.scene.id, up: [], del: [], settings: { weather: { id: 'storm', intensity: 2, wind: -.4, drops: 9 } } });
+  const got = await player.next(isOps);
+  assert.deepEqual(got.settings.weather, { id: 'storm', intensity: 1, wind: -.4 });
+  await gm.close(); await player.close();
+  const again = connect(base, boardId2, playerCookie);
+  await again.opened;
+  const state1 = await again.next(isState);
+  assert.deepEqual(state1.settings.weather, { id: 'storm', intensity: 1, wind: -.4 });
+  await again.close();
+});
+
 test('un jugador que gira su propia luz no recibe corrección (las claves vienen reordenadas de jsonb)', async () => {
   const uid = (await db.q.userByName('Jugador')).id;
   const token = { id: 1003, type: 'token', kind: 'player', owner: uid, x: 225, y: 225, name: 'Linterna', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, light: { on: true, preset: 'bullseye', bright: 60, dim: 60, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 0 } };
