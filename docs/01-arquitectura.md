@@ -44,6 +44,8 @@ Objetos de tipo `token` en `objects.data`:
 - `hp?: {cur, max, temp}` — enteros ≥ 0, `cur ≤ max`. Sólo existe si `max` se ha fijado; sin `hp` no hay barra.
 - `elevation: number` — pies, entero ±9999, 0 por defecto.
 
+- `note` — `{x, y, text (≤200), gmOnly}`. Sólo el director la crea/edita (`playerUpsert` devuelve `null` para el tipo). Con `gmOnly` no se envía a jugadores (`visibleTo`); al cambiar `gmOnly` el `handleOps` existente manda `up`/`del`. Capa `notes` en `LAYER_IDS`/`LAYERS`.
+
 Ajustes de **tablero** (`DEFAULT_BOARD`): `hpVisibility: 'all' | 'gm' | 'bar_only'`, `hpEnabled: boolean` y `conditionsEnabled: boolean` (ambos `true` por defecto; si se apagan ocultan barra, badges, pastilla y popover sin borrar los datos). Con `'gm'` el servidor quita
 `hp` de las fichas ajenas antes de enviarlas a un jugador (`R.objectFor`, aplicada en `stateFor`, `handleOps`
 y `moveUser`; al cambiar el ajuste cada jugador recibe un `state` completo). `'bar_only'` viaja entero y lo
@@ -66,6 +68,7 @@ Migraciones: ficheros `NNN-nombre.sql` aplicados en orden al arrancar, registrad
   la base (así se prueba la persistencia en `test/realtime.test.js`).
 - El servidor valida cada operación (`rules.js`) y sólo reenvía a cada cliente lo que ese
   cliente puede ver (fichas ocultas y planos sin publicar no salen del servidor).
+- La regla multitramo es estado de UI (`UI.act.pts`), no viaja por red; su aritmética es `rulerSegments` en `core.js`.
 - `SIGTERM`/`SIGINT`: cierra sockets, vuelca todo, cierra el pool y sale. Docker manda
   `SIGTERM` al hacer `restart`/`stop`, por eso nada se pierde.
 - Miembros del tablero en caché (`b.members`), refrescada al añadir/quitar.

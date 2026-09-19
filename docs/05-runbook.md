@@ -62,6 +62,7 @@ No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producció
 - **Añadir una condición** = dos sitios: `CONDITION_IDS` en `server/rules.js` **y** `CONDITIONS` en
   `public/js/core.js` (mismo orden). El test de contrato de `frontend.test.js` avisa si se desincronizan.
 - **`hp` sin `max` no existe**: `sanitize` lo elimina. Para quitar la barra a una ficha, pon la vida máxima a 0.
+- **Escenas previas y la capa de notas**: Escenas guardadas antes del 2026-09-19 no tienen `layers.notes`: el render usa `(S.layers.notes||{visible:true})`. Al guardar la escena la capa aparece sola.
 
 ## Perfilar el render
 

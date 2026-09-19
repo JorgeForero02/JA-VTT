@@ -51,6 +51,11 @@ intenta algo que no puede.
   viendo la suya) · los jugadores ven sólo la barra.
 - Ajustes → Chat, dados y fichas: **Vida de las fichas** y **Condiciones y altura** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.
 
+### Regla multitramo y anotaciones (2026-09-19)
+
+- **Regla (R):** arrastra para medir; **Espacio o clic derecho** durante el arrastre fija un punto y sigue midiendo desde ahí (para rodear esquinas). Cada tramo muestra sus pies; al final, el total y la línea recta. Diagonales a 5 pies (regla de mesa: `max(dx,dy)`).
+- **Anotaciones (N, director):** clic clava un pin con texto («Trampa DC 15», «Palanca»). Por defecto **sólo el director la ve** (pin violeta con ojo tachado); en sus propiedades se publica y los jugadores ven pin y texto. Capa «Anotaciones» en Capas.
+
 ## API (resumen)
 
 | Método y ruta | Quién | Qué |

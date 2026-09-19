@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Regla multitramo y anotaciones (plan B; P-22, P-23)
+
+- **Qué:** `rulerSegments` + `UI.act.pts` (Espacio / clic derecho); tipo `note` con `gmOnly`, herramienta N, capa `notes`, render con pin. Sin migración. Tests: `frontend.test.js` (+4), `rules.test.js` (+1), `realtime.test.js` (+1), `ui.mjs` (+5 pasos).
+- **Por qué:** spec `2026-09-19-condiciones-srd-y-tactica-design.md` §4–5.
+- **Revertir:** `git revert` de los commits `feat(regla)…` y `feat(notas)…`/`feat(rules): tipo note…` de esta fecha. Notas ya guardadas quedan en `objects` con `type='note'`: `sanitize` las descarta si el tipo no existe, no rompen nada.
+
 ## 2026-09-19 — Despliegue de prod-2d @ d54cc6a (plan A + interruptores)
 
 - **Qué:** push de `prod-2d` y `POST /api/v1/deploy` (deployment `w6xppwptjnfoxc53i3jkegm7`), 17 commits sobre `5252403`.

@@ -83,7 +83,9 @@ barra sobre el mapa con el turno actual y la ronda; las fichas ocultas no salen.
 | | Director | Jugador |
 |---|---|---|
 | Muros, luces, zonas, tablero, imágenes | Sí | No |
+| Anotaciones (N) con opción de sólo director | Sí | No |
 | Planos tácticos (M) | Sí; los suyos solo se ven si los publica | Sí: los ve todo el grupo y solo puede mover o borrar los suyos |
+| Regla con puntos de quiebre (Espacio) | Sí | Sí |
 | Importar y exportar escenas, deshacer | Sí | No |
 | Mover su personaje | Sí (y cualquier ficha, también en «Vista de jugador») | Solo el suyo |
 | Nombre, color, retrato y luz del personaje | Sí | Solo el suyo |
