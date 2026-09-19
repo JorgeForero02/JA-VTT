@@ -28,3 +28,15 @@ test('sanitize acepta el tipo de muro "cover" (maleza)', () => {
   assert.equal(w.kind, 'cover');
   assert.equal(R.sanitize({ id: 6, type: 'wall', kind: 'inventado', a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }).kind, 'wall');
 });
+
+test('weather: ajuste de escena con id de la lista, intensidad 0–1 y viento −1–1', () => {
+  assert.deepEqual(R.WEATHER_IDS, ['none', 'rain', 'storm', 'drizzle', 'blizzard', 'sand', 'fog', 'ash', 'embers', 'heat', 'arcane']);
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'rain', intensity: .7, wind: -.3 } }).weather, { id: 'rain', intensity: .7, wind: -.3 });
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'storm', intensity: 4, wind: -9 } }).weather, { id: 'storm', intensity: 1, wind: -1 });
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'none' } }).weather, { id: 'none', intensity: .6, wind: 0 });
+  for (const id of ['tsunami', 'snow', '', 7, null]) assert.equal(R.cleanSettings({ weather: { id } }).weather, undefined, String(id));
+  assert.equal(R.cleanSettings({ weather: 'rain' }).weather, undefined);
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'fog', intensity: 'x', wind: null, extra: 1 } }).weather, { id: 'fog', intensity: .6, wind: 0 });
+  assert.equal(R.cleanSettings({}).weather, undefined);
+  assert.equal(R.splitSettings({ weather: { id: 'rain' } }).scene.weather.id, 'rain');
+});
