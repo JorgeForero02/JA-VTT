@@ -2,6 +2,22 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima: las zonas interiores no lo muestran, salvo los tipos que marque el director (desplegado)
+
+**Qué** — Nuevo `weather.indoor = {id:true,…}` por escena (saneado en `rules.js`: sólo ids de la lista, sin
+`none`). Casilla «Se nota en zonas interiores; se recuerda por tipo» en Escena → Clima. `weather.js`
+`maskZones()`: si el tipo activo no está en `indoor`, la capa Pixi lleva una máscara (`PIXI.Graphics`,
+pantalla menos cada zona, rect o polígono, mundo→pantalla con `UI.cam`) recalculada en cada frame
+completo; dentro se ve `cScene` intacto (sin partículas, agua, tinte ni fogonazo). `test:ui` +2 pasos
+(zona «Cueva» con niebla: dentro igual que sin clima ±4 de verde medio, fuera +10; casilla → dentro cambia
+y el jugador recibe `indoor`). `prod-2d` `5844283` desplegado (`wkxddoz7dz3k0oxvospifg3a`); en
+`clima-2d` `b94a0c8` (63/63 con 2.5D).
+**Por qué** — petición del usuario: bajo techo no llueve, pero una cueva puede tener ceniza o niebla;
+lo decide el director por tipo.
+**Trampa vista** — el servidor local de `test:ui` arrancó antes de tocar `rules.js` y descartaba
+`indoor`: reiniciar `node server.js` tras cambiar el servidor.
+**Revertir** — revertir `5844283` en `prod-2d` y redesplegar; los `indoor` guardados son inertes.
+
 ## 2026-09-18 — Clima: muros, luz y controles desalineados con el mapa (hotfix desplegado)
 
 **Qué** — Con clima activo, el mapa refractado no coincidía con muros, brillo y controles. Causa:
