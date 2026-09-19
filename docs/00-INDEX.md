@@ -12,7 +12,7 @@ desplegable: **Node 22 + PostgreSQL 16 + Docker Compose**, login con contraseña
 abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16 —
-**producción sirve la rama `prod-2d` (`c4a7fbe` = `34a7ba4` + clima 2D, desplegado el 2026-09-18);
+**producción sirve la rama `prod-2d` (`23b050d` = `34a7ba4` + clima 2D, desplegado el 2026-09-18);
 `main` lleva además el modo 2.5D (fases A–D) y no se despliega hasta cerrar la fase E.** El clima
 sobre `main` está en la rama `clima-2d` (pendiente de mergear).
 

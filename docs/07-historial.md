@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima: `GL_INVALID_VALUE glCopySubTextureCHROMIUM` al redimensionar (hotfix desplegado)
+
+**Qué** — El usuario vio en consola de producción `GL_INVALID_VALUE: glCopySubTextureCHROMIUM: Offset
+overflows texture dimensions`. Causa: `Texture.from(cScene)` fija el tamaño al crearse y
+`invalidateSource()` (`baseTexture.update()`) no lo relee; nuestro `resize()` cambia `cScene` con la
+ventana/paneles/dpr y Pixi hacía `texSubImage2D` con un canvas mayor que la textura (y al encoger,
+imagen desalineada). Arreglo en `weather.js`: `invalidate()` llama `baseTexture.resource.update()`,
+que redimensiona antes de marcar sucia. `test:ui` ahora captura también los `warning` de WebGL
+(Chrome los emite así) y tiene un paso que redimensiona la ventana con clima. `prod-2d` `23b050d`
+desplegado (`i9dm0bpvlcdk3k5ska0zizri`); mismo commit en `clima-2d`.
+**Evidencia** — repro con Edge y GPU real: textura 1012×806 fija frente a canvas 1312×946 → error;
+tras el arreglo la textura sigue al canvas (1312×946, 612×596) sin errores. `test:ui` 22/22, `check` 66/66.
+**Revertir** — revertir `23b050d` en `prod-2d` y redesplegar.
+
 ## 2026-09-18 — Clima 2D desplegado en producción desde la rama `prod-2d`
 
 **Qué** — Rama `prod-2d` = `34a7ba4` (lo que servía producción) + cherry-pick de los 4 commits
