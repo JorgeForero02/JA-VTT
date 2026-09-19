@@ -2,6 +2,19 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima: muros, luz y controles desalineados con el mapa (hotfix desplegado)
+
+**Qué** — Con clima activo, el mapa refractado no coincidía con muros, brillo y controles. Causa:
+`_fitMap()` de `weather-fx.js` pinta el mapa con 16 px de sobremedida por lado (para que el rayo y la
+refracción no enseñen el borde), lo que escala la copia (~3 %) y la desplaza; en el demo no se nota
+porque todo va dentro de Pixi, aquí las capas de arriba no se refractan. Arreglo en `weather.js`:
+`fit()` deja el sprite en 0,0 y `w×h` tras montar y tras cada `resize()`; el borde desplazado se ve
+transparente un instante (debajo está `cScene` sin deformar). Medido con Edge + GPU real: sin fix la
+cuadrícula caía en 39, 91, 143… (paso 51,7 px) frente a 3, 53, 103…; con fix ±1 px. `test:ui` gana un
+paso de alineación (perfil de columnas con niebla) y se le portó `pngPixels`. `prod-2d` `99eefef`
+desplegado (`m4ocir38utdlcmcczhqqvgke`); mismo fix en `clima-2d` (`eb911c3`).
+**Revertir** — revertir `99eefef` en `prod-2d` y redesplegar.
+
 ## 2026-09-18 — Clima: `GL_INVALID_VALUE glCopySubTextureCHROMIUM` al redimensionar (hotfix desplegado)
 
 **Qué** — El usuario vio en consola de producción `GL_INVALID_VALUE: glCopySubTextureCHROMIUM: Offset
