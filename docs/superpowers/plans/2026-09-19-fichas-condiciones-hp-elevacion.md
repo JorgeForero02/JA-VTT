@@ -1168,6 +1168,158 @@ git commit -m "docs: condiciones, vida y altura en fichas (01, 02, 05, 06, 07, 0
 
 ---
 
+### Task 13 (añadida tras la revisión, 2026-09-19): interruptores de tablero «Vida» y «Condiciones y altura»
+
+**Contexto:** el usuario lleva vida y efectos en otro sistema; quiere poder apagar estas funciones por tablero,
+igual que chat y dados. Apagar **oculta**, no borra: los datos siguen en las fichas y reaparecen al encender.
+
+**Files:**
+- Modify: `server/rules.js` (`BOARD_KEYS`, bucle de booleanos en `cleanSettings`, `DEFAULT_BOARD`)
+- Modify: `public/js/core.js` (`blankState`), `public/js/net.js` (`SCENE_KEYS`)
+- Modify: `public/index.html` (fold «Chat y dados», L358–365), `public/js/editor.js`, `public/js/render.js`
+- Test: `test/rules.test.js`, `test/frontend.test.js`, `test/e2e/ui.mjs`
+
+**Interfaces:**
+- Produces: ajustes de tablero `hpEnabled: boolean` y `conditionsEnabled: boolean` (ambos `true` por defecto).
+  - `hpEnabled=false` → sin barra ni números en el lienzo, sin fila «Vida» en `#statusPop`, sin campos «Vida máxima/actual» en el editor, y el select `#hpVisibility` se deshabilita.
+  - `conditionsEnabled=false` → sin badges, sin velo de muerto, sin pastilla de elevación, sin chips ni fila «Altura» en `#statusPop`, sin campo «Altura» en el editor.
+  - Los dos en `false` → no aparece «Estado: condiciones, vida y altura» en el menú contextual ni la sección «Vida y altura» del editor.
+  - Helpers globales en `core.js`: `const hpOn=()=>S.hpEnabled!==false;` y `const condsOn=()=>S.conditionsEnabled!==false;`
+
+- [x] **Step 1: Test de reglas que falla**
+
+```js
+test('hpEnabled y conditionsEnabled: booleanos de tablero, true por defecto', () => {
+  assert.equal(R.DEFAULT_BOARD.hpEnabled, true);
+  assert.equal(R.DEFAULT_BOARD.conditionsEnabled, true);
+  assert.deepEqual(R.splitSettings({ hpEnabled: false, conditionsEnabled: false }).board, { hpEnabled: false, conditionsEnabled: false });
+  assert.deepEqual(R.splitSettings({ hpEnabled: 'no', conditionsEnabled: 0 }).board, {});
+  assert.equal(R.splitSettings({ hpEnabled: false }).scene.hpEnabled, undefined);
+});
+```
+
+Run: `node --test test/rules.test.js 2>&1 | grep -E "^not ok"` → falla (`DEFAULT_BOARD.hpEnabled` es `undefined`).
+
+- [x] **Step 2: Servidor**
+
+En `rules.js`: añadir `'hpEnabled', 'conditionsEnabled'` a `BOARD_KEYS` **y** al array del bucle de booleanos de `cleanSettings` (la línea `for (const k of ['fog', 'grid', ..., 'initiativeShown'])`); en `DEFAULT_BOARD` añadir `hpEnabled: true, conditionsEnabled: true`.
+
+Run: `node --test test/rules.test.js 2>&1 | grep -E "^# (pass|fail)"` → verde. Mutación: quitar `'hpEnabled'` de `BOARD_KEYS` → falla la línea de `.scene.hpEnabled`. Restaurar.
+
+- [x] **Step 3: Test de contrato del cliente que falla**
+
+```js
+test('interruptores de vida y condiciones: checkboxes en Ajustes, helpers hpOn/condsOn y el render los respeta', () => {
+  const html = read('index.html');
+  assert.match(html, /<input type="checkbox" id="hpEnabled"> Vida de las fichas/);
+  assert.match(html, /<input type="checkbox" id="conditionsEnabled"> Condiciones y altura/);
+  const core = read('js/core.js');
+  assert.match(core, /hpEnabled:true,conditionsEnabled:true/);
+  assert.match(core, /^const hpOn=\(\)=>S\.hpEnabled!==false;$/m);
+  assert.match(core, /^const condsOn=\(\)=>S\.conditionsEnabled!==false;$/m);
+  assert.match(read('js/net.js'), /'hpVisibility','hpEnabled','conditionsEnabled'\]/);
+  const render = read('js/render.js');
+  assert.match(render, /const conds=condsOn\(\)\?\(t\.conditions\|\|\[\]\):\[\];/);
+  assert.match(render, /if\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\)\{/);
+  assert.match(render, /if\(condsOn\(\)&&t\.elevation\)\{/);
+  assert.match(render, /\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\?px\(7\):0\)/, 'el nombre sólo baja si hay barra visible');
+  const editor = read('js/editor.js');
+  assert.match(editor, /if\(hpOn\(\)\|\|condsOn\(\)\)add\('heart-pulse'/);
+  assert.match(editor, /\$\('#hpEnabled'\)\.onchange=e=>\{S\.hpEnabled=e\.target\.checked;changed\(\)\}/);
+  assert.match(editor, /\$\('#conditionsEnabled'\)\.onchange=e=>\{S\.conditionsEnabled=e\.target\.checked;changed\(\)\}/);
+  assert.match(editor, /\$\('#statusHp'\)\.style\.display=hpOn\(\)\?'':'none'/);
+  assert.match(editor, /\$\('#hpVisibility'\)\.disabled=!hpOn\(\)/);
+});
+```
+
+Run: `node --test test/frontend.test.js 2>&1 | grep -E "^not ok"` → falla.
+
+- [x] **Step 4: Cliente**
+
+`core.js`: en `blankState`, tras `hpVisibility:'all',` añadir `hpEnabled:true,conditionsEnabled:true,`. Tras la línea `const canControl=...` añadir:
+
+```js
+// interruptores de tablero: el usuario puede llevar vida y efectos en otro sistema
+const hpOn=()=>S.hpEnabled!==false;
+const condsOn=()=>S.conditionsEnabled!==false;
+```
+
+`net.js`: `SCENE_KEYS` termina en `...,'hpVisibility','hpEnabled','conditionsEnabled']`.
+
+`index.html`, fold `data-fold="mesa"`: título `Chat, dados y fichas`; tras el checkbox de Dados:
+
+```html
+          <label class="check"><input type="checkbox" id="hpEnabled"> Vida de las fichas</label>
+          <label class="check"><input type="checkbox" id="conditionsEnabled"> Condiciones y altura</label>
+```
+
+y el párrafo pasa a: `Lo que apagues desaparece para todo el mundo, tú incluido. Si apagas chat y dados, la pestaña Chat se quita. Vida y condiciones se ocultan pero no se borran.`
+
+`render.js`, en `drawTokenStatus`:
+- `const conds=condsOn()?(t.conditions||[]):[];`
+- `if(hpOn()&&t.hp&&t.hp.max>0){` (barra)
+- `if(condsOn()&&t.elevation){` (pastilla)
+- en `drawToken`, el desplazamiento del nombre: `(hpOn()&&t.hp&&t.hp.max>0?px(7):0)`.
+
+`editor.js`:
+- Menú contextual: las dos líneas `add('heart-pulse',...)` pasan a `if(hpOn()||condsOn())add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp));`
+- `openStatus`, justo antes de `paint();placePop(statusEl,sp);`:
+  `$('#statusHp').style.display=hpOn()?'':'none';$('#elevation').parentElement.style.display=condsOn()?'':'none';$('#statusChips').style.display=condsOn()?'':'none';`
+- `openEditor`, en los dos bloques (`!gm` y `gm`): envolver la sección:
+  ```js
+      if(hpOn()||condsOn())section('Vida y altura');
+      if(hpOn()){num('Vida máxima',...);num('Vida actual',...)}
+      if(condsOn())num('Altura (pies)',...);
+  ```
+  (mismos cuerpos que ya existen; no cambiar las lambdas).
+- Ajustes: junto a `$('#diceEnabled').onchange=...`:
+  ```js
+  $('#hpEnabled').onchange=e=>{S.hpEnabled=e.target.checked;changed()};
+  $('#conditionsEnabled').onchange=e=>{S.conditionsEnabled=e.target.checked;changed()};
+  ```
+- `syncSceneInputs`: tras `$('#hpVisibility').value=...;` añadir
+  `$('#hpEnabled').checked=hpOn();$('#conditionsEnabled').checked=condsOn();$('#hpVisibility').disabled=!hpOn();`
+- Los popovers abiertos no se refrescan solos al cambiar el ajuste: aceptable (se cierran al hacer clic en el lienzo).
+
+Run: `node --test test/frontend.test.js 2>&1 | grep -E "^# (pass|fail)"` y `npm run lint` → verdes.
+
+- [x] **Step 5: Paso visual en `ui.mjs`**
+
+Justo antes de la línea `await gm.selectOption('#hpVisibility', 'all');` del bloque de fichas (Task 11), añadir. Ojo: en ese punto `hpVisibility` es `gm` y el ogro no tiene `hp` en el jugador, así que se mide la barra del **héroe** (12/12 → verde `#6FBF73`):
+
+```js
+  // interruptores: apagar «Vida de las fichas» quita la barra en el jugador (el dato sigue en la ficha)
+  const [hx, hy] = world2screen(900 - 25 + 4, 550 + 25 + 3 + 2.5); // barra del héroe (radio 25 a zoom 1)
+  const barOn = await pxAt(pl, hx, hy);
+  await gm.uncheck('#hpEnabled');
+  await pl.waitForFunction(() => S.hpEnabled === false, null, { timeout: 5000 });
+  await pl.waitForTimeout(400);
+  const barOff = await pxAt(pl, hx, hy);
+  const heroKeeps = await pl.evaluate(() => !!S.tokens.find((t) => t.name === 'Héroe').hp);
+  const isGreen = (p) => p[1] > 150 && p[0] < 140;
+  step('fichas: con la vida apagada desaparece la barra (verde antes, no después) y la ficha conserva su hp', isGreen(barOn) && !isGreen(barOff) && heroKeeps, `rgb(${barOn}) → rgb(${barOff})`);
+  await gm.check('#hpEnabled');
+  await pl.waitForFunction(() => S.hpEnabled !== false, null, { timeout: 5000 });
+```
+
+Si el píxel no cae en la barra por 1–2 px, ajusta `hx, hy` (no los umbrales) y deja un comentario de una línea.
+
+Run (servidor local en 3999): `npm run test:ui 2>&1 | tail -8` → 35/35.
+
+- [x] **Step 6: Docs y commit**
+
+`docs/02-funcional.md` (sección «Condiciones, vida y altura»): `- Ajustes → Chat, dados y fichas: **Vida de las fichas** y **Condiciones y altura** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.`
+`docs/01-arquitectura.md`: añadir `hpEnabled` y `conditionsEnabled` a la lista de ajustes de tablero.
+`docs/07-historial.md`: entrada `## 2026-09-19 — Interruptores de vida y condiciones por tablero` (qué / por qué: el usuario lleva vida y efectos en otro sistema / revertir: `git revert` del commit).
+
+```bash
+npm run check && git add server public test docs && git commit -m "feat(mesa): interruptores de tablero para vida y condiciones/altura (se ocultan, no se borran)"
+```
+
+No incluir `diorama-jav/` en el commit (`git add` con rutas, nunca `-A`).
+
+---
+
 ## Self-review (hecho al escribir el plan)
 
 - **Cobertura del spec §1–3:** catálogo 20 ids (T3) · menú contextual para director y dueño (T10) · badges compactos (T9) · `hp/maxHp/tempHp` como `hp:{cur,max,temp}` (T4; el spec nombra `maxHp`/`tempHp`, la tabla de decisiones fija `hp:{cur,max,temp}`: se sigue la tabla) · sin hojas de personaje ✓ · visibilidad `all/gm/bar_only` (T6, T7, T9, T10) · edición con clic y rueda (T10) · elevación en pies con etiqueta sólo si ≠ 0 (T4, T9) · permisos por `ownsToken` (T5, T7). Criterios de aceptación 1–4 cubiertos por T3, T9/T11, T4 y T5/T7. El 5.º (regla con Espacio) es del plan B.

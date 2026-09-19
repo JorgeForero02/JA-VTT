@@ -113,14 +113,14 @@ function sanitize(o) {
 }
 
 const HP_VISIBILITY = ['all', 'gm', 'bar_only'];
-const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative', 'hpVisibility'];
+const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative', 'hpVisibility', 'hpEnabled', 'conditionsEnabled'];
 function cleanSettings(sc) {
   const o = {};
   if (!sc || typeof sc !== 'object') return o;
   if (ENVS.includes(sc.env)) o.env = sc.env;
   if (fin(sc.ambient)) o.ambient = clamp(sc.ambient, 0, 1);
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
-  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
+  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'hpEnabled', 'conditionsEnabled']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
   if (HP_VISIBILITY.includes(sc.hpVisibility)) o.hpVisibility = sc.hpVisibility;
   if (sc.initiative !== undefined) o.initiative = cleanInitiative(sc.initiative);
   if (sc.weather && typeof sc.weather === 'object' && WEATHER_IDS.includes(sc.weather.id)) {
@@ -144,7 +144,7 @@ function cleanSettings(sc) {
 }
 
 const DEFAULT_SCENE = { env: 'interior', ambient: 0, darkColor: '#0B0E11', fog: true, grid: true, snap: true, animate: true, plansReleased: false };
-const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, hpVisibility: 'all', initiative: { entries: [], turn: 0, round: 1 } };
+const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, hpVisibility: 'all', hpEnabled: true, conditionsEnabled: true, initiative: { entries: [], turn: 0, round: 1 } };
 function splitSettings(sc) {
   const all = cleanSettings(sc), board = {}, scene = {};
   for (const [k, v] of Object.entries(all)) (BOARD_KEYS.includes(k) ? board : scene)[k] = v;

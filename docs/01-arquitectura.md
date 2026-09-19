@@ -44,7 +44,7 @@ Objetos de tipo `token` en `objects.data`:
 - `hp?: {cur, max, temp}` — enteros ≥ 0, `cur ≤ max`. Sólo existe si `max` se ha fijado; sin `hp` no hay barra.
 - `elevation: number` — pies, entero ±9999, 0 por defecto.
 
-Ajuste de **tablero** `hpVisibility: 'all' | 'gm' | 'bar_only'` (`DEFAULT_BOARD`). Con `'gm'` el servidor quita
+Ajustes de **tablero** (`DEFAULT_BOARD`): `hpVisibility: 'all' | 'gm' | 'bar_only'`, `hpEnabled: boolean` y `conditionsEnabled: boolean` (ambos `true` por defecto; si se apagan ocultan barra, badges, pastilla y popover sin borrar los datos). Con `'gm'` el servidor quita
 `hp` de las fichas ajenas antes de enviarlas a un jugador (`R.objectFor`, aplicada en `stateFor`, `handleOps`
 y `moveUser`; al cambiar el ajuste cada jugador recibe un `state` completo). `'bar_only'` viaja entero y lo
 respeta el cliente al pintar (los números se pueden leer desde la consola: aceptado, es cosmética).

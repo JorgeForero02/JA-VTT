@@ -138,7 +138,7 @@ function drawToken(c,t,player){
   c.beginPath();c.arc(P.x,P.y,r,0,Math.PI*2);c.lineWidth=Math.max(px(2),r*.09);c.strokeStyle=t.kind==='enemy'?'#D9705F':'#E9E3D5';c.stroke();
   if(t.name&&UI.cam.zoom>.45){
     const fs=px(12);c.font=`500 ${fs}px "Alegreya Sans", system-ui, sans-serif`;c.textAlign='center';c.textBaseline='top';
-    const w=c.measureText(t.name).width;const y=P.y+r+px(4)+(t.hp&&t.hp.max>0?px(7):0);
+    const w=c.measureText(t.name).width;const y=P.y+r+px(4)+(hpOn()&&t.hp&&t.hp.max>0?px(7):0);
     c.fillStyle='rgba(18,22,25,.78)';roundRect(c,P.x-w/2-px(5),y-px(1),w+px(10),fs+px(4),px(4));c.fill();
     c.fillStyle='#E9E3D5';c.fillText(t.name,P.x,y+px(1));
   }
@@ -149,7 +149,7 @@ function drawToken(c,t,player){
 /* Estado de la ficha: badges de condiciones encima, barra de vida debajo (antes del nombre), elevación en la
    esquina superior izquierda y velo con calavera si está muerta. Todo a tamaño constante en pantalla. */
 function drawTokenStatus(c,t,P,r,player){
-  const conds=t.conditions||[];
+  const conds=condsOn()?(t.conditions||[]):[];
   if(conds.includes('dead')){
     c.save();c.beginPath();c.arc(P.x,P.y,r,0,Math.PI*2);c.clip();c.fillStyle='rgba(0,0,0,.55)';c.fillRect(P.x-r,P.y-r,r*2,r*2);c.restore();
     const ic=iconImage('skull','#E9E3D5'),s=px(18);if(ic.complete)c.drawImage(ic,P.x-s/2,P.y-s/2,s,s);
@@ -165,7 +165,7 @@ function drawTokenStatus(c,t,P,r,player){
       x+=br*2+gap;
     }
   }
-  if(t.hp&&t.hp.max>0){
+  if(hpOn()&&t.hp&&t.hp.max>0){
     const w=r*2,h=px(5),x=P.x-r,y=P.y+r+px(3),ratio=Math.max(0,Math.min(1,t.hp.cur/t.hp.max));
     c.fillStyle='rgba(18,22,25,.85)';roundRect(c,x-px(1),y-px(1),w+px(2),h+px(2),px(2));c.fill();
     c.fillStyle=ratio>.5?'#6FBF73':ratio>.25?'#F0B35A':'#D9705F';if(ratio>0)c.fillRect(x,y,w*ratio,h);
@@ -177,7 +177,7 @@ function drawTokenStatus(c,t,P,r,player){
       c.fillStyle='#F4EEE2';c.fillText(txt,x+w+px(6),y+h/2);
     }
   }
-  if(t.elevation){
+  if(condsOn()&&t.elevation){
     const txt=(t.elevation>0?'+':'')+t.elevation+"'",fs=px(10);
     c.font=`600 ${fs}px "Alegreya Sans", system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';
     const tw=c.measureText(txt).width,cx=P.x-r*.75,cy=P.y-r*.75;

@@ -115,3 +115,11 @@ test('hpVisibility: ajuste de tablero con tres valores; objectFor quita el hp a 
   const wall = R.sanitize({ id: 8, type: 'wall', a: { x: 0, y: 0 }, b: { x: 1, y: 1 } });
   assert.equal(R.objectFor(wall, player, { hpVisibility: 'gm' }), wall);
 });
+
+test('hpEnabled y conditionsEnabled: booleanos de tablero, true por defecto', () => {
+  assert.equal(R.DEFAULT_BOARD.hpEnabled, true);
+  assert.equal(R.DEFAULT_BOARD.conditionsEnabled, true);
+  assert.deepEqual(R.splitSettings({ hpEnabled: false, conditionsEnabled: false }).board, { hpEnabled: false, conditionsEnabled: false });
+  assert.deepEqual(R.splitSettings({ hpEnabled: 'no', conditionsEnabled: 0 }).board, {});
+  assert.equal(R.splitSettings({ hpEnabled: false }).scene.hpEnabled, undefined);
+});

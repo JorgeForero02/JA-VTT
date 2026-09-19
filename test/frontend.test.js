@@ -324,7 +324,7 @@ test('condiciones: el catálogo del cliente tiene los mismos 20 ids que el servi
   const ids = [...m[1].matchAll(/(\w+):\{name:'[^']+',abbr:'[A-ZÑ]{1,2}',color:'#[0-9A-Fa-f]{6}'\}/g)].map((x) => x[1]);
   assert.deepEqual(ids, R.CONDITION_IDS);
   assert.match(core, /hpVisibility:'all'/, 'blankState lleva hpVisibility');
-  assert.match(read('js/net.js'), /'initiativeShown','hpVisibility'\]/, 'el director envía hpVisibility en settings');
+  assert.match(read('js/net.js'), /'initiativeShown','hpVisibility'/, 'el director envía hpVisibility en settings');
 });
 
 test('render: drawToken pinta badges de condiciones, barra de HP (números según hpVisibility), elevación y velo de muerto', () => {
@@ -351,6 +351,28 @@ test('estado de la ficha: popover #statusPop con chips, vida ± y altura; entrad
   assert.match(js, /e\.deltaY<0\?1:-1/, 'la rueda sobre la vida suma o resta');
   assert.match(read('js/icons.js'), /"heart-pulse"/);
   assert.match(read('css/app.css'), /#statusPop \.chip\.on\{/);
+});
+
+test('interruptores de vida y condiciones: checkboxes en Ajustes, helpers hpOn/condsOn y el render los respeta', () => {
+  const html = read('index.html');
+  assert.match(html, /<input type="checkbox" id="hpEnabled"> Vida de las fichas/);
+  assert.match(html, /<input type="checkbox" id="conditionsEnabled"> Condiciones y altura/);
+  const core = read('js/core.js');
+  assert.match(core, /hpEnabled:true,conditionsEnabled:true/);
+  assert.match(core, /^const hpOn=\(\)=>S\.hpEnabled!==false;$/m);
+  assert.match(core, /^const condsOn=\(\)=>S\.conditionsEnabled!==false;$/m);
+  assert.match(read('js/net.js'), /'hpVisibility','hpEnabled','conditionsEnabled'\]/);
+  const render = read('js/render.js');
+  assert.match(render, /const conds=condsOn\(\)\?\(t\.conditions\|\|\[\]\):\[\];/);
+  assert.match(render, /if\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\)\{/);
+  assert.match(render, /if\(condsOn\(\)&&t\.elevation\)\{/);
+  assert.match(render, /\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\?px\(7\):0\)/, 'el nombre sólo baja si hay barra visible');
+  const editor = read('js/editor.js');
+  assert.match(editor, /if\(hpOn\(\)\|\|condsOn\(\)\)add\('heart-pulse'/);
+  assert.match(editor, /\$\('#hpEnabled'\)\.onchange=e=>\{S\.hpEnabled=e\.target\.checked;changed\(\)\}/);
+  assert.match(editor, /\$\('#conditionsEnabled'\)\.onchange=e=>\{S\.conditionsEnabled=e\.target\.checked;changed\(\)\}/);
+  assert.match(editor, /\$\('#statusHp'\)\.style\.display=hpOn\(\)\?'':'none'/);
+  assert.match(editor, /\$\('#hpVisibility'\)\.disabled=!hpOn\(\)/);
 });
 
 

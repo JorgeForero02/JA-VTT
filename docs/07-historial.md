@@ -2,6 +2,15 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Interruptores de vida y condiciones por tablero
+
+- **Qué:** ajustes de tablero `hpEnabled` y `conditionsEnabled` (booleanos en `DEFAULT_BOARD`, `true` por defecto).
+  Checkboxes en Ajustes → Chat, dados y fichas; helpers `hpOn()` y `condsOn()` en el cliente. Si se apagan,
+  se ocultan barra de vida, badges de condiciones, pastilla de elevación y el popover Estado (o sus secciones)
+  sin borrar los datos de las fichas. Deshabilita el selector de visibilidad de vida si la vida está apagada.
+- **Por qué:** el usuario lleva vida y efectos en otro sistema (hoja externa, papel o app) y no quiere verlos en el tablero.
+- **Revertir:** `git revert` del commit.
+
 ## 2026-09-19 — Fichas: condiciones SRD, vida y altura (plan A; P-19, P-20, P-21)
 
 - **Qué:** `token.conditions`, `token.hp {cur,max,temp}`, `token.elevation`; ajuste de tablero `hpVisibility`;

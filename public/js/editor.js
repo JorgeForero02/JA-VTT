@@ -458,7 +458,7 @@ function openContext(o,sp){
   }
   if(!gm){
     if(ownsPlan(o))add('trash-2','Borrar este plano',()=>{UI.selected=[o.id];deleteSel()},'danger');
-    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp));add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp))}
+    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp));if(hpOn()||condsOn())add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp))}
   }else{
     add('settings-2','Editar',()=>openEditor(o,sp));
     if(o.type==='wall'){
@@ -474,7 +474,7 @@ function openContext(o,sp){
     }
     if(o.type==='light')add(o.on?'lightbulb-off':'lightbulb',o.on?'Apagar':'Encender',()=>{pushUndo();o.on=!o.on;changed()});
     if(o.type==='token'){
-      add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp));
+      if(hpOn()||condsOn())add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp));
       add(o.hidden?'eye':'eye-off',o.hidden?'Mostrar a jugadores':'Ocultar a jugadores',()=>{pushUndo();o.hidden=!o.hidden;changed()});
       if(o.light&&o.light.preset!=='none')add('lightbulb',o.light.on?'Apagar su luz':'Encender su luz',()=>{pushUndo();o.light.on=!o.light.on;changed()});
       if(o.kind==='player')add('scan-eye','Ver como esta ficha',()=>{UI.viewAs=o.id;setRole('player')});
@@ -514,6 +514,7 @@ function openStatus(o,sp){
   cur.onwheel=e=>{e.preventDefault();setHp('cur',hp().cur+(e.deltaY<0?1:-1)*(e.shiftKey?5:1))};
   $('#hpMinus').onclick=e=>setHp('cur',hp().cur-(e.shiftKey?5:1));$('#hpPlus').onclick=e=>setHp('cur',hp().cur+(e.shiftKey?5:1));
   elev.oninput=()=>{o.elevation=clamp(Math.round(+elev.value)||0,-9999,9999);touch()};
+  $('#statusHp').style.display=hpOn()?'':'none';$('#elevation').parentElement.style.display=condsOn()?'':'none';$('#statusChips').style.display=condsOn()?'':'none';
   paint();placePop(statusEl,sp);
 }
 
@@ -562,10 +563,10 @@ function openEditor(o,sp){
     if(!gm){
       text('Nombre',o.name,v=>o.name=v);
       color('Color',o.color,v=>o.color=v);
-      section('Vida y altura');
-      num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
-      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)});
-      num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
+      if(hpOn()||condsOn())section('Vida y altura');
+      if(hpOn()){num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
+      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)})}
+      if(condsOn())num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
       note('Solo el director cambia la visión, el tamaño o la visibilidad.');
@@ -576,10 +577,10 @@ function openEditor(o,sp){
       select('Controla',o.owner==null?'':String(o.owner),[['','Nadie (solo el director)'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
       select('Tamaño',String(o.size||1),[['1','Mediano (1 casilla)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
       color('Color',o.color,v=>o.color=v);
-      section('Vida y altura');
-      num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
-      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)});
-      num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
+      if(hpOn()||condsOn())section('Vida y altura');
+      if(hpOn()){num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
+      num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)})}
+      if(condsOn())num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
       check('Oculta para jugadores',o.hidden,v=>o.hidden=v);
@@ -755,6 +756,8 @@ $('#playersDoors').onchange=e=>{S.playersDoors=e.target.checked;changed()};
 $('#hpVisibility').onchange=e=>{S.hpVisibility=e.target.value;changed()};
 $('#chatEnabled').onchange=e=>{S.chatEnabled=e.target.checked;changed();syncChatTab()};
 $('#diceEnabled').onchange=e=>{S.diceEnabled=e.target.checked;changed();syncChatTab()};
+$('#hpEnabled').onchange=e=>{S.hpEnabled=e.target.checked;changed()};
+$('#conditionsEnabled').onchange=e=>{S.conditionsEnabled=e.target.checked;changed()};
 $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
 $('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';renderUploadCats();selectTab('library')};
 $('#centerBtn').onclick=centerView;
@@ -891,6 +894,7 @@ function refreshPanels(){renderLists();renderSelbar();syncUndo()}
 function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
   $('#hpVisibility').value=S.hpVisibility||'all';
+  $('#hpEnabled').checked=hpOn();$('#conditionsEnabled').checked=condsOn();$('#hpVisibility').disabled=!hpOn();
   $('#chatEnabled').checked=S.chatEnabled!==false;$('#diceEnabled').checked=S.diceEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
   renderWeather();

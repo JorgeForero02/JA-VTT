@@ -217,6 +217,30 @@ try {
   await pl.waitForTimeout(1500);
   const fixed = await pl.evaluate(() => JSON.stringify(S.tokens.find((t) => t.name === 'Ogro').conditions));
   step('fichas: el jugador no puede tocar las condiciones del ogro (corrección del servidor)', fixed === '["prone","poisoned"]', fixed);
+
+  // interruptores: apagar «Vida de las fichas» quita la barra en el jugador (el dato sigue en la ficha)
+  await pl.evaluate(() => closePops());
+  const [hx, hy] = await pl.evaluate(() => {
+    const t = S.tokens.find((x) => x.name === 'Héroe');
+    const r = tokenRadius(t);
+    const sp = toScreen({ x: t.x - r + 4, y: t.y + r + 3 + 2.5 });
+    const rect = document.getElementById('stage').getBoundingClientRect();
+    return [rect.left + sp.x, rect.top + sp.y];
+  });
+  const barOn = await pxAt(pl, hx, hy);
+  await gm.click('[data-tab="layers"]');
+  await gm.uncheck('#hpEnabled');
+  await pl.waitForFunction(() => S.hpEnabled === false, null, { timeout: 5000 });
+  await pl.waitForTimeout(400);
+  const barOff = await pxAt(pl, hx, hy);
+  const heroKeeps = await pl.evaluate(() => !!S.tokens.find((t) => t.name === 'Héroe').hp);
+  // la antorcha del héroe tiñe la barra de cálido: se mide dominancia de verde, no color absoluto
+  const isGreen = (p) => p[1] > 180 && p[1] - p[0] > 15;
+  step('fichas: con la vida apagada desaparece la barra (verde antes, no después) y la ficha conserva su hp', isGreen(barOn) && !isGreen(barOff) && heroKeeps, `rgb(${barOn}) → rgb(${barOff})`);
+  await gm.check('#hpEnabled');
+  await pl.waitForFunction(() => S.hpEnabled !== false, null, { timeout: 5000 });
+
+  await gm.click('[data-tab="live"]');
   await gm.selectOption('#hpVisibility', 'all');
   await pl.waitForFunction(() => S.hpVisibility === 'all', null, { timeout: 5000 });
   await gm.evaluate(() => { for (const t of S.tokens.filter((t) => ['Ogro', 'Héroe'].includes(t.name))) UI.selected = [t.id], deleteSel(); changed(); });
