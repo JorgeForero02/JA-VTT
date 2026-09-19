@@ -277,8 +277,8 @@ test('clima en interiores: casilla por tipo (weather.indoor) y máscara con las 
   assert.match(w, /function indoors\(w\)\{return !!\(w\.indoor&&w\.indoor\[w\.id\]\)\}/);
   assert.match(w, /function maskZones\(w\)\{/);
   // pantalla entera menos cada zona (rect o polígono) en coordenadas de pantalla, con la cámara del 2D
-  assert.match(w, /g\.beginFill\(0xffffff\);g\.drawRect\(0,0,fx\.w,fx\.h\)/);
-  assert.match(w, /for\(const z of S\.zones\)\{g\.beginHole\(\);/);
+  assert.match(w, /g\.beginFill\(0xffffff\);g\.drawRect\(-64,-64,fx\.w\+128,fx\.h\+128\)/, 'el exterior sobresale de la pantalla');
+  assert.match(w, /for\(const z of S\.zones\)\{\s*const pts=/);
   assert.match(w, /const sx=x=>W\/2\+\(x-UI\.cam\.x\)\*UI\.cam\.zoom,sy=y=>H\/2\+\(y-UI\.cam\.y\)\*UI\.cam\.zoom/);
   assert.match(w, /fx\.scene\.mask=/);
   // se recalcula en cada frame completo: la cámara y las zonas cambian
