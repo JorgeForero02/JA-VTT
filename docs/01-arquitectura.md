@@ -82,7 +82,9 @@ Spec: [superpowers/specs/2026-09-18-clima-2d-design.md](superpowers/specs/2026-0
   oscuridad tapa el clima donde el jugador no ve (sin fugas). Fogonazo del rayo sólo en zona vista.
 - `S.animate=false` → `pause`. `PERF.scale<1` → `refraction:0` (el shader caro), partículas siguen.
   Sin WebGL → aviso y sin clima. Rayos y gotas son aleatorios locales, no se sincronizan.
-- Dato: ajuste de escena `weather:{id,intensity,wind}`; `rules.cleanSettings` sanea (`WEATHER_IDS`);
+- Zonas interiores: `maskZones()` pone a `fx.scene` una máscara (pantalla menos las zonas, en píxeles de
+  pantalla) salvo que el tipo esté en `weather.indoor`; se recalcula en cada frame completo.
+- Dato: ajuste de escena `weather:{id,intensity,wind,indoor?}`; `rules.cleanSettings` sanea (`WEATHER_IDS`);
   `core.js WEATHERS` es la lista para el panel sin cargar la librería. Un test exige que las tres
   listas coincidan con los `register()` de la librería.
 
