@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Clima: un frame estirado al abrir/cerrar el panel (hotfix desplegado)
+
+**Qué** — Tras el arreglo anterior quedaba un frame malo que se corregía solo. Causa: `fx.app.resize()`
+(ResizePlugin de Pixi) **renderiza en el acto** con el tamaño nuevo pero textura, sprite y uniformes
+viejos; además `cScene` acababa de vaciarse. Arreglo en `weather.js`: `Weather.resize()` sólo pide un
+frame; todo el reajuste va en `invalidate()` tras `drawScene` (canvas ya pintado) y sin renderizar:
+`renderer.resize` → `fx.resize()` → textura (`resource.update`) → sprite (`fit`). `app.resizeTo=null` para
+que Pixi tampoco renderice por su cuenta en el resize de ventana. **Evidencia** — instrumentando
+`Renderer.render` en Edge con GPU real durante 4 toggles: código anterior 4 renders inconsistentes
+(sprite 1012 con pantalla 1342 y viceversa), nuevo 0 de 228. Las capturas no cogen un frame de un tick:
+por eso se midió dentro de la página. `test:ui` 26/26, `check` 68/68. `prod-2d` `f3fb687` desplegado
+(`aq3gen3ronb5rh1q7qoca2dl`); en `clima-2d` también.
+**Revertir** — revertir `f3fb687` en `prod-2d` y redesplegar.
+
 ## 2026-09-18 — Clima: el mapa refractado se estiraba al abrir/cerrar el panel (hotfix desplegado)
 
 **Qué** — Con clima, al cambiar el ancho del `#stage` (panel lateral) el mapa refractado quedaba escalado
