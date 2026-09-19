@@ -19,7 +19,7 @@ Desplegar: push a `main` y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fn
 UI). Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
-Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
+Último despliegue: 2026-09-19, `prod-2d @ d54cc6a` (plan A: condiciones/vida/altura + interruptores). Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
 correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RESTART=no` → 10/10
 (WSS por Traefik, 190 ms por mensaje); restart por API → mismas filas antes y después.
 

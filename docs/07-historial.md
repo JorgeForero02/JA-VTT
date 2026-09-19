@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Despliegue de prod-2d @ d54cc6a (plan A + interruptores)
+
+- **Qué:** push de `prod-2d` y `POST /api/v1/deploy` (deployment `w6xppwptjnfoxc53i3jkegm7`), 17 commits sobre `5252403`.
+- **Verificado desde el servidor:** `app`/`db` healthy, `GET /` 200, `/api/health` ok, JS servido con `drawTokenStatus`/`openStatus`/`conditionsEnabled`; datos intactos (4 usuarios, 5 tableros, 440 objetos).
+- **Revertir:** en Coolify, redeploy del commit `5252403` (o `git revert` en `prod-2d` + deploy). Sin migración: la base no cambia.
+
 ## 2026-09-19 — Interruptores de vida y condiciones por tablero
 
 - **Qué:** ajustes de tablero `hpEnabled` y `conditionsEnabled` (booleanos en `DEFAULT_BOARD`, `true` por defecto).
