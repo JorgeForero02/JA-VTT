@@ -42,7 +42,7 @@ renumerar documentos.
 
 # Parte C — Pipeline
 
-**Nivel declarado: N1.**
+**Nivel declarado: N2** (cobertura con umbral desde el 2026-09-19).
 
 | Paso | Comando | Estado |
 |---|---|---|
@@ -52,7 +52,7 @@ renumerar documentos.
 | Unitarios + integración | `npm test` (necesita Postgres en `TEST_DATABASE_URL`) | obligatorio |
 | E2E tiempo real | `npm run test:e2e` con la pila levantada | obligatorio antes de desplegar |
 | E2E visual | `npm run test:ui` (Playwright + Edge/Chrome del PC, servidor local en 3999) | obligatorio cuando se toca el cliente |
-| Cobertura con umbral | — | N2, pendiente P-04 |
+| Cobertura con umbral | incluida en `npm test` (`server/**`: líneas ≥ 78 %, ramas ≥ 72 %, funciones ≥ 82 %; baseline 80/75/84 el 2026-09-19) | obligatorio |
 | Mutación automatizada | — | N3, pendiente P-04 |
 
 ## Excepciones declaradas

@@ -16,13 +16,17 @@ DATABASE_URL=postgres://jav:jav@localhost:55432/jav_test PORT=3000 node server.j
 | Qué | Comando |
 |---|---|
 | Lint | `npm run lint` |
-| Tests (32) | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
+| Tests (78) + cobertura con umbral | `npm test` — serie, contra `TEST_DATABASE_URL` (por defecto `jav-test-pg`) |
 | Lint + tests | `npm run check` |
 | Pila local | `docker compose up -d --build` · `docker compose logs -f app` · `docker compose down` |
 | E2E contra la pila | `npm run test:e2e` (`BASE_URL` para otra URL; `E2E_RESTART=no` si no puede reiniciar el contenedor) |
 | Consola SQL | `docker compose exec db psql -U jav -d jav` |
 | Conteos rápidos | `docker compose exec -T db psql -U jav -d jav -Atc "SELECT count(*) FROM users"` |
 | Backup / restore | ver [03-despliegue.md](03-despliegue.md) |
+
+> Si `npm test` falla por cobertura (`does not meet threshold`), no bajes el umbral: añade el test que
+> falta. Los umbrales viven en `package.json` (script `test`). El cliente no entra en la cobertura
+> (se prueba con `test/frontend.test.js` por contrato y con `npm run test:ui` visualmente).
 
 ## Prueba visual (Playwright con el Edge/Chrome instalado)
 
