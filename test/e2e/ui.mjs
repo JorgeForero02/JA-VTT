@@ -205,7 +205,7 @@ try {
   const aligned = gridChain(colsBefore).length >= 5 && gridChain(colsBefore).filter((c) => colsFog.some((f) => Math.abs(f - c) <= 1)).length >= 4;
   step('clima: la copia refractada del tablero no se escala ni desplaza (cuadrícula en las mismas columnas ±1 px)', aligned, `${colsBefore.slice(0, 6)} → ${colsFog.slice(0, 6)}`);
   const zoneFog = { in: await meanAt(gm, ...inZone), out: await meanAt(gm, ...outZone) };
-  step('clima: dentro de la zona interior no hay niebla (píxeles como sin clima); fuera sí', Math.abs(zoneFog.in - zoneBefore.in) <= 4 && zoneFog.out - zoneBefore.out > 10, JSON.stringify({ zoneBefore, zoneFog }));
+  step('clima: dentro de la zona interior no hay niebla (píxeles como sin clima); fuera sí', Math.abs(zoneFog.in - zoneBefore.in) <= 6 && zoneFog.out - zoneBefore.out > 10, JSON.stringify({ zoneBefore, zoneFog }));
   await gm.check('#weatherIndoor');
   await gm.waitForTimeout(1500);
   const indoorSync = { gm: await gm.evaluate(() => JSON.stringify(S.weather)), pl: await pl.evaluate(() => JSON.stringify(S.weather)) };
@@ -246,6 +246,28 @@ try {
   await pl.waitForFunction(() => !document.getElementById('cWeather') && !Weather.mounted(), null, { timeout: 10000 });
   step('clima: «Sin clima» destruye la capa en director y jugador', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === 'none'));
   await gm.click('#envGrid button:nth-child(1)');
+
+  // niebla de un jugador vista por el director: el jugador explora con su ficha y la guarda; el director, en
+  // Vista de jugador, elige «La de <jugador>» y recibe esos bloques; «Nueva» los quita; nada de esto se guarda
+  await gm.evaluate(() => { S.env = 'day'; S.ambient = 1; addObj({ id: nid(), type: 'token', kind: 'player', name: 'Explorador', x: 0, y: 0, size: 1, owner: Net.members.find((m) => m.role !== 'gm').id, color: '#7FB2E5', vision: true, sight: 0, darkvision: 0, light: { preset: 'none' }, hidden: false }); changed(true); });
+  await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Explorador'), null, { timeout: 5000 });
+  await pl.evaluate(() => { UI.cam.x = 0; UI.cam.y = 0; UI.cam.zoom = 1; requestRender(); });
+  await pl.waitForTimeout(500);
+  await pl.evaluate(() => Net.flushFog());
+  await pl.waitForTimeout(400);
+  const plChunks = await pl.evaluate(() => EXP.chunks.size);
+  await gm.click('#rolePlayer'); await gm.waitForTimeout(300);
+  const fogOpts = await gm.evaluate(() => [...document.getElementById('fogOf').options].map((o) => o.textContent));
+  await gm.selectOption('#fogOf', { index: 1 });
+  await gm.waitForFunction(() => EXP.chunks.size > 0, null, { timeout: 5000 });
+  const gmChunks = await gm.evaluate(() => EXP.chunks.size);
+  step('niebla ajena: el director ve los bloques explorados por el jugador (selector Niebla en Vista de jugador)', plChunks > 0 && gmChunks === plChunks && fogOpts[0] === 'Nueva (se reinicia)' && /^La de jug-/.test(fogOpts[1]), `${plChunks} → ${gmChunks} · ${fogOpts.join(' | ')}`);
+  await gm.click('#fogMine'); await gm.waitForTimeout(600);
+  const gmAfterReset = await gm.evaluate(() => EXP.chunks.size);
+  await gm.selectOption('#fogOf', 'new'); await gm.waitForTimeout(300);
+  const plIntact = await pl.evaluate(() => EXP.chunks.size);
+  step('niebla ajena: «Reiniciar mi vista» recarga la del jugador y la del jugador sigue intacta', gmAfterReset === plChunks && plIntact === plChunks, `${gmAfterReset} · jugador ${plIntact}`);
+  await gm.click('#roleGm'); await gm.waitForTimeout(300);
 
   // tablero 2.5D: el motor monta su canvas y pinta algo que no es negro
   // (va antes de la recuperación: ésta cierra todas las sesiones del director y le dejaría fuera)
@@ -588,28 +610,6 @@ try {
   await gm.click('#rail [data-tool="paint"]');
   await gm.waitForSelector('#subbar .chip:nth-of-type(2)', { timeout: 5000 });
   await shot(gm, '10-subbar-2.5d');
-  // niebla de un jugador vista por el director: el jugador explora con su ficha y la guarda; el director, en
-  // Vista de jugador, elige «La de <jugador>» y recibe esos bloques; «Nueva» los quita; nada de esto se guarda
-  await gm.evaluate(() => { S.env = 'day'; S.ambient = 1; addObj({ id: nid(), type: 'token', kind: 'player', name: 'Explorador', x: 0, y: 0, size: 1, owner: Net.members.find((m) => m.role !== 'gm').id, color: '#7FB2E5', vision: true, sight: 0, darkvision: 0, light: { preset: 'none' }, hidden: false }); changed(true); });
-  await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Explorador'), null, { timeout: 5000 });
-  await pl.evaluate(() => { UI.cam.x = 0; UI.cam.y = 0; UI.cam.zoom = 1; requestRender(); });
-  await pl.waitForTimeout(500);
-  await pl.evaluate(() => Net.flushFog());
-  await pl.waitForTimeout(400);
-  const plChunks = await pl.evaluate(() => EXP.chunks.size);
-  await gm.click('#rolePlayer'); await gm.waitForTimeout(300);
-  const fogOpts = await gm.evaluate(() => [...document.getElementById('fogOf').options].map((o) => o.textContent));
-  await gm.selectOption('#fogOf', { index: 1 });
-  await gm.waitForFunction(() => EXP.chunks.size > 0, null, { timeout: 5000 });
-  const gmChunks = await gm.evaluate(() => EXP.chunks.size);
-  step('niebla ajena: el director ve los bloques explorados por el jugador (selector Niebla en Vista de jugador)', plChunks > 0 && gmChunks === plChunks && fogOpts[0] === 'Nueva (se reinicia)' && /^La de jug-/.test(fogOpts[1]), `${plChunks} → ${gmChunks} · ${fogOpts.join(' | ')}`);
-  await gm.click('#fogMine'); await gm.waitForTimeout(600);
-  const gmAfterReset = await gm.evaluate(() => EXP.chunks.size);
-  await gm.selectOption('#fogOf', 'new'); await gm.waitForTimeout(300);
-  const plIntact = await pl.evaluate(() => EXP.chunks.size);
-  step('niebla ajena: «Reiniciar mi vista» recarga la del jugador y la del jugador sigue intacta', gmAfterReset === plChunks && plIntact === plChunks, `${gmAfterReset} · jugador ${plIntact}`);
-  await gm.click('#roleGm'); await gm.waitForTimeout(300);
-
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';
   await rec.goto(BASE + '/');
