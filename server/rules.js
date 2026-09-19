@@ -185,10 +185,13 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
   if (neu.type === 'token') {
     if (old) {
       if (old.owner !== uid) return null;
-      return Object.assign({}, old, {
+      const out = Object.assign({}, old, {
         x: neu.x, y: neu.y, name: neu.name || old.name, color: neu.color, img: neu.img, light: neu.light,
         conditions: neu.conditions, elevation: neu.elevation,
       });
+      if (neu.hp) out.hp = neu.hp;
+      else delete out.hp;
+      return out;
     }
     if (ownedCount >= 1 || neu.kind !== 'player' || neu.owner !== uid) return null;
     return Object.assign({}, neu, { hidden: false, vision: true, sight: 0, darkvision: 0, size: 1 });

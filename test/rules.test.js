@@ -74,3 +74,25 @@ test('hp y elevación: enteros acotados; cur nunca supera max; sin max no hay hp
   assert.equal(R.sanitize(Object.assign({ elevation: 'alto' }, base)).elevation, 0);
   assert.equal(R.sanitize(base).elevation, 0);
 });
+
+test('playerUpsert: el dueño cambia condiciones, hp y elevación de su ficha; no toca tamaño ni visibilidad; ajena → null', () => {
+  const uid = 7;
+  const old = R.sanitize({ id: 3, type: 'token', kind: 'player', owner: uid, x: 0, y: 0, name: 'A', size: 2, hidden: false, hp: { cur: 10, max: 10 } });
+  const neu = R.sanitize(Object.assign({}, old, { conditions: ['prone', 'blessed'], hp: { cur: 4, max: 10, temp: 3 }, elevation: 15, size: 4, hidden: true }));
+  const r = R.playerUpsert(uid, old, neu, { settings: {} }, 1, 0);
+  assert.deepEqual(r.conditions, ['prone', 'blessed']);
+  assert.deepEqual(r.hp, { cur: 4, max: 10, temp: 3 });
+  assert.equal(r.elevation, 15);
+  assert.equal(r.size, 2, 'el tamaño sigue siendo cosa del director');
+  assert.equal(r.hidden, false);
+  // quitar la vida del todo (sin hp) también es del dueño
+  assert.equal(R.playerUpsert(uid, old, R.sanitize(Object.assign({}, old, { hp: undefined })), { settings: {} }, 1, 0).hp, undefined);
+  const ajena = R.sanitize({ id: 4, type: 'token', kind: 'enemy', owner: null, x: 0, y: 0, hp: { cur: 30, max: 30 } });
+  assert.equal(R.playerUpsert(uid, ajena, R.sanitize(Object.assign({}, ajena, { hp: { cur: 0, max: 30 } })), { settings: {} }, 1, 0), null);
+
+  // Ficha guardada antes de este cambio (sin conditions/elevation/hp en old)
+  const legacyOld = { id: 10, type: 'token', kind: 'player', owner: uid, x: 50, y: 50, name: 'Vieja', size: 1, color: '#7FB2E5', hidden: false, vision: true, sight: 0, darkvision: 0, light: { preset: 'none', on: false, bright: 0, dim: 0, color: '#FFFFFF', intensity: 1, anim: 'none', angle: 360, rot: 0 }, img: null };
+  const legacyNeu = R.sanitize(legacyOld);
+  const legacyRes = R.playerUpsert(uid, legacyOld, legacyNeu, { settings: {} }, 1, 0);
+  assert.equal(R.sameObject(legacyRes, legacyNeu), true, 'ficha previa sin campos nuevos no genera divergencia');
+});
