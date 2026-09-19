@@ -173,6 +173,55 @@ try {
   await gm.check('#chatEnabled'); await gm.check('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
 
+  // fichas: condiciones, vida y altura (plan A). El director crea un ogro y el personaje del jugador
+  const playerId = await pl.evaluate(() => UI.me.id);
+  await gm.click('[data-tab="scene"]');
+  await gm.evaluate((pid) => {
+    UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550;
+    const ogre = addObj(newToken({ x: 700, y: 550 }, 'enemy', { hidden: false, hp: { cur: 10, max: 40, temp: 0 }, conditions: ['prone', 'poisoned'], elevation: 20 }));
+    const hero = addObj(newToken({ x: 900, y: 550 }, 'player', { owner: pid, hp: { cur: 12, max: 12, temp: 0 } }));
+    ogre.name = 'Ogro'; hero.name = 'Héroe'; changed();
+  }, playerId);
+  await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Ogro' && (t.conditions || []).includes('prone')), null, { timeout: 5000 });
+  await pl.evaluate(() => { UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550; requestRender(); });
+  await gm.waitForTimeout(500); await pl.waitForTimeout(500);
+  await shot(gm, '08-fichas-estado');
+  // color del relleno de la barra del ogro (10/40 = 25 % → rojo) en la pantalla del jugador: la barra va bajo la ficha
+  const pxAt = async (page, x, y) => { const png = pngPixels(await page.screenshot({ clip: { x: Math.round(x) - 1, y: Math.round(y) - 1, width: 3, height: 3 } })); const i = (1 * png.w + 1) * png.ch; return [png.px[i], png.px[i + 1], png.px[i + 2]]; };
+  const [bx, by] = await pl.evaluate(() => {
+    const t = S.tokens.find((x) => x.name === 'Ogro');
+    const r = tokenRadius(t);
+    const sp = toScreen({ x: t.x - r + 4, y: t.y + r + 3 + 2.5 });
+    const rect = document.getElementById('stage').getBoundingClientRect();
+    return [rect.left + sp.x, rect.top + sp.y];
+  });
+  const bar = await pxAt(pl, bx, by);
+  step('fichas: la barra de vida al 25 % es roja para el jugador', bar[0] > 170 && bar[1] < 140, `rgb(${bar})`);
+  const plSeesOgreHp = await pl.evaluate(() => JSON.stringify((S.tokens.find((t) => t.name === 'Ogro') || {}).hp));
+  step('fichas: con hpVisibility all el jugador recibe los números del ogro', plSeesOgreHp === '{"cur":10,"max":40,"temp":0}', plSeesOgreHp);
+  // el director reserva la vida: el jugador pierde el hp del ogro pero conserva el suyo
+  await gm.click('[data-tab="live"]');
+  await gm.selectOption('#hpVisibility', 'gm');
+  await pl.waitForFunction(() => S.hpVisibility === 'gm' && !S.tokens.find((t) => t.name === 'Ogro').hp, null, { timeout: 5000 });
+  const heroHp = await pl.evaluate(() => JSON.stringify(S.tokens.find((t) => t.name === 'Héroe').hp));
+  step('fichas: con hpVisibility gm el jugador pierde el hp del ogro y conserva el suyo', heroHp === '{"cur":12,"max":12,"temp":0}', heroHp);
+  // el jugador se pone «bendecido» y baja su vida desde el popover; el director lo ve
+  await pl.evaluate(() => { const h = S.tokens.find((t) => t.name === 'Héroe'); openStatus(h, { x: 400, y: 300 }); });
+  await pl.click('#statusPop .chip[data-cond="blessed"]');
+  await pl.click('#hpMinus'); await pl.click('#hpMinus');
+  await gm.waitForFunction(() => { const h = S.tokens.find((t) => t.name === 'Héroe'); return h && h.hp && h.hp.cur === 10 && (h.conditions || []).includes('blessed'); }, null, { timeout: 5000 });
+  step('fichas: el jugador cambia condición y vida de su ficha y el director lo recibe', true);
+  await shot(pl, '09-fichas-jugador');
+  // el jugador intenta curar al ogro por debajo: el servidor lo corrige
+  await pl.evaluate(() => { const o = S.tokens.find((t) => t.name === 'Ogro'); o.conditions = []; changed(); });
+  await pl.waitForTimeout(1500);
+  const fixed = await pl.evaluate(() => JSON.stringify(S.tokens.find((t) => t.name === 'Ogro').conditions));
+  step('fichas: el jugador no puede tocar las condiciones del ogro (corrección del servidor)', fixed === '["prone","poisoned"]', fixed);
+  await gm.selectOption('#hpVisibility', 'all');
+  await pl.waitForFunction(() => S.hpVisibility === 'all', null, { timeout: 5000 });
+  await gm.evaluate(() => { for (const t of S.tokens.filter((t) => ['Ogro', 'Héroe'].includes(t.name))) UI.selected = [t.id], deleteSel(); changed(); });
+  await gm.waitForTimeout(400);
+
   // clima 2D: el director pone tormenta (Escena → Clima); la capa Pixi se monta entre la escena y el brillo en
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
   await gm.click('[data-tab="scene"]');
