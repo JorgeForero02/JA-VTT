@@ -551,7 +551,7 @@ function openEditor(o,sp){
     if(!L.darkness)num('Luz tenue extra (pies)',L.dim,0,300,5,v=>{custom();L.dim=v});
     if(!L.darkness){color('Color',L.color,v=>{custom();L.color=v});range('Intensidad',L.intensity??1,v=>{custom();L.intensity=v});select('Animación',L.anim||'none',animOpts,v=>{custom();L.anim=v})}
     num('Apertura (°)',L.angle||360,10,360,5,v=>{custom();L.angle=v});
-    num('Dirección (°)',L.rot||0,-360,360,15,v=>{custom();L.rot=v});
+    num('Dirección (°)',L.rot||0,-360,360,15,v=>{L.rot=v});
     check('Encendida',L.on,v=>L.on=v);
   };
   if(o.type==='light'){
