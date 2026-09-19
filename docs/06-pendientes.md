@@ -1,6 +1,6 @@
 # 06 — Pendientes
 
-Actualizado: 2026-09-18 (cierre de la fase D). Prioridad: P0 bloquea · P1 próxima sesión · P2 cuando toque.
+Actualizado: 2026-09-19 (cierre de la sesión de clima 2D y hotfixes). Prioridad: P0 bloquea · P1 próxima sesión · P2 cuando toque.
 
 | ID | P | Tarea | Evidencia para cerrar |
 |---|---|---|---|
@@ -26,3 +26,8 @@ arregla en el servidor, no aquí.
 | P-10 | P2 | Menores diferidos de la fase A: `.tag` con `var(--amber-ink)`; `img/packs25.png` relativo a la página; tests con tiempos ajustados fallan a veces si la CPU está ocupada (visto 3 veces; siempre verde al repetir); `undoBoom` perdido en el port (se vuelve a portar en la fase E) | Revisión final de la rama |
 | P-08 | P2 | Cuentas de prueba que deja `npm run test:ui` contra producción (`dir-*`, `jug-*`, `pulse-*`…) si algún día se ejecuta contra `tablero.supportive.pro`: borrar a mano | `SELECT name FROM users` sin cuentas de prueba |
 | P-13 | P2 | Deuda de la fase D (menores triados en la revisión final, ninguno bloquea): el servidor no borra `obj:`/`char:` asociados al quitar `newobj`/`newchar` (huérfanos que cuentan para el tope de 200; el cliente los borra en cascada); `refreshCustomArt` restila dos veces en `loadTerrain`; el cliente no comprueba `version` en ops remotas (viene de B; hoy `applyRemoteOp` devuelve `false` al lanzar y pide `full`); slider de evaporación tope 0,01 frente a 0,05 del servidor | Cada punto con su test o cerrado con evidencia |
+| P-14 | **P1** | **Mergear `clima-2d` en `main`** (clima + todos los hotfixes del 19: colisión, niebla, panel como capa, niebla ajena, máscara de zonas). `clima-2d` = `main` + esos commits; `prod-2d` = `34a7ba4` + los mismos por cherry-pick. Las secciones de clima de docs 01/02/05 sólo existen en `clima-2d`; al mergear se reconcilian con las notas de 07 en `main`. Mientras, cada hotfix de producción se aplica en **las dos** ramas | `git log main..clima-2d` vacío; docs 01/02/05 con clima; `check` y `test:ui` (63+) verdes |
+| P-15 | P2 | Clima, segunda ola: `Weather.drop()` al mover fichas; medir el coste real de Pixi (`PERF` sólo mide luces) y bajar partículas si no cabe; la subida de `cScene` a textura en cada frame `dirty` con dpr 2; la sacudida del trueno (`_shake`) mueve el mapa refractado pero no muros ni controles — valorar anularla (`fx.world.position` a 0 tras el tick) | Medida en Mesa → Conexión con clima; decisión sobre la sacudida |
+| P-16 | P2 | El usuario vio «un frame estirado al aplicar el clima por primera vez» con su mapa; aquí no reproduce (0 renders inconsistentes de 139 en el primer montaje, dpr 1 y 1,25, tablero sin mapa). Si vuelve: captura + escala de Windows + efecto, e instrumentar `Renderer.render` con un mapa cargado | Reproducido o cerrado por el usuario |
+| P-17 | P2 | Máscara de zonas del clima: dos zonas solapadas o un polígono autocortante podrían romper la triangulación igual que el agujero fuera de pantalla; no visto. Alternativa robusta: máscara por sprite (canvas 2D → textura) a costa de una subida más por frame completo | Zona solapada probada sin cuñas |
+| P-18 | P2 | Docs de `prod-2d` están congeladas en `34a7ba4` (es rama de despliegue, no de documentación): el estado real vive en `main` 00/03/07 | — |
