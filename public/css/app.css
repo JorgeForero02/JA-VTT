@@ -55,7 +55,7 @@ header{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--p
 #viewAsWrap{display:none;align-items:center;gap:6px}
 #viewAs{background:var(--raise);border:1px solid var(--line);border-radius:8px;min-height:34px;padding:0 8px}
 
-main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
+main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;overflow-y:auto}
 .tool{position:relative;width:42px;height:42px;border-radius:10px;border:1px solid transparent;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--fog)}
 .tool:hover{background:var(--raise);color:var(--bone)}
@@ -77,7 +77,7 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 #stage.d3 canvas:not(.d3){display:none}
 #stage.d3{cursor:grab}
 
-#subbar{position:absolute;left:12px;top:12px;right:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none;z-index:6}
+#subbar{position:absolute;left:12px;top:12px;right:342px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none;z-index:6}
 #subbar>*{pointer-events:auto}
 .chipbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:var(--shadow)}
 .chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px;border-radius:8px;border:1px solid transparent;background:transparent;cursor:pointer}
@@ -113,7 +113,9 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .edSection{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font:700 15px var(--serif)}
 .edNote{color:var(--fog);font-size:13px;margin-top:6px}
 
-#panel{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+/* El panel es una capa encima del lienzo (no una columna): abrir/cerrar no cambia el tamaño del #stage,
+   así el mapa, la luz y el clima no se reajustan (decisión del usuario, 2026-09-19). */
+#panel{position:absolute;right:0;top:54px;bottom:0;width:330px;z-index:35;box-shadow:var(--shadow);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;border-bottom:1px solid var(--line);padding:0 4px}
 .tabs button{flex:1;min-width:0;border:0;background:transparent;padding:8px 2px 6px;cursor:pointer;color:var(--fog);border-bottom:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px}
 .tabs button .ic{width:19px;height:19px}
@@ -165,8 +167,8 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 .legend i{display:block;width:26px;height:0;border-top:3px solid}
 
 #panelToggle[aria-pressed="true"]{background:var(--raise)}
-#app.noPanel main{grid-template-columns:58px 1fr}
 #app.noPanel #panel{display:none}
+#app.noPanel #subbar{right:12px}
 #liveBadge{display:none;align-items:center;gap:6px;border:1px solid var(--line);background:var(--raise);border-radius:99px;padding:3px 10px 3px 8px;font-size:13px;cursor:pointer}
 #liveBadge i{width:8px;height:8px;border-radius:50%;background:#5FC08A;box-shadow:0 0 0 3px rgba(95,192,138,.25)}
 .segCat{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
@@ -214,10 +216,10 @@ main{display:grid;grid-template-columns:58px 1fr 330px;min-height:0}
 input[type=color].swatch{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;background:var(--ink);padding:2px}
 @media (max-width:980px){
   main{grid-template-columns:52px 1fr}
-  #panel{position:absolute;right:0;top:54px;bottom:0;width:min(340px,92vw);z-index:35;box-shadow:var(--shadow);display:none}
+  #panel{width:min(340px,92vw);display:none}
   #panel.open{display:flex}
-  #app.noPanel main{grid-template-columns:52px 1fr}
   #app.noPanel #panel.open{display:flex}
+  #subbar{right:12px}
   #sceneName{display:none}
   .tool{width:38px;height:38px}
   .hideSm{display:none}

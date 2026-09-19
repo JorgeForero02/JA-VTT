@@ -93,7 +93,6 @@ test('cabecera: botón para ocultar el panel lateral, con estado y preferencia g
   assert.match(html, /<header>[\s\S]*<button id="panelToggle"[^>]*aria-pressed="false"[^>]*>[\s\S]*<\/header>/);
   const css = read('css/app.css');
   assert.doesNotMatch(css, /#panelToggle\{display:none\}/, 'el botón ya no se oculta en escritorio');
-  assert.match(css, /#app\.noPanel main\{grid-template-columns:58px 1fr\}/);
   assert.match(css, /#app\.noPanel #panel\{display:none\}/);
   const js = read('js/editor.js');
   assert.match(js, /localStorage\.setItem\('jav\.panel'/);
@@ -715,4 +714,15 @@ test('clima en interiores: casilla por tipo (weather.indoor) y máscara con las 
   assert.match(w, /fx\.scene\.mask=/);
   // se recalcula en cada frame completo: la cámara y las zonas cambian
   assert.match(w, /if\(fx\)\{apply\(\);maskZones\(w\);return\}/);
+});
+
+test('el panel lateral es una capa sobre el lienzo: abrir/cerrar no cambia el tamaño del #stage', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'app.css'), 'utf8');
+  assert.match(css, /^main\{display:grid;grid-template-columns:58px 1fr;min-height:0\}$/m);
+  assert.match(css, /^#panel\{position:absolute;right:0;top:54px;bottom:0;width:330px;z-index:35;box-shadow:var\(--shadow\);/m);
+  assert.match(css, /^#app\.noPanel #panel\{display:none\}$/m);
+  assert.doesNotMatch(css, /#app\.noPanel main\{grid-template-columns/);
+  // la subbarra de herramientas no queda debajo del panel
+  assert.match(css, /^#subbar\{position:absolute;left:12px;top:12px;right:342px;/m);
+  assert.match(css, /^#app\.noPanel #subbar\{right:12px\}$/m);
 });
