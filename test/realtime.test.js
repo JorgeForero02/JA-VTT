@@ -138,6 +138,28 @@ test('el director no puede cambiar el modo del tablero por ops', async () => {
   await again.close();
 });
 
+test('el clima de la escena llega al jugador saneado y sobrevive a recargar de la base', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Lluvioso', mode: '2d' });
+  const boardId2 = created.board.id;
+  const detail2 = await json(gmCookie, 'GET', `/api/boards/${boardId2}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail2.board.invite_code });
+  const gm = connect(base, boardId2, gmCookie);
+  const player = connect(base, boardId2, playerCookie);
+  await gm.opened; await player.opened;
+  const state0 = await gm.next(isState);
+  await player.next(isState);
+  assert.equal(state0.settings.weather, undefined);
+  gm.send({ t: 'ops', scene: state0.scene.id, up: [], del: [], settings: { weather: { id: 'storm', intensity: 2, wind: -.4, drops: 9 } } });
+  const got = await player.next(isOps);
+  assert.deepEqual(got.settings.weather, { id: 'storm', intensity: 1, wind: -.4 });
+  await gm.close(); await player.close();
+  const again = connect(base, boardId2, playerCookie);
+  await again.opened;
+  const state1 = await again.next(isState);
+  assert.deepEqual(state1.settings.weather, { id: 'storm', intensity: 1, wind: -.4 });
+  await again.close();
+});
+
 test('el director no puede cambiar el modo del tablero por replace', async () => {
   const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Inmutable2', mode: '2d' });
   const boardId2 = created.board.id;

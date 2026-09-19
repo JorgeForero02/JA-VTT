@@ -641,3 +641,16 @@ test('vendor: pixi.min.js 7.4.2 (MIT) y weather-fx.js están vendorizados', () =
   assert.match(read('js/vendor/pixi.LICENSE'), /The MIT License/);
   assert.match(read('js/vendor/weather-fx.js'), /class WeatherFX/);
 });
+
+test('clima: la lista de efectos es la misma en core.js, rules.js y vendor/weather-fx.js; viaja como ajuste de escena', () => {
+  const vendorIds = [...read('js/vendor/weather-fx.js').matchAll(/^WeatherFX\.register\(\{\s*\n?\s*id: '([a-z]+)'/gm)].map((m) => m[1]);
+  assert.ok(vendorIds.length >= 10, 'la librería registra sus efectos');
+  const R = require('../server/rules');
+  assert.deepEqual(R.WEATHER_IDS, ['none', ...vendorIds]);
+  const core = read('js/core.js');
+  const m = core.match(/^const WEATHERS=\{([^\n]*)\};?$/m);
+  assert.ok(m, 'core.js define WEATHERS');
+  assert.deepEqual([...m[1].matchAll(/(\w+):\{/g)].map((x) => x[1]), R.WEATHER_IDS);
+  assert.match(core, /weather:\{id:'none',intensity:\.6,wind:0\}/);
+  assert.match(read('js/net.js'), /const SCENE_KEYS=\[[^\]]*'weather'/);
+});

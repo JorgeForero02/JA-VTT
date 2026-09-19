@@ -41,6 +41,8 @@ const ENVS={
   dusk:{name:'Atardecer',icon:'sunset',desc:'Se ve a la vista, en penumbra.',ambient:.55,dark:'#1A1220'},
   night:{name:'Noche',icon:'moon',desc:'Luna tenue: se intuye el terreno; las criaturas, solo con luz.',ambient:.18,dark:'#081026'}
 };
+/* Clima 2D: mismos ids que registra vendor/weather-fx.js (se carga sólo con clima) y que acepta rules.js */
+const WEATHERS={none:{name:'Sin clima'},rain:{name:'Lluvia'},storm:{name:'Tormenta'},drizzle:{name:'Llovizna'},blizzard:{name:'Nieve y ventisca'},sand:{name:'Tormenta de arena'},fog:{name:'Niebla'},ash:{name:'Ceniza volcánica'},embers:{name:'Brasas'},heat:{name:'Calor abrasador'},arcane:{name:'Polvo arcano'}};
 const LAYERS=[
   {id:'map',name:'Tablero'},{id:'props',name:'Objetos'},{id:'zones',name:'Zonas interiores'},{id:'plans',name:'Planos'},
   {id:'tokens',name:'Fichas'},{id:'lights',name:'Luces'},{id:'walls',name:'Muros y puertas'}
@@ -54,7 +56,7 @@ const IMG=new Map();      // id de imagen -> HTMLImageElement
 function blankState(){return{
   version:2,name:'Escena nueva',cols:32,rows:22,env:'interior',ambient:0,darkColor:ENVS.interior.dark,
   fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,
-  mode:'2d',
+  mode:'2d',weather:{id:'none',intensity:.6,wind:0},
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
 }}
