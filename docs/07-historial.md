@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — P-27: las notas publicadas se ven sólo donde el grupo ve
+
+- **Qué:** `noteVisibleToPlayers` en `core.js` + salto en `drawNotes` de `render.js`. Una nota publicada sólo se pinta para el jugador si alguna de sus fichas con visión la alcanza a ver (luz o visión en la oscuridad, sin muro por medio). Tests: `frontend.test.js` (+1), `ui.mjs` (paso ciego + paso iluminado con ficha Vigía).
+- **Por qué:** decisión del usuario (P-27); evitaba leer notas en zonas a oscuras o sin explorar.
+- **Revertir:** `git revert` del commit.
+
 ## 2026-09-19 — Regla multitramo y anotaciones (plan B; P-22, P-23)
 
 - **Qué:** `rulerSegments` + `UI.act.pts` (Espacio / clic derecho); tipo `note` con `gmOnly`, herramienta N, capa `notes`, render con pin. Sin migración. Tests: `frontend.test.js` (+4), `rules.test.js` (+1), `realtime.test.js` (+1), `ui.mjs` (+5 pasos).

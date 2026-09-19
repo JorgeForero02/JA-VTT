@@ -427,8 +427,9 @@ test('render: drawNotes pinta pin, etiqueta y eye-off si es sólo del director; 
   assert.match(r, /n\.gmOnly\?'#CDB8E6':'#E9E3D5'/);
   assert.match(r, /if\(gm&&n\.gmOnly\)/);
 });
-
-
-
-
-
+test('notas: para el jugador, una anotación publicada sólo se pinta donde el grupo ve (noteVisibleToPlayers)', () => {
+  const core = read('js/core.js');
+  assert.match(core, /^function noteVisibleToPlayers\(n\)\{\s*frame\.nvis=frame\.nvis\|\|new Map\(\);if\(frame\.nvis\.has\(n\.id\)\)return frame\.nvis\.get\(n\.id\);\s*const ok=viewers\(\)\.some\(v=>canSee\(v,n,'hide'\)\);\s*frame\.nvis\.set\(n\.id,ok\);return ok;\s*\}$/m);
+  const render = read('js/render.js');
+  assert.match(render, /for\(const n of S\.notes\)\{\s*if\(!gm&&!noteVisibleToPlayers\(n\)\)continue;/);
+});

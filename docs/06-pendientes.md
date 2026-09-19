@@ -11,13 +11,13 @@ Actualizado: 2026-09-19. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 | P-24 | P2 | Audio ambiental por escena y SFX (dados, puertas). Spec §6 · plan C | Prueba en navegador con sonido |
 | P-25 | P2 | Girar una luz (campo «Dirección (°)») en el editor no cambia su preset a «Personalizada», a diferencia de radio/color/apertura; evaluar si la dirección debe independizarse del preset o marcarlo como personalizado | Comportamiento acordado y test de editor |
 | P-26 | P2 | Pastilla de elevación pisa el primer badge en fichas de tamaño 1 (captura 08-fichas-estado.png); moverla o bajar la fila de badges | Captura de test:ui sin solape |
-| P-27 | P2 | Decidir si las anotaciones publicadas deben verse en zonas a oscuras / sin explorar (hoy van en el overlay, por encima de niebla y visión: captura `11-nota-publicada-jugador.png` con el jugador sin ficha). Si no: recortarlas con la máscara de visión como a las fichas | Decisión del usuario; si cambia, paso en `test:ui` |
 
 Cerrados: P-01, P-02, P-03 (2026-09-16); **P-05** el 2026-09-19 (ya existía `#passwordForm` en
 `index.html` + `POST /api/me/password` con test en `mesa.test.js`: estaba hecho y sin cerrar);
 **P-04 nivel N2** el 2026-09-19 (queda N3 con el mismo ID);
 **P-19, P-20, P-21** el 2026-09-19 (plan A; evidencia: tests de rules/realtime/frontend y capturas 08/09 de test:ui);
-**P-22, P-23** el 2026-09-19 (plan B; evidencia: tests en rules/realtime/frontend, pasos regla/notas en test:ui y capturas 10/11).
+**P-22, P-23** el 2026-09-19 (plan B; evidencia: tests en rules/realtime/frontend, pasos regla/notas en test:ui y capturas 10/11);
+**P-27** el 2026-09-19 (decidido: tapada por visión; test en ui.mjs y noteVisibleToPlayers en core.js).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
 

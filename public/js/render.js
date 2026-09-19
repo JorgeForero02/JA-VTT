@@ -472,6 +472,7 @@ function drawPlan(c,p,color,draft){
 function drawNotes(c,gm){
   if(!(S.layers.notes||{visible:true}).visible)return;
   for(const n of S.notes){
+    if(!gm&&!noteVisibleToPlayers(n))continue;
     const color=isSel(n)?'#F0B35A':n.gmOnly?'#CDB8E6':'#E9E3D5',s=px(20),ic=iconImage('map-pin',color);
     c.save();c.fillStyle='rgba(0,0,0,.35)';c.beginPath();c.ellipse(n.x,n.y+px(1),px(5),px(2.5),0,0,Math.PI*2);c.fill();c.restore();
     if(ic.complete)c.drawImage(ic,n.x-s/2,n.y-s,s,s);

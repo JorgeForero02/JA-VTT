@@ -55,6 +55,7 @@ intenta algo que no puede.
 
 - **Regla (R):** arrastra para medir; **Espacio o clic derecho** durante el arrastre fija un punto y sigue midiendo desde ahí (para rodear esquinas). Cada tramo muestra sus pies; al final, el total y la línea recta. Diagonales a 5 pies (regla de mesa: `max(dx,dy)`).
 - **Anotaciones (N, director):** clic clava un pin con texto («Trampa DC 15», «Palanca»). Por defecto **sólo el director la ve** (pin violeta con ojo tachado); en sus propiedades se publica y los jugadores ven pin y texto. Capa «Anotaciones» en Capas.
+- Una anotación **publicada** se ve donde el grupo ve (como una ficha enemiga): en la oscuridad o tras un muro no aparece. Decisión P-27, 2026-09-19.
 
 ## API (resumen)
 

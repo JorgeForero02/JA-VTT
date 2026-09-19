@@ -269,13 +269,20 @@ try {
   step('notas: la anotación sólo-director no llega al jugador', !plHasSecret);
   await gm.evaluate(() => { S.notes.find((n) => n.text === 'Trampa DC 15').gmOnly = false; changed(); });
   await pl.waitForFunction(() => S.notes.some((n) => n.text === 'Trampa DC 15' && n.gmOnly === false), null, { timeout: 5000 });
-  await pl.evaluate(() => { UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550; requestRender(); }); await pl.waitForTimeout(400);
+  // publicada pero el jugador no tiene ficha: la recibe (S.notes) pero no la ve (sin visión no se pinta)
+  const seenBlind = await pl.evaluate(() => { frame.nvis = null; return noteVisibleToPlayers(S.notes.find((n) => n.text === 'Trampa DC 15')); });
+  step('notas: publicada, el jugador la recibe pero sin ficha con visión no la ve', seenBlind === false);
+  // el director le da una ficha con antorcha junto a la nota: ahora sí
+  await gm.evaluate((pid) => { const t = addObj(newToken({ x: 900, y: 450 }, 'player', { owner: pid })); t.name = 'Vigía'; changed(); }, playerId);
+  await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Vigía'), null, { timeout: 5000 });
+  await pl.waitForTimeout(400);
+  const seenLit = await pl.evaluate(() => { frame.nvis = null; return noteVisibleToPlayers(S.notes.find((n) => n.text === 'Trampa DC 15')); });
   await shot(pl, '11-nota-publicada-jugador');
-  step('notas: publicada, el jugador la recibe con su texto', true);
+  step('notas: con una ficha con antorcha al lado, el jugador la ve', seenLit === true);
   await gm.evaluate(() => { S.notes.find((n) => n.text === 'Trampa DC 15').gmOnly = true; changed(); });
   await pl.waitForFunction(() => !S.notes.some((n) => n.text === 'Trampa DC 15'), null, { timeout: 5000 });
   step('notas: al volver a ocultarla desaparece del jugador', true);
-  await gm.evaluate(() => { S.notes = []; changed(); });
+  await gm.evaluate(() => { S.notes = []; S.tokens = S.tokens.filter((t) => t.name !== 'Vigía'); changed(); });
 
   // clima 2D: el director pone tormenta (Escena → Clima); la capa Pixi se monta entre la escena y el brillo en
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos

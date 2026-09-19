@@ -235,6 +235,12 @@ function propVisibleToPlayers(a){
   const ok=viewers().some(v=>pts.some(p=>canSee(v,p,'hide')));
   frame.pvis.set(a.id,ok);return ok;
 }
+/* Una anotación publicada se ve donde el grupo ve (luz o visión en la oscuridad, sin muro por medio) */
+function noteVisibleToPlayers(n){
+  frame.nvis=frame.nvis||new Map();if(frame.nvis.has(n.id))return frame.nvis.get(n.id);
+  const ok=viewers().some(v=>canSee(v,n,'hide'));
+  frame.nvis.set(n.id,ok);return ok;
+}
 function doorVisibleToPlayers(w){
   const m={x:(w.a.x+w.b.x)/2,y:(w.a.y+w.b.y)/2};
   const len=dist(w.a,w.b)||1,nx=-(w.b.y-w.a.y)/len,ny=(w.b.x-w.a.x)/len;
