@@ -13,7 +13,7 @@ const Weather=(()=>{
     try{fx=new WeatherFX({container:stage,source:cv.scene})}
     catch(err){failed=true;fx=null;console.error(err);toast('Este navegador no puede mostrar el clima (sin WebGL)',4000);return}
     const view=fx.app.view;view.id='cWeather';stage.insertBefore(view,cv.glow);fit();
-    key='';apply();requestRender();
+    key='';apply();maskZones(wanted());requestRender();
   }
   /* Ajusta efecto y parámetros sólo si algo cambió (se llama en cada frame completo) */
   function apply(){
@@ -28,11 +28,28 @@ const Weather=(()=>{
      no enseñen el borde; aquí eso escalaría la copia refractada y desalinearía muros, luz y controles,
      que van encima sin refractar. Ajuste exacto: el borde desplazado se ve transparente un instante. */
   function fit(){fx.mapSprite.position.set(0,0);fx.mapSprite.width=fx.w;fx.mapSprite.height=fx.h}
-  function unmount(){if(!fx)return;fx.destroy();fx=null;key='';const v=$('#cWeather');if(v)v.remove()}
+  /* Zonas interiores: bajo techo no hay clima salvo que el director marque el tipo en weather.indoor.
+     Máscara = pantalla entera menos cada zona (rect o polígono) en píxeles de pantalla, con la cámara del
+     2D (misma transformación que setWorld). Dentro la capa es transparente y se ve cScene intacto. */
+  function indoors(w){return !!(w.indoor&&w.indoor[w.id])}
+  let maskG=null;
+  function maskZones(w){
+    if(indoors(w)||!S.zones.length){if(fx.scene.mask){fx.scene.mask=null;maskG.clear()}return}
+    if(!maskG){maskG=new PIXI.Graphics();fx.app.stage.addChild(maskG)}
+    const g=maskG;const sx=x=>W/2+(x-UI.cam.x)*UI.cam.zoom,sy=y=>H/2+(y-UI.cam.y)*UI.cam.zoom;
+    g.clear();g.beginFill(0xffffff);g.drawRect(0,0,fx.w,fx.h);
+    for(const z of S.zones){g.beginHole();
+      if(z.pts&&z.pts.length>2)g.drawPolygon(z.pts.flatMap(p=>[sx(p.x),sy(p.y)]));
+      else g.drawRect(sx(z.x),sy(z.y),z.w*UI.cam.zoom,z.h*UI.cam.zoom);
+      g.endHole()}
+    g.endFill();
+    fx.scene.mask=g;
+  }
+  function unmount(){if(!fx)return;fx.destroy();fx=null;maskG=null;key='';const v=$('#cWeather');if(v)v.remove()}
   function sync(){
     const w=wanted();
     if(!w){unmount();return}
-    if(fx){apply();return}
+    if(fx){apply();maskZones(w);return}
     if(pending)return;pending=true;
     load().then(()=>{pending=false;if(!fx&&wanted())mount()}).catch(err=>{pending=false;failed=true;console.error(err);toast('No se pudo cargar el clima: '+err.message,4000)});
   }

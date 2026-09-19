@@ -695,3 +695,21 @@ test('clima: panel Escena con selector e intensidad/viento; el director lo cambi
   assert.match(ed, /el\.onchange=\(\)=>\{pushUndo\(weatherSnap\|\|undefined\);weatherSnap=null;changed\(\)\}/);
   assert.match(ed, /function syncSceneInputs\(\)\{(?:\n[^\n]*){1,6}\n\s*renderWeather\(\);/);
 });
+
+test('clima en interiores: casilla por tipo (weather.indoor) y máscara con las zonas interiores', () => {
+  const html = read('index.html');
+  assert.match(html, /<label class="check weatherOnly"><input type="checkbox" id="weatherIndoor"> Se nota en zonas interiores/);
+  const ed = read('js/editor.js');
+  assert.match(ed, /\$\('#weatherIndoor'\)\.checked=!!\(w\.indoor&&w\.indoor\[sel\.value\]\)/);
+  assert.match(ed, /\$\('#weatherIndoor'\)\.onchange=e=>\{pushUndo\(\);const indoor=Object\.assign\(\{\},S\.weather\.indoor\);if\(e\.target\.checked\)indoor\[S\.weather\.id\]=true;else delete indoor\[S\.weather\.id\];S\.weather=Object\.assign\(\{\},S\.weather,\{indoor\}\);changed\(\)\}/);
+  const w = read('js/weather.js');
+  assert.match(w, /function indoors\(w\)\{return !!\(w\.indoor&&w\.indoor\[w\.id\]\)\}/);
+  assert.match(w, /function maskZones\(w\)\{/);
+  // pantalla entera menos cada zona (rect o polígono) en coordenadas de pantalla, con la cámara del 2D
+  assert.match(w, /g\.beginFill\(0xffffff\);g\.drawRect\(0,0,fx\.w,fx\.h\)/);
+  assert.match(w, /for\(const z of S\.zones\)\{g\.beginHole\(\);/);
+  assert.match(w, /const sx=x=>W\/2\+\(x-UI\.cam\.x\)\*UI\.cam\.zoom,sy=y=>H\/2\+\(y-UI\.cam\.y\)\*UI\.cam\.zoom/);
+  assert.match(w, /fx\.scene\.mask=/);
+  // se recalcula en cada frame completo: la cámara y las zonas cambian
+  assert.match(w, /if\(fx\)\{apply\(\);maskZones\(w\);return\}/);
+});
