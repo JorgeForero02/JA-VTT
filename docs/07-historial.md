@@ -2,6 +2,20 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — Clima: cuñas en las zonas interiores al desplazar el tablero (hotfix desplegado)
+
+**Qué** — Con clima y una zona interior, al desplazar el tablero aparecían cuñas diagonales (zonas
+donde el clima se colaba o faltaba). Causa: la máscara usaba la zona como **agujero** (`beginHole`) de
+un rectángulo del tamaño de la pantalla; cuando la zona sale parcialmente de la pantalla el agujero ya
+no está contenido en la figura y la triangulación de Pixi (earcut) se rompe. Arreglo en `weather.js`:
+`clipPolyRect` (Sutherland–Hodgman) recorta cada zona (rect o polígono) a la pantalla y el rectángulo
+exterior sobresale 64 px, así el agujero siempre queda dentro. Tests: `test/clima-mascara.test.js`
+(recorte: dentro/fuera/parcial, objetos comparados por JSON por venir de otro realm del `vm`) y paso de
+`test:ui` con la zona saliendo por el borde. Reproducido y verificado con Edge + GPU real. De paso, el
+selector «Niebla» de la barra hereda el estilo de «Ver como» (`#viewAs,#fogOf`). `prod-2d` `5252403`
+(`9krrixxamxa1kanmecrukolr`); en `clima-2d` también.
+**Revertir** — revertir el commit en `prod-2d` y redesplegar.
+
 ## 2026-09-19 — El director ve la niebla guardada de un jugador (desplegado)
 
 **Qué** — En «Vista de jugador» aparece **Niebla: Nueva (se reinicia) / La de <jugador>** y un botón
