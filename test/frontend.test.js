@@ -327,3 +327,16 @@ test('condiciones: el catálogo del cliente tiene los mismos 20 ids que el servi
   assert.match(read('js/net.js'), /'initiativeShown','hpVisibility'\]/, 'el director envía hpVisibility en settings');
 });
 
+test('render: drawToken pinta badges de condiciones, barra de HP (números según hpVisibility), elevación y velo de muerto', () => {
+  const r = read('js/render.js');
+  assert.match(r, /^function drawTokenStatus\(c,t,P,r,player\)\{/m);
+  assert.match(r, /drawTokenStatus\(c,t,P,r,player\)/, 'drawToken la llama');
+  assert.match(r, /CONDITIONS\[id\]/);
+  assert.match(r, /isGM\(\)\|\|ownsToken\(t\)\|\|S\.hpVisibility==='all'/, 'los números sólo con permiso');
+  assert.match(r, /'#6FBF73':[^:]+'#F0B35A':'#D9705F'/, 'verde / ámbar / rojo');
+  assert.match(r, /t\.elevation\)\{/, 'la etiqueta de elevación sólo si no es 0');
+  assert.match(r, /includes\('dead'\)/);
+  assert.match(r, /iconImage\('skull'/);
+});
+
+
