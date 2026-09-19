@@ -8,7 +8,11 @@ const cx={scene:cv.scene.getContext('2d'),glow:cv.glow.getContext('2d'),dark:cv.
 const maskC=document.createElement('canvas'),losC=document.createElement('canvas'),expC=document.createElement('canvas');
 const mctx=maskC.getContext('2d'),lctx=losC.getContext('2d'),ectx=expC.getContext('2d');
 /* Memoria de exploración por bloques: el mundo no tiene bordes */
-const EXP={scale:.2,size:2000,chunks:new Map(),max:160,boost:3,blur:2.5}; // boost: la luz tenue vista cuenta como explorada
+/* scale: píxeles de memoria por píxel de mundo (4 px de mundo por píxel) · max: bloques en memoria (1 MB cada uno)
+   · boost: cualquier luz ≥ 1/boost explora del todo en un solo frame (con 3, de noche —ambiente 0,18— hacían
+   falta dos frames completos y quedaban parches según cuántos frames viera cada zona)
+   · blur: desenfoque en píxeles de memoria (proporcional al zoom: los escalones crecen con él) */
+const EXP={scale:.25,size:2000,chunks:new Map(),max:96,boost:6,blur:.7};
 function expChunk(cx,cy,create){
   const k=cx+','+cy;let ch=EXP.chunks.get(k);
   if(!ch&&create){
@@ -285,7 +289,7 @@ function composeExplored(){
   const few=(cx1-cx0+1)*(cy1-cy0+1)<=48;
   c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
   // la memoria es de baja resolución: un desenfoque leve en pantalla disimula los escalones al ampliarla
-  if('filter' in c)c.filter=`blur(${EXP.blur*d}px)`;
+  if('filter' in c)c.filter=`blur(${Math.max(1.5,EXP.blur*z/s)*d}px)`;
   for(let cx=cx0;cx<=cx1;cx++)for(let cy=cy0;cy<=cy1;cy++){
     const ch=expChunk(cx,cy,few);if(!ch)continue;
     if(few){ch.x.setTransform(k,0,0,k,s*(v.x0-cx*S2),s*(v.y0-cy*S2));ch.x.imageSmoothingEnabled=true;ch.x.globalCompositeOperation='lighter';for(let n=0;n<EXP.boost;n++)ch.x.drawImage(maskC,0,0);ch.x.globalCompositeOperation='source-over';ch.dirty=true}
