@@ -2,6 +2,21 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-18 — Clima: el mapa refractado se estiraba al abrir/cerrar el panel (hotfix desplegado)
+
+**Qué** — Con clima, al cambiar el ancho del `#stage` (panel lateral) el mapa refractado quedaba escalado
+×(ancho nuevo/ancho viejo) y desplazado; fichas y objetos con él, muros y controles no. Causa: en
+`Weather.resize()` se llamaba `fit()` **antes** de `invalidate()`; `mapSprite.width=` calcula la escala
+con el tamaño de la textura en ese momento (viejo) y el sprite de Pixi sólo escucha el primer `update`
+de la textura, así que no se corregía al redimensionarla. Arreglo: `invalidate()` (redimensiona la
+textura) y después `fit()`. `test:ui` +1 paso: cerrar/abrir el panel con niebla mantiene el paso de
+cuadrícula en 50 px; los criterios de cuadrícula buscan la cadena a 50 px (ignoran barra de iniciativa y
+etiquetas) y toleran la pérdida de contraste de la niebla. Dos ejecuciones seguidas 26/26.
+`prod-2d` `4db8ef2` desplegado (`jtsrw8wvgbbhmlm8xbse2a9x`); en `clima-2d` también.
+**Lección** — el primer diagnóstico («pestaña con JS viejo») fue erróneo: la prueba anterior comparaba
+tamaños, no alineación. Medir lo que el usuario ve (columnas de la cuadrícula), no el estado interno.
+**Revertir** — revertir `4db8ef2` en `prod-2d` y redesplegar.
+
 ## 2026-09-18 — Clima: las zonas interiores no lo muestran, salvo los tipos que marque el director (desplegado)
 
 **Qué** — Nuevo `weather.indoor = {id:true,…}` por escena (saneado en `rules.js`: sólo ids de la lista, sin
