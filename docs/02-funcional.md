@@ -35,6 +35,10 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 
 ## Escenas, portales, fichas, imágenes, niebla
 
+**Niebla de un jugador vista por el director** (2026-09-19): en «Vista de jugador», selector «Niebla:
+Nueva (se reinicia) / La de <jugador>» y botón «Reiniciar mi vista». Sólo lectura: el director nunca
+guarda niebla. «Reiniciar exploración… para todos» sigue borrando la de todos.
+
 Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede hacer cada rol».
 El servidor valida cada operación y devuelve una corrección (`fix`) cuando un jugador
 intenta algo que no puede.

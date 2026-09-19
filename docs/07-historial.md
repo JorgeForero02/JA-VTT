@@ -2,6 +2,22 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — El director ve la niebla guardada de un jugador (desplegado)
+
+**Qué** — En «Vista de jugador» aparece **Niebla: Nueva (se reinicia) / La de <jugador>** y un botón
+«Reiniciar mi vista». Con un jugador elegido, el cliente pide `{t:'fogof',scene,user}` y el servidor
+(`handleFogOf`, sólo director, misma escena) devuelve los bloques guardados de ese usuario (PNG en 2D,
+bytes por casilla en 2.5D); `net.js` los carga con `loadFog` tras `resetExplored`. Se vuelve a pedir al
+recargar el estado (cambio de escena, reconexión). **Sólo lectura**: el director nunca guarda niebla
+(`flushFog` ya lo ignoraba), así que explorar o reiniciar en esa vista no toca la del jugador. «Reiniciar
+exploración… para todos» (Escena) sigue igual. Tests: `realtime.test.js` (el director recibe los bloques
+del jugador; un jugador que lo pide no recibe nada), contrato en `frontend.test.js`, `test:ui` +2 pasos
+(4 bloques del jugador → 4 en el director; reinicio local recarga y el jugador conserva los suyos).
+`prod-2d` `a1fa6ef` (`txztpfzbilhshwciivtwq0vm`); `clima-2d` 66/66 con 2.5D.
+**Por qué** — petición del usuario: ver lo que un personaje ya descubrió, y que la vista «nueva» del
+director (que se reinicia) no afecte al jugador.
+**Revertir** — revertir el commit en `prod-2d` y redesplegar.
+
 ## 2026-09-19 — Colisión de fichas y niebla de guerra (2D, desplegados)
 
 **Colisión (`core.js`)** — Antes `tryMove` sólo probaba el objetivo y dos deslizamientos en los ejes X/Y:
