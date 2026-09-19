@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-19 — P-04 a N2 y limpieza de pendientes
+
+- **Qué:** `npm test` mide cobertura de `server/**` y falla bajo 78/72/82 (líneas/ramas/funciones). `06` reescrito: tabla unificada, P-05 cerrado (ya estaba implementado), P-19…P-24 con sus planes.
+- **Por qué:** P-04 pedía N2; la tabla de 06 estaba partida por un párrafo y P-05 llevaba hecho sin cerrarse.
+- **Revertir:** `git revert` de los dos commits; el script `test` anterior era `node --test --test-concurrency=1 "test/*.test.js"`.
+
 ## 2026-09-16 — Ajustes de chat/dados para todos, tiradas privadas, dados rediseñados, favicon
 
 **Qué** — `diceEnabled` junto a `chatEnabled`, ambos en la pestaña Ajustes y apagan la función
