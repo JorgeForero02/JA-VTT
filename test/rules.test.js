@@ -96,3 +96,22 @@ test('playerUpsert: el dueño cambia condiciones, hp y elevación de su ficha; n
   const legacyRes = R.playerUpsert(uid, legacyOld, legacyNeu, { settings: {} }, 1, 0);
   assert.equal(R.sameObject(legacyRes, legacyNeu), true, 'ficha previa sin campos nuevos no genera divergencia');
 });
+
+test('hpVisibility: ajuste de tablero con tres valores; objectFor quita el hp a los jugadores en fichas ajenas sólo en modo gm', () => {
+  assert.equal(R.DEFAULT_BOARD.hpVisibility, 'all');
+  for (const v of ['all', 'gm', 'bar_only']) assert.equal(R.splitSettings({ hpVisibility: v }).board.hpVisibility, v);
+  assert.equal(R.cleanSettings({ hpVisibility: 'nadie' }).hpVisibility, undefined);
+  assert.equal(R.splitSettings({ hpVisibility: 'gm' }).scene.hpVisibility, undefined, 'no es ajuste de escena');
+  const gmTok = R.sanitize({ id: 5, type: 'token', kind: 'enemy', owner: null, x: 0, y: 0, hp: { cur: 8, max: 20 }, conditions: ['prone'] });
+  const mine = R.sanitize({ id: 6, type: 'token', kind: 'player', owner: 7, x: 0, y: 0, hp: { cur: 3, max: 9 } });
+  const player = { role: 'player', user_id: 7 }, gm = { role: 'gm', user_id: 1 };
+  const seen = R.objectFor(gmTok, player, { hpVisibility: 'gm' });
+  assert.equal(seen.hp, undefined);
+  assert.deepEqual(seen.conditions, ['prone'], 'las condiciones sí se ven');
+  assert.deepEqual(gmTok.hp, { cur: 8, max: 20, temp: 0 }, 'el original no se toca');
+  assert.equal(R.objectFor(mine, player, { hpVisibility: 'gm' }), mine, 'la propia, intacta');
+  assert.equal(R.objectFor(gmTok, gm, { hpVisibility: 'gm' }), gmTok);
+  for (const v of ['all', 'bar_only', undefined]) assert.equal(R.objectFor(gmTok, player, { hpVisibility: v }), gmTok, String(v));
+  const wall = R.sanitize({ id: 8, type: 'wall', a: { x: 0, y: 0 }, b: { x: 1, y: 1 } });
+  assert.equal(R.objectFor(wall, player, { hpVisibility: 'gm' }), wall);
+});
