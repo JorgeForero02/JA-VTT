@@ -223,21 +223,46 @@ function doorVisibleToPlayers(w){
 }
 
 /* ---------- Movimiento con colisión ---------- */
-function moveBlocked(from,to,r){
+/* Cercanía a un muro para el choque: distancia perpendicular sólo donde hay muro (pie de la perpendicular dentro
+   del segmento); en los extremos un tapón pequeño (0,35·r), no el radio entero: si no, un muro bloqueaba
+   hasta 20 px más allá de donde termina y no se podía pasar junto a su final. */
+function wallNear(p,w,r){
+  const dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L2=dx*dx+dy*dy||1;
+  const t=((p.x-w.a.x)*dx+(p.y-w.a.y)*dy)/L2;
+  if(t>=0&&t<=1)return{d:Math.hypot(p.x-(w.a.x+t*dx),p.y-(w.a.y+t*dy)),lim:r};
+  const e=t<0?w.a:w.b;return{d:Math.hypot(p.x-e.x,p.y-e.y),lim:r*.35};
+}
+/* El primer muro que impide ir de `from` a `to` con radio `r`, o null. Bloquea cruzarlo y acercarse por
+   debajo de la distancia de choque; alejarse siempre se puede (una ficha que ya está pegada no se queda presa). */
+function blockingWall(from,to,r){
   for(const w of S.walls){
     if(!blocks(w,'move'))continue;
-    if(segCross(from,to,w.a,w.b))return true;
-    const dt=pointSegDist(to,w.a,w.b);
-    if(dt<r&&dt<pointSegDist(from,w.a,w.b)-.01)return true;
+    if(segCross(from,to,w.a,w.b))return w;
+    const n=wallNear(to,w,r);
+    if(n.d<n.lim&&n.d<wallNear(from,w,r).d-.01)return w;
   }
-  return false;
+  return null;
 }
+function moveBlocked(from,to,r){return !!blockingWall(from,to,r)}
+const lerpP=(a,b,k)=>({x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k});
+/* Lo más lejos que se puede ir en línea recta de `from` hacia `to` (bisección) */
+function furthest(from,to,r){
+  if(!moveBlocked(from,to,r))return to;
+  let lo=0,hi=1;for(let i=0;i<8;i++){const m=(lo+hi)/2;if(moveBlocked(from,lerpP(from,to,m),r))hi=m;else lo=m}
+  return lerpP(from,to,lo);
+}
+/* Mover una ficha hacia `target`: avanza hasta el choque y luego resbala a lo largo del muro que bloquea
+   (proyección del resto del movimiento sobre su dirección), sin atravesar ningún otro. */
 function tryMove(t,target){
   const r=tokenRadius(t)*.8,cur={x:t.x,y:t.y};
   if(!moveBlocked(cur,target,r))return target;
-  const a={x:target.x,y:cur.y};if(!moveBlocked(cur,a,r))return a;
-  const b={x:cur.x,y:target.y};if(!moveBlocked(cur,b,r))return b;
-  return cur;
+  const p1=furthest(cur,target,r);
+  const w=blockingWall(p1,target,r)||blockingWall(cur,target,r);
+  if(!w)return p1;
+  const dx=w.b.x-w.a.x,dy=w.b.y-w.a.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L;
+  const k=(target.x-p1.x)*ux+(target.y-p1.y)*uy;
+  if(Math.abs(k)<1e-6)return p1;
+  return furthest(p1,{x:p1.x+ux*k,y:p1.y+uy*k},r);
 }
 function snapToken(t,p){const s=t.size||1;if(s%2===1)return{x:Math.floor(p.x/CELL)*CELL+CELL/2,y:Math.floor(p.y/CELL)*CELL+CELL/2};return{x:Math.round(p.x/CELL)*CELL,y:Math.round(p.y/CELL)*CELL}}
 const snapCell=p=>({x:Math.floor(p.x/CELL)*CELL+CELL/2,y:Math.floor(p.y/CELL)*CELL+CELL/2});
