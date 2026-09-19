@@ -123,3 +123,18 @@ test('hpEnabled y conditionsEnabled: booleanos de tablero, true por defecto', ()
   assert.deepEqual(R.splitSettings({ hpEnabled: 'no', conditionsEnabled: 0 }).board, {});
   assert.equal(R.splitSettings({ hpEnabled: false }).scene.hpEnabled, undefined);
 });
+
+test('note: texto recortado a 200, gmOnly booleano, sin posición → null; los jugadores no ven las gmOnly', () => {
+  const n = R.sanitize({ id: 9, type: 'note', x: 10, y: 20, text: 'Trampa DC 15', gmOnly: 1 });
+  assert.deepEqual(n, { id: 9, type: 'note', x: 10, y: 20, text: 'Trampa DC 15', gmOnly: true });
+  assert.equal(R.sanitize({ id: 9, type: 'note', x: 10, y: 20, text: 'x'.repeat(300) }).text.length, 200);
+  assert.deepEqual(R.sanitize({ id: 9, type: 'note', x: 10, y: 20 }), { id: 9, type: 'note', x: 10, y: 20, text: '', gmOnly: false });
+  assert.equal(R.sanitize({ id: 9, type: 'note', text: 'sin sitio' }), null);
+  const player = { role: 'player', user_id: 7 }, gm = { role: 'gm', user_id: 1 };
+  assert.equal(R.visibleTo(n, player, {}), false);
+  assert.equal(R.visibleTo(n, gm, {}), true);
+  assert.equal(R.visibleTo(Object.assign({}, n, { gmOnly: false }), player, {}), true);
+  assert.equal(R.playerUpsert(7, null, n, { settings: {} }, 0, 0), null, 'un jugador no crea notas');
+  assert.deepEqual(R.cleanSettings({ layers: { notes: { visible: false } } }).layers.notes, { visible: false, locked: false });
+});
+

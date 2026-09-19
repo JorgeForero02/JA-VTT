@@ -4,14 +4,14 @@
    puede mover y personalizar su propio personaje (y abrir puertas si el
    director lo permite). */
 
-const TYPES = ['wall', 'light', 'token', 'asset', 'plan', 'zone'];
+const TYPES = ['wall', 'light', 'token', 'asset', 'plan', 'zone', 'note'];
 const WALL_KINDS = ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'portal'];
 const LIGHT_PRESETS = ['candle', 'torch', 'lantern', 'bullseye', 'campfire', 'brazier', 'magic', 'crystal', 'moon', 'daylight', 'window', 'darkness', 'custom', 'none'];
 const ANIMS = ['none', 'flicker', 'soft', 'pulse'];
 const ENVS = ['interior', 'day', 'dusk', 'night'];
 /* Clima 2D: `none` + los efectos que registra public/js/vendor/weather-fx.js (un test los compara) */
 const WEATHER_IDS = ['none', 'rain', 'storm', 'drizzle', 'blizzard', 'sand', 'fog', 'ash', 'embers', 'heat', 'arcane'];
-const LAYER_IDS = ['map', 'props', 'zones', 'plans', 'tokens', 'lights', 'walls'];
+const LAYER_IDS = ['map', 'props', 'zones', 'plans', 'tokens', 'lights', 'walls', 'notes'];
 /* Condiciones del SRD 5e (14) + marcadores tácticos de mesa (6). El cliente tiene el mismo catálogo con
    nombre y color en public/js/core.js (un test de contrato los compara). */
 const CONDITION_IDS = [
@@ -81,6 +81,10 @@ function sanitize(o) {
       const pts = o.pts.slice(0, 600).map(pt).filter(Boolean);
       if (pts.length > 2) c.pts = pts;
     }
+    return c;
+  }
+  if (o.type === 'note') {
+    Object.assign(c, { text: str(o.text, 200), gmOnly: !!o.gmOnly });
     return c;
   }
   if (o.type === 'asset') {
@@ -216,6 +220,7 @@ const sameObject = (a, b) => stableJson(a) === stableJson(b);
 function visibleTo(o, member, settings) {
   if (member.role === 'gm') return true;
   if (o.type === 'token' && o.hidden && o.owner !== member.user_id) return false;
+  if (o.type === 'note' && o.gmOnly) return false;
   if (o.type === 'plan' && !settings.plansReleased && o.owner == null) return false;
   return true;
 }
