@@ -12,6 +12,13 @@ const ENVS = ['interior', 'day', 'dusk', 'night'];
 /* Clima 2D: `none` + los efectos que registra public/js/vendor/weather-fx.js (un test los compara) */
 const WEATHER_IDS = ['none', 'rain', 'storm', 'drizzle', 'blizzard', 'sand', 'fog', 'ash', 'embers', 'heat', 'arcane'];
 const LAYER_IDS = ['map', 'props', 'zones', 'plans', 'tokens', 'lights', 'walls'];
+/* Condiciones del SRD 5e (14) + marcadores tácticos de mesa (6). El cliente tiene el mismo catálogo con
+   nombre y color en public/js/core.js (un test de contrato los compara). */
+const CONDITION_IDS = [
+  'blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed',
+  'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious',
+  'dead', 'concentration', 'exhaustion', 'burning', 'blessed', 'marked',
+];
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -88,12 +95,14 @@ function sanitize(o) {
     return c;
   }
   if (o.type === 'token') {
-    return Object.assign(c, {
+    Object.assign(c, {
       kind: o.kind === 'enemy' ? 'enemy' : 'player', name: str(o.name, 40), size: [1, 2, 3, 4].includes(o.size) ? o.size : 1,
       color: col(o.color, '#7FB2E5'), hidden: !!o.hidden, vision: o.vision !== false,
       sight: fin(o.sight) ? clamp(o.sight, 0, 5000) : 0, darkvision: fin(o.darkvision) ? clamp(o.darkvision, 0, 300) : 0,
       light: cleanLight(o.light) || noLight(), img: imgId(o.img), owner: Number.isInteger(o.owner) ? o.owner : null,
+      conditions: Array.isArray(o.conditions) ? [...new Set(o.conditions.filter((x) => CONDITION_IDS.includes(x)))] : [],
     });
+    return c;
   }
   return null;
 }
@@ -173,6 +182,7 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
       if (old.owner !== uid) return null;
       return Object.assign({}, old, {
         x: neu.x, y: neu.y, name: neu.name || old.name, color: neu.color, img: neu.img, light: neu.light,
+        conditions: neu.conditions,
       });
     }
     if (ownedCount >= 1 || neu.kind !== 'player' || neu.owner !== uid) return null;
@@ -200,4 +210,4 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, WEATHER_IDS, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };
+module.exports = { sanitize, cleanSettings, splitSettings, DEFAULT_SCENE, DEFAULT_BOARD, WEATHER_IDS, CONDITION_IDS, playerUpsert, visibleTo, str, stableJson, sameObject, cleanInitiative, initiativeFor };

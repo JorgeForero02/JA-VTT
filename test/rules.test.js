@@ -47,3 +47,13 @@ test('weather.indoor: sólo ids de la lista (sin none) con true; lo demás se de
   assert.equal(R.cleanSettings({ weather: { id: 'rain', indoor: ['rain'] } }).weather.indoor, undefined);
   assert.equal(R.cleanSettings({ weather: { id: 'rain', indoor: {} } }).weather.indoor, undefined);
 });
+
+test('condiciones: catálogo de 20 ids; sanitize filtra las inventadas, quita duplicados y siempre deja un array', () => {
+  assert.deepEqual(R.CONDITION_IDS, ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious', 'dead', 'concentration', 'exhaustion', 'burning', 'blessed', 'marked']);
+  const base = { id: 1, type: 'token', x: 0, y: 0 };
+  assert.deepEqual(R.sanitize(Object.assign({ conditions: ['poisoned', 'invalid'] }, base)).conditions, ['poisoned']);
+  assert.deepEqual(R.sanitize(Object.assign({ conditions: ['prone', 'prone', 'dead', 7, null] }, base)).conditions, ['prone', 'dead']);
+  assert.deepEqual(R.sanitize(base).conditions, []);
+  assert.deepEqual(R.sanitize(Object.assign({ conditions: 'prone' }, base)).conditions, []);
+  assert.deepEqual(R.sanitize(Object.assign({ conditions: R.CONDITION_IDS.concat(['x']) }, base)).conditions, R.CONDITION_IDS);
+});
