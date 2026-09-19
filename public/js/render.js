@@ -398,6 +398,7 @@ function drawOverlay(player){
     }
   }
   if(S.layers.plans.visible){for(const p of S.plans)if(gm||S.plansReleased||p.owner!=null)drawPlan(c,p,isSel(p)?'#F0B35A':(p.color||'#8EC5E8'),false)}
+  drawNotes(c,gm);
   const A=UI.act;
   if(A&&A.kind==='plan')drawPlan(c,{shape:UI.planShape,a:A.a,b:A.b},'#F4EEE2',true);
   if(A&&(A.kind==='room'||A.kind==='zone')){const r=normRect(A.a,A.b);c.save();c.setLineDash([px(6),px(5)]);c.strokeStyle=A.kind==='zone'?'#B79BD8':WALL_TYPES[wallKindForShape()].color;c.lineWidth=px(2);c.strokeRect(r.x,r.y,r.w,r.h);c.restore();label(c,{x:r.x+r.w/2,y:r.y+r.h/2},`${Math.round(pxFt(r.w))} × ${Math.round(pxFt(r.h))} ft`)}
@@ -466,6 +467,17 @@ function drawPlan(c,p,color,draft){
     if(who){c.setLineDash([]);const fs=px(11);c.font=`600 ${fs}px "Alegreya Sans", system-ui, sans-serif`;const w=c.measureText(who.name).width;c.fillStyle=p.color||who.color;roundRect(c,a.x-w/2-px(5),a.y-px(24),w+px(10),fs+px(6),px(4));c.fill();c.fillStyle='#1C2226';c.textAlign='center';c.textBaseline='middle';c.fillText(who.name,a.x,a.y-px(24)+(fs+px(6))/2)}
   }
   c.restore();
+}
+/* Anotaciones: pin con la punta en (x,y), texto a la derecha; las sólo-director van en violeta con un ojo tachado */
+function drawNotes(c,gm){
+  if(!(S.layers.notes||{visible:true}).visible)return;
+  for(const n of S.notes){
+    const color=isSel(n)?'#F0B35A':n.gmOnly?'#CDB8E6':'#E9E3D5',s=px(20),ic=iconImage('map-pin',color);
+    c.save();c.fillStyle='rgba(0,0,0,.35)';c.beginPath();c.ellipse(n.x,n.y+px(1),px(5),px(2.5),0,0,Math.PI*2);c.fill();c.restore();
+    if(ic.complete)c.drawImage(ic,n.x-s/2,n.y-s,s,s);
+    if(n.text&&UI.cam.zoom>.3)label(c,{x:n.x+px(12),y:n.y-px(10)},n.text,'left');
+    if(gm&&n.gmOnly){const e=iconImage('eye-off','#CDB8E6'),es=px(12);if(e.complete)c.drawImage(e,n.x-es/2,n.y-s-es,es,es)}
+  }
 }
 function cornerHandles(o){return[{k:'nw',x:o.x-o.w/2,y:o.y-o.h/2},{k:'ne',x:o.x+o.w/2,y:o.y-o.h/2},{k:'se',x:o.x+o.w/2,y:o.y+o.h/2},{k:'sw',x:o.x-o.w/2,y:o.y+o.h/2}]}
 function lightHandlePos(l){const a=l.angle<360?(l.rot||0)*Math.PI/180:0;const r=ftPx(l.bright+l.dim);return{x:l.x+Math.cos(a)*r,y:l.y+Math.sin(a)*r}}

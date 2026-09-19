@@ -262,6 +262,21 @@ try {
   step('regla: al soltar se limpia', rulerGone);
   await gm.click('[data-tool="select"]');
 
+  // anotaciones: el director clava una nota sólo-director (el jugador no la recibe); la publica y el jugador la ve
+  await gm.evaluate(() => { const n = addObj(newNote({ x: 950, y: 400 })); n.text = 'Trampa DC 15'; changed(); });
+  await gm.waitForTimeout(800);
+  const plHasSecret = await pl.evaluate(() => S.notes.some((n) => n.text === 'Trampa DC 15'));
+  step('notas: la anotación sólo-director no llega al jugador', !plHasSecret);
+  await gm.evaluate(() => { S.notes.find((n) => n.text === 'Trampa DC 15').gmOnly = false; changed(); });
+  await pl.waitForFunction(() => S.notes.some((n) => n.text === 'Trampa DC 15' && n.gmOnly === false), null, { timeout: 5000 });
+  await pl.evaluate(() => { UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550; requestRender(); }); await pl.waitForTimeout(400);
+  await shot(pl, '11-nota-publicada-jugador');
+  step('notas: publicada, el jugador la recibe con su texto', true);
+  await gm.evaluate(() => { S.notes.find((n) => n.text === 'Trampa DC 15').gmOnly = true; changed(); });
+  await pl.waitForFunction(() => !S.notes.some((n) => n.text === 'Trampa DC 15'), null, { timeout: 5000 });
+  step('notas: al volver a ocultarla desaparece del jugador', true);
+  await gm.evaluate(() => { S.notes = []; changed(); });
+
   // clima 2D: el director pone tormenta (Escena → Clima); la capa Pixi se monta entre la escena y el brillo en
   // director y jugador (las librerías se cargan sólo ahora); «Sin clima» la destruye en ambos
   await gm.click('[data-tab="scene"]');

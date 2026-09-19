@@ -418,6 +418,17 @@ test('anotaciones: colección, capa, herramienta N, colocar con el editor abiert
   assert.match(editor, /else if\(t==='note'\)\{hint\('Clic para clavar una anotación\. Por defecto sólo la ves tú; en sus propiedades puedes publicarla\.'\)\}/);
 });
 
+test('render: drawNotes pinta pin, etiqueta y eye-off si es sólo del director; tolera escenas sin la capa notes', () => {
+  const r = read('js/render.js');
+  assert.match(r, /^function drawNotes\(c,gm\)\{/m);
+  assert.match(r, /drawNotes\(c,gm\);/, 'drawOverlay la llama');
+  assert.match(r, /\(S\.layers\.notes\|\|\{visible:true\}\)\.visible/);
+  assert.match(r, /iconImage\('map-pin',/);
+  assert.match(r, /n\.gmOnly\?'#CDB8E6':'#E9E3D5'/);
+  assert.match(r, /if\(gm&&n\.gmOnly\)/);
+});
+
+
 
 
 
