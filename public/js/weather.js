@@ -32,8 +32,11 @@ const Weather=(()=>{
     if(pending)return;pending=true;
     load().then(()=>{pending=false;if(!fx&&wanted())mount()}).catch(err=>{pending=false;failed=true;console.error(err);toast('No se pudo cargar el clima: '+err.message,4000)});
   }
-  function invalidate(){if(fx)fx.invalidateSource()}
-  function resize(){if(fx){fx.app.resize();fx.resize();fx.invalidateSource()}}
+  /* cScene cambia de tamaño con la ventana, los paneles y la calidad (dpr): `baseTexture.update()` de la
+     librería no relee el tamaño y Pixi haría texSubImage2D con un canvas mayor que la textura
+     (GL_INVALID_VALUE glCopySubTextureCHROMIUM). `resource.update()` redimensiona y luego marca sucia. */
+  function invalidate(){if(fx&&fx.sourceTexture)fx.sourceTexture.baseTexture.resource.update()}
+  function resize(){if(fx){fx.app.resize();fx.resize();invalidate()}}
   const mounted=()=>!!fx;
   return{sync,invalidate,resize,mounted};
 })();

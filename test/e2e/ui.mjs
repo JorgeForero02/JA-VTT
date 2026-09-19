@@ -24,7 +24,8 @@ const errors = [];
 async function newPage() {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 860 }, ignoreHTTPSErrors: true });
   const page = await ctx.newPage();
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(`[${page.__name}] ${m.text()}`); });
+  // los errores de WebGL de Chrome llegan como warning: cuentan igual
+  page.on('console', (m) => { if (m.type() === 'error' || /GL_INVALID|WebGL/.test(m.text())) errors.push(`[${page.__name}] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[${page.__name}] ${e.message}`));
   return page;
 }
@@ -161,6 +162,16 @@ try {
   step('clima: el panel del director muestra intensidad y viento sólo con clima', await gm.evaluate(() => document.querySelector('.weatherOnly').style.display === ''));
   await gm.waitForTimeout(2500);
   await shot(gm, '05c-clima-tormenta');
+  // el canvas de la escena cambia de tamaño (ventana, paneles): la textura fuente debe seguirle sin errores de WebGL
+  const glBefore = errors.filter((e) => /WebGL|GL_INVALID/.test(e)).length;
+  await gm.setViewportSize({ width: 1600, height: 1000 });
+  await gm.waitForTimeout(1200);
+  await gm.setViewportSize({ width: 1100, height: 700 });
+  await gm.waitForTimeout(1200);
+  await gm.setViewportSize({ width: 1400, height: 860 });
+  await gm.waitForTimeout(1200);
+  const glErrors = errors.filter((e) => /WebGL|GL_INVALID/.test(e)).slice(glBefore);
+  step('clima: redimensionar la ventana con clima no produce errores de WebGL (textura fuente sigue al canvas)', glErrors.length === 0, glErrors[0] || '');
   await gm.selectOption('#weatherId', 'none');
   await gm.waitForFunction(() => !document.getElementById('cWeather') && !Weather.mounted(), null, { timeout: 10000 });
   await pl.waitForFunction(() => !document.getElementById('cWeather') && !Weather.mounted(), null, { timeout: 10000 });
