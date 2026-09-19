@@ -66,7 +66,7 @@ recuerda cuáles dejaste abiertas):
 
 | Pestaña | Contenido |
 |---|---|
-| **Escena** | Iluminación, zonas interiores, niebla de guerra y contenido (tablero de fondo) |
+| **Escena** | Iluminación, clima (lluvia, tormenta, nieve, niebla… sólo en 2D; lo ven todos), zonas interiores, niebla de guerra y contenido (tablero de fondo) |
 | **Luces** | Biblioteca de fuentes de luz y luces de la escena |
 | **Imágenes** | Subida y biblioteca de tableros, objetos y retratos |
 | **Fichas** | Crear fichas, personajes y enemigos (el jugador ve «Mi personaje») |
@@ -183,5 +183,6 @@ CC0 es dominio público: no exige dar crédito, pero se reconoce igual. El pixel
 
 - Iconos: Lucide (licencia ISC).
 - Cálculo de visibilidad: visibility-polygon.js de Byron Knoll (dominio público).
+- Clima 2D: PixiJS 7.4.2 (MIT) y WeatherFX (`weather-fx/`).
 - Tipografías: Alegreya y Alegreya Sans de Huerta Tipográfica (SIL Open Font License).
 - Nació como «Mini VTT»; el historial del cambio está en `docs/07-historial.md`.
