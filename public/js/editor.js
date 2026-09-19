@@ -49,6 +49,7 @@ function newToken(p,kind,extra){
     color:enemy?'#D9705F':'#7FB2E5',hidden:enemy,vision:!enemy,sight:0,darkvision:enemy?60:0,
     light:tokenLightFrom(enemy?'none':'torch',!enemy),img:null},extra||{});
 }
+function newNote(p){return{id:nid(),type:'note',x:p.x,y:p.y,text:'Nota',gmOnly:true}}
 function addObj(o){S[COLL[o.type]].push(o);return o}
 function addWall(a,b,kind,group){if(dist(a,b)<1)return null;const w={id:nid(),type:'wall',kind:kind||'wall',a:{x:a.x,y:a.y},b:{x:b.x,y:b.y},open:false,locked:false};if(group)w.group=group;return addObj(w)}
 function polyWalls(pts,closed,kind,group){const g=group||nid(),ids=[];const n=closed?pts.length:pts.length-1;for(let i=0;i<n;i++){const w=addWall(pts[i],pts[(i+1)%pts.length],kind,g);if(w)ids.push(w.id)}return ids}
@@ -132,6 +133,7 @@ function hitTest(p){
     return null;
   }
   for(const l of[...S.lights].reverse())if(usable(l)&&dist(l,p)<=px(16))return l;
+  for(const n of[...S.notes].reverse())if(usable(n)&&dist(n,p)<=px(14))return n;
   for(const t of[...S.tokens].reverse())if(usable(t)&&dist(t,p)<=tokenRadius(t))return t;
   let best=null,bd=px(9);
   for(const w of S.walls){if(!usable(w))continue;const d=pointSegDist(p,w.a,w.b);if(d<bd){bd=d;best=w}}
@@ -242,6 +244,7 @@ stage.addEventListener('pointerdown',e=>{
       const q=snapOn('zones',e)?snapVertex(p):p;UI.act={kind:'zone',a:q,b:q};return}
     case 'light':pushUndo();{const l=addObj(newLight(snapOn('lights',e)?snapCell(p):fine(p),UI.lightPreset));UI.selected=[l.id]}changed(true);return;
     case 'player':case 'enemy':pushUndo();{const t=addObj(newToken(snapOn('tokens',e)?snapCell(p):fine(p),UI.tool));UI.selected=[t.id]}changed();return;
+    case 'note':pushUndo();{const n=addObj(newNote(snapOn('notes',e)?snapCell(p):fine(p)));UI.selected=[n.id];changed();openEditor(n,sp)}return;
     case 'plan':UI.act={kind:'plan',a:p,b:p};return;
   }
   // seleccionar / mover
@@ -426,7 +429,7 @@ window.addEventListener('keydown',e=>{
     changed(walls);return;
   }
   if((k==='q'||k==='c')&&!e.repeat&&isGM()){UI.wallShape=k==='q'?'rect':'circle';setTool('wall');return}
-  const map={v:'select',h:'pan',r:'ruler',w:'wall',z:'zone',l:'light',p:'player',e:'enemy',m:'plan'};
+  const map={v:'select',h:'pan',r:'ruler',w:'wall',z:'zone',l:'light',p:'player',e:'enemy',m:'plan',n:'note'};
   if(map[k]&&!e.repeat){if(k==='w')UI.wallShape='chain';setTool(map[k])}
 });
 window.addEventListener('keyup',e=>{if(e.code==='Space'){UI.space=false;stage.style.cursor=UI.tool==='pan'?'grab':''}});
@@ -444,6 +447,7 @@ function describe(o){
   if(o.type==='zone')return o.name||'Zona interior';
   if(o.type==='plan')return({line:'Línea',circle:'Círculo',rect:'Rectángulo',cone:'Cono'})[o.shape]+' de plano';
   if(o.type==='asset')return o.name||(o.kind==='prop'?'Objeto':'Tablero');
+  if(o.type==='note')return o.text||'Anotación';
   return 'Elemento';
 }
 function openContext(o,sp){
@@ -601,6 +605,10 @@ function openEditor(o,sp){
     note(WALL_TYPES[o.kind].desc);
     if(o.kind==='door'){check('Abierta',o.open,v=>o.open=v);check('Cerrada con llave',o.locked,v=>{o.locked=v;if(v)o.open=false})}
     note(`Longitud: ${Math.round(pxFt(dist(o.a,o.b)))} pies.`);
+  }else if(o.type==='note'){
+    text('Texto',o.text,v=>o.text=v);
+    check('Sólo el director la ve',o.gmOnly,v=>o.gmOnly=v);
+    note('Los jugadores ven el pin y el texto de las anotaciones publicadas.');
   }else if(o.type==='zone'){
     text('Nombre',o.name,v=>o.name=v);
     note('Dentro de la zona no llega la luz ambiental. Úsala para casas, cuevas o sótanos en mapas exteriores.');
@@ -872,6 +880,7 @@ function renderSubbar(){
     hint({poly:'Clic en cada esquina; Intro, doble clic o clic en el primer punto para cerrar.',rect:'Arrastra sobre un edificio o cueva.',circle:'Arrastra desde el centro.'}[UI.zoneShape]+' Con clic derecho en una figura de muros puedes crear la zona con su forma.');
   }
   else if(t==='player'||t==='enemy'){hint(t==='player'?'Clic para colocar un personaje. Lleva antorcha por defecto.':'Clic para colocar un enemigo. Aparece oculto para los jugadores.')}
+  else if(t==='note'){hint('Clic para clavar una anotación. Por defecto sólo la ves tú; en sus propiedades puedes publicarla.')}
   else if(t==='ruler'){hint('Arrastra para medir. Espacio o clic derecho para fijar un punto y rodear esquinas. Distancia en casillas de 5 pies.')}
   else if(t==='pan'){hint('Arrastra para desplazar la vista.')}
   else if(!isGM()){hint('Arrastra a tu personaje. Clic en una puerta para abrirla o en un portal para cruzarlo.')}

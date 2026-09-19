@@ -45,10 +45,11 @@ const ENVS={
 const WEATHERS={none:{name:'Sin clima'},rain:{name:'Lluvia'},storm:{name:'Tormenta'},drizzle:{name:'Llovizna'},blizzard:{name:'Nieve y ventisca'},sand:{name:'Tormenta de arena'},fog:{name:'Niebla'},ash:{name:'Ceniza volcánica'},embers:{name:'Brasas'},heat:{name:'Calor abrasador'},arcane:{name:'Polvo arcano'}};
 const LAYERS=[
   {id:'map',name:'Tablero'},{id:'props',name:'Objetos'},{id:'zones',name:'Zonas interiores'},{id:'plans',name:'Planos'},
+  {id:'notes',name:'Anotaciones'},
   {id:'tokens',name:'Fichas'},{id:'lights',name:'Luces'},{id:'walls',name:'Muros y puertas'}
 ];
-const LAYER_OF={asset:'map',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls'};
-const COLL={asset:'assets',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls'};
+const LAYER_OF={asset:'map',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls',note:'notes'};
+const COLL={asset:'assets',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls',note:'notes'};
 
 /* Condiciones del SRD + marcadores de mesa. Mismos ids que CONDITION_IDS en server/rules.js (test de contrato).
    abbr: 1–2 letras que caben en el badge; color: fondo del badge. */
@@ -73,7 +74,7 @@ function blankState(){return{
   fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,hpVisibility:'all',hpEnabled:true,conditionsEnabled:true,
   weather:{id:'none',intensity:.6,wind:0},
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
-  walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
+  walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],notes:[],nextId:1
 }}
 Object.assign(S,blankState());
 const UI={role:'player',realRole:'player',me:null,board:null,scene:null,scenes:[],where:{},tool:'select',wallType:'wall',wallShape:'chain',zoneShape:'poly',zpoly:null,arc:null,curve:null,libCat:'all',upCat:'board',lightPreset:'torch',planShape:'line',viewAs:'party',fogOf:'new',preview:true,
@@ -97,8 +98,8 @@ const condsOn=()=>S.conditionsEnabled!==false;
 const PLAYER_TOOLS=['select','pan','ruler','plan'];
 /* Ajuste a la cuadrícula por tipo de objeto (preferencia de este navegador).
    El interruptor general de la escena manda sobre todos; Alt lo ignora al vuelo. */
-const SNAP_DEFAULTS={tokens:true,walls:true,moveWalls:false,lights:false,props:false,zones:false};
-const SNAP_LABELS={tokens:'Fichas',walls:'Puntos al dibujar muros',moveWalls:'Al mover muros y barreras',lights:'Luces',props:'Objetos',zones:'Zonas interiores'};
+const SNAP_DEFAULTS={tokens:true,walls:true,moveWalls:false,lights:false,props:false,zones:false,notes:false};
+const SNAP_LABELS={tokens:'Fichas',walls:'Puntos al dibujar muros',moveWalls:'Al mover muros y barreras',lights:'Luces',props:'Objetos',zones:'Zonas interiores',notes:'Anotaciones'};
 const PREFS=(()=>{let saved={};try{saved=JSON.parse(localStorage.getItem('jav.cuadricula')||'{}')}catch(e){}return Object.assign({},SNAP_DEFAULTS,saved)})();
 function savePrefs(){try{localStorage.setItem('jav.cuadricula',JSON.stringify(PREFS))}catch(e){}}
 const snapOn=(kind,e)=>!!(S.snap&&PREFS[kind]&&!(e&&e.altKey));

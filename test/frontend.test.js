@@ -401,5 +401,23 @@ test('regla multitramo: pts en UI.act, Espacio y clic derecho añaden punto, el 
   assert.doesNotMatch(render, /Math\.abs\(A\.b\.x-A\.a\.x\)/, 'la aritmética vieja desaparece del render');
 });
 
+test('anotaciones: colección, capa, herramienta N, colocar con el editor abierto, hitTest y campos', () => {
+  const core = read('js/core.js');
+  assert.match(core, /\{id:'plans',name:'Planos'\},\s*\{id:'notes',name:'Anotaciones'\}/);
+  assert.match(core, /const LAYER_OF=\{asset:'map',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls',note:'notes'\};/);
+  assert.match(core, /const COLL=\{asset:'assets',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls',note:'notes'\};/);
+  assert.match(core, /plans:\[\],zones:\[\],notes:\[\],nextId:1/);
+  assert.match(read('index.html'), /<button class="tool gmOnly" data-tool="note" data-ic="map-pin" title="Anotación en el mapa \(N\)"><kbd>N<\/kbd><\/button>/);
+  const editor = read('js/editor.js');
+  assert.match(editor, /^function newNote\(p\)\{return\{id:nid\(\),type:'note',x:p\.x,y:p\.y,text:'Nota',gmOnly:true\}\}$/m);
+  assert.match(editor, /case 'note':pushUndo\(\);\{const n=addObj\(newNote\(snapOn\('notes',e\)\?snapCell\(p\):fine\(p\)\)\);UI\.selected=\[n\.id\];changed\(\);openEditor\(n,sp\)\}return;/);
+  assert.match(editor, /for\(const n of\[\.\.\.S\.notes\]\.reverse\(\)\)if\(usable\(n\)&&dist\(n,p\)<=px\(14\)\)return n;/);
+  assert.match(editor, /if\(o\.type==='note'\)return o\.text\|\|'Anotación';/);
+  assert.match(editor, /\}else if\(o\.type==='note'\)\{\s*text\('Texto',o\.text,v=>o\.text=v\);\s*check\('Sólo el director la ve',o\.gmOnly,v=>o\.gmOnly=v\);/);
+  assert.match(editor, /m:'plan',n:'note'\}/);
+  assert.match(editor, /else if\(t==='note'\)\{hint\('Clic para clavar una anotación\. Por defecto sólo la ves tú; en sus propiedades puedes publicarla\.'\)\}/);
+});
+
+
 
 
