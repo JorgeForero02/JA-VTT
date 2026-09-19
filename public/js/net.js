@@ -31,6 +31,7 @@ const Net=(()=>{
         if(d.online){N.online=d.online;for(const id of[...N.cursors.keys()])if(!N.online.some(u=>u.id===id&&u.scene===(UI.scene&&UI.scene.id)))N.cursors.delete(id)}
         if(UI.scene){const me=UI.scenes.find(x=>x.id===UI.scene.id);if(me)UI.scene.name=me.name}
         renderLiveSoon();renderScenes();requestRender();break;
+      case 'fogof':if(UI.scene&&d.scene===UI.scene.id&&UI.realRole==='gm'&&UI.fogOf===d.user){resetExplored();loadFog(d.fog);requestRender()}break;
       case 'fogreset':if(UI.scene&&d.scene===UI.scene.id){resetExplored();requestRender();toast('El director reinició la exploración de esta escena')}break;
       case 'members':N.members=d.members||[];renderLiveSoon();refreshPanels();break;
       case 'chat':Chat.receive(d.msg);break;
@@ -67,7 +68,7 @@ const Net=(()=>{
     sync25(20);
     if(typeof view25==='function')view25();
     if(newScene){N.cursors.clear();UI.act=null;UI.chain=null;UI.curve=null;UI.arc=null;UI.zpoly=null;closePops()}
-    if(first)loadFog(d.fog);
+    if(first){loadFog(d.fog);if(UI.realRole==='gm'&&UI.fogOf!=='new')api.fogOf(UI.fogOf)}
     if(keepHist&&UI.realRole==='gm'){hist.undo.push(...prevUndo);hist.redo.push(...prevRedo);syncUndo()}
     baseline();synced=true;
     if(first){
@@ -168,6 +169,7 @@ const Net=(()=>{
     scene(op,extra){if(UI.realRole!=='gm')return;send(Object.assign({t:'scene',op},extra||{}))},
     travel(portal,all){flushFog();send({t:'travel',portal,all:!!all})},
     flushFog,
+    fogOf(user){if(UI.scene)send({t:'fogof',scene:UI.scene.id,user})},
     rename(name){send({t:'rename',name})},
     ping(){if(!send({t:'ping',at:Date.now()}))toast('No hay conexión con el servidor')},
     terrain(op){if(!UI.scene||!window.D3)return;send({t:'terrain',scene:UI.scene.id,op:Object.assign({},op,{version:op.version!=null?op.version:window.D3.version()})})},

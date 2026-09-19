@@ -175,6 +175,31 @@ test('el director no puede cambiar el modo del tablero por replace', async () =>
   await again.close();
 });
 
+test('fogof: el director ve la niebla guardada de un jugador; el jugador no puede pedirla', async () => {
+  const created = await json(gmCookie, 'POST', '/api/boards', { name: 'Niebla ajena', mode: '2d' });
+  const boardId2 = created.board.id;
+  const detail2 = await json(gmCookie, 'GET', `/api/boards/${boardId2}`);
+  await json(playerCookie, 'POST', '/api/join', { code: detail2.board.invite_code });
+  const gm = connect(base, boardId2, gmCookie);
+  const player = connect(base, boardId2, playerCookie);
+  await gm.opened; await player.opened;
+  const state0 = await gm.next(isState);
+  const ps = await player.next(isState);
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  player.send({ t: 'fog', scene: state0.scene.id, cx: 0, cy: -1, data: png });
+  await new Promise((r) => setTimeout(r, 200));
+  gm.send({ t: 'fogof', scene: state0.scene.id, user: ps.me.id });
+  const got = await gm.next((m) => m.t === 'fogof');
+  assert.equal(got.user, ps.me.id);
+  assert.deepEqual(got.fog.map((f) => [f.cx, f.cy, f.data]), [[0, -1, png]]);
+  // un jugador no recibe nada aunque lo pida: el siguiente mensaje que le llega es su propio pong
+  player.send({ t: 'fogof', scene: state0.scene.id, user: ps.me.id });
+  player.send({ t: 'ping', at: 1 });
+  const next = await player.next((m) => m.t === 'fogof' || m.t === 'pong');
+  assert.equal(next.t, 'pong');
+  await gm.close(); await player.close();
+});
+
 test('un jugador que gira su propia luz no recibe corrección (las claves vienen reordenadas de jsonb)', async () => {
   const uid = (await db.q.userByName('Jugador')).id;
   const token = { id: 1003, type: 'token', kind: 'player', owner: uid, x: 225, y: 225, name: 'Linterna', size: 1, hidden: false, vision: true, sight: 0, darkvision: 0, light: { on: true, preset: 'bullseye', bright: 60, dim: 60, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 0 } };
