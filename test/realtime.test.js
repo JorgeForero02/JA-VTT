@@ -221,3 +221,29 @@ test('hpVisibility gm: el jugador no recibe el hp de las fichas ajenas (estado, 
   await gm.close(); await player.close();
 });
 
+test('notas: una gmOnly no llega al jugador ni en estado ni en ops; al publicarla llega; al ocultarla recibe del', async () => {
+  const gm = connect(base, boardId, gmCookie);
+  const player = connect(base, boardId, playerCookie);
+  await gm.opened; await player.opened;
+  await gm.next(isState); await player.next(isState);
+  const note = { id: 4001, type: 'note', x: 300, y: 300, text: 'Trampa DC 15', gmOnly: true };
+  gm.send({ t: 'ops', scene: sceneId, up: [note], del: [] });
+  assert.equal(await player.silence((m) => isOps(m) && (m.up || []).some((o) => o.id === 4001)), true, 'el jugador no recibe la nota');
+  const fresh = connect(base, boardId, playerCookie); await fresh.opened;
+  const st = await fresh.next(isState);
+  assert.equal(st.objects.some((o) => o.id === 4001), false, 'tampoco en el estado inicial');
+  await fresh.close();
+  gm.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, note, { gmOnly: false })], del: [] });
+  const shown = await player.next((m) => isOps(m) && (m.up || []).some((o) => o.id === 4001));
+  assert.equal(shown.up.find((o) => o.id === 4001).text, 'Trampa DC 15');
+  gm.send({ t: 'ops', scene: sceneId, up: [note], del: [] });
+  const hidden = await player.next((m) => isOps(m) && (m.del || []).includes(4001));
+  assert.ok(hidden);
+  // el jugador intenta crear una nota: se le borra
+  player.send({ t: 'ops', scene: sceneId, up: [{ id: 4002, type: 'note', x: 1, y: 1, text: 'mía' }], del: [] });
+  const fix = await player.next((m) => isOps(m) && m.fix);
+  assert.ok(fix.del.includes(4002));
+  await gm.close(); await player.close();
+});
+
+
