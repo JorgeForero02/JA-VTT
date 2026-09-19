@@ -57,7 +57,10 @@ const Weather=(()=>{
      librería no relee el tamaño y Pixi haría texSubImage2D con un canvas mayor que la textura
      (GL_INVALID_VALUE glCopySubTextureCHROMIUM). `resource.update()` redimensiona y luego marca sucia. */
   function invalidate(){if(fx&&fx.sourceTexture)fx.sourceTexture.baseTexture.resource.update()}
-  function resize(){if(fx){fx.app.resize();fx.resize();fit();invalidate()}}
+  /* Orden: primero la textura (invalidate redimensiona) y después el sprite: `width=` calcula la escala con
+     el tamaño de la textura en ese momento y el sprite no vuelve a escuchar cambios de tamaño. Al revés, el
+     mapa quedaba estirado ×(ancho nuevo/ancho viejo) al abrir o cerrar el panel. */
+  function resize(){if(fx){fx.app.resize();fx.resize();invalidate();fit()}}
   const mounted=()=>!!fx;
   return{sync,invalidate,resize,mounted};
 })();

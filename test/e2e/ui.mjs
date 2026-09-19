@@ -185,7 +185,7 @@ try {
   await gm.click('[data-tab="scene"]');
   await gm.click('#envGrid button:nth-child(2)');   // exterior de día: se ve el tablero refractado
   // columnas de la cuadrícula (perfil de brillo por columna): la copia refractada debe caer sobre las mismas
-  const gridCols = async (page) => { const png = pngPixels(await page.screenshot({ clip: { x: 560, y: 60, width: 400, height: 600 } })); const cols = []; for (let x = 0; x < png.w; x++) { let t = 0; for (let y = 0; y < png.h; y++) t += png.px[(y * png.w + x) * png.ch + 1]; cols.push(t / png.h); } const peaks = cols.map((v, i) => [v - (cols[i - 2] + cols[i + 2]) / 2 || 0, i]).filter(([d]) => d > 2).map(([, i]) => i); return peaks.filter((v, i) => i === 0 || v - peaks[i - 1] > 1).slice(0, 10); };
+  const gridCols = async (page) => { const png = pngPixels(await page.screenshot({ clip: { x: 560, y: 60, width: 400, height: 600 } })); const cols = []; for (let x = 0; x < png.w; x++) { let t = 0; for (let y = 0; y < png.h; y++) t += png.px[(y * png.w + x) * png.ch + 1]; cols.push(t / png.h); } const peaks = cols.map((v, i) => [v - (cols[i - 2] + cols[i + 2]) / 2 || 0, i]).filter(([d]) => d > 2).map(([, i]) => i); return peaks.filter((v, i) => i === 0 || v - peaks[i - 1] > 1).slice(0, 14); };
   await gm.evaluate(() => { UI.cam.zoom = 1; requestRender(); }); await gm.waitForTimeout(400);
   const colsBefore = await gridCols(gm);
   // zona interior (cueva) a la izquierda: bajo techo no se nota el clima salvo que el director marque el tipo
@@ -199,7 +199,10 @@ try {
   await gm.waitForFunction(() => !!document.getElementById('cWeather') && Weather.mounted(), null, { timeout: 20000 });
   await gm.waitForTimeout(1500);
   const colsFog = await gridCols(gm);
-  const aligned = colsBefore.length >= 6 && colsFog.length >= 6 && colsBefore.slice(0, 6).every((c, i) => Math.abs(c - colsFog[i]) <= 1);
+  // columnas de la cuadrícula = cadena a 50 px (zoom 1); otras columnas (barra de iniciativa, etiquetas) se ignoran
+  const gridChain = (c) => c.filter((v) => c.some((u) => Math.abs(u - v - 50) <= 1) || c.some((u) => Math.abs(v - u - 50) <= 1));
+  // la niebla baja el contraste y alguna columna cae bajo el umbral: basta con que 4 de la cadena coincidan ±1 px
+  const aligned = gridChain(colsBefore).length >= 5 && gridChain(colsBefore).filter((c) => colsFog.some((f) => Math.abs(f - c) <= 1)).length >= 4;
   step('clima: la copia refractada del tablero no se escala ni desplaza (cuadrícula en las mismas columnas ±1 px)', aligned, `${colsBefore.slice(0, 6)} → ${colsFog.slice(0, 6)}`);
   const zoneFog = { in: await meanAt(gm, ...inZone), out: await meanAt(gm, ...outZone) };
   step('clima: dentro de la zona interior no hay niebla (píxeles como sin clima); fuera sí', Math.abs(zoneFog.in - zoneBefore.in) <= 4 && zoneFog.out - zoneBefore.out > 10, JSON.stringify({ zoneBefore, zoneFog }));
@@ -228,6 +231,14 @@ try {
   await gm.waitForTimeout(1200);
   await gm.setViewportSize({ width: 1400, height: 860 });
   await gm.waitForTimeout(1200);
+  // y la copia refractada no queda estirada: el paso de la cuadrícula sigue siendo 50 px (zoom 1)
+  await gm.selectOption('#weatherId', 'fog'); await gm.waitForTimeout(800);   // sin ondas de agua que muevan la cuadrícula
+  await gm.click('#panelToggle'); await gm.waitForTimeout(1200);
+  const colsClosed = await gridCols(gm);
+  await gm.click('#panelToggle'); await gm.waitForTimeout(1200);
+  const colsOpen = await gridCols(gm);
+  const step50 = (c) => gridChain(c).length >= 5;
+  step('clima: al abrir/cerrar el panel el mapa refractado no se estira (paso de cuadrícula 50 px)', step50(colsClosed) && step50(colsOpen), `cerrado ${colsClosed} · abierto ${colsOpen}`);
   const glErrors = errors.filter((e) => /WebGL|GL_INVALID/.test(e)).slice(glBefore);
   step('clima: redimensionar la ventana con clima no produce errores de WebGL (textura fuente sigue al canvas)', glErrors.length === 0, glErrors[0] || '');
   await gm.selectOption('#weatherId', 'none');
