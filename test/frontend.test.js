@@ -105,7 +105,7 @@ test('chat, dados, iniciativa y perfil: piezas del cliente en su sitio', () => {
   const net = read('js/net.js');
   assert.match(net, /case 'chat':Chat\.receive\(d\.msg\)/);
   assert.match(net, /case 'initiative':UI\.initiative=d\.initiative\|\|null;renderInitiative\(\)/);
-  assert.match(net, /'chatEnabled','diceEnabled','initiativeShown'\]/);
+  assert.match(net, /'chatEnabled','diceEnabled','initiativeShown'/);
   const editor = read('js/editor.js');
   assert.match(editor, /function syncChatTab\(\)/);
   assert.match(editor, /Dice3D\.roll\(\$\('#stageWrap'\),m\.body\.dice,m\.user_color,Math\.abs\(m\.id\)\)/);
@@ -315,3 +315,15 @@ test('vista de jugador: el director elige ver la niebla guardada de un jugador o
   assert.match(net, /function flushFog\(\)\{\n\s*if\(UI\.realRole==='gm'\|\|!UI\.scene\|\|!Net\.synced\)return;/);
   assert.match(read('js/core.js'), /fogOf:'new'/);
 });
+
+test('condiciones: el catálogo del cliente tiene los mismos 20 ids que el servidor, cada uno con nombre, abreviatura y color', () => {
+  const R = require('../server/rules');
+  const core = read('js/core.js');
+  const m = core.match(/^const CONDITIONS=\{([\s\S]*?)\};$/m);
+  assert.ok(m, 'const CONDITIONS={...}; en core.js');
+  const ids = [...m[1].matchAll(/(\w+):\{name:'[^']+',abbr:'[A-ZÑ]{1,2}',color:'#[0-9A-Fa-f]{6}'\}/g)].map((x) => x[1]);
+  assert.deepEqual(ids, R.CONDITION_IDS);
+  assert.match(core, /hpVisibility:'all'/, 'blankState lleva hpVisibility');
+  assert.match(read('js/net.js'), /'initiativeShown','hpVisibility'\]/, 'el director envía hpVisibility en settings');
+});
+

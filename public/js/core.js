@@ -50,12 +50,27 @@ const LAYERS=[
 const LAYER_OF={asset:'map',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls'};
 const COLL={asset:'assets',zone:'zones',plan:'plans',token:'tokens',light:'lights',wall:'walls'};
 
+/* Condiciones del SRD + marcadores de mesa. Mismos ids que CONDITION_IDS en server/rules.js (test de contrato).
+   abbr: 1–2 letras que caben en el badge; color: fondo del badge. */
+const CONDITIONS={
+  blinded:{name:'Cegado',abbr:'CE',color:'#5B5F66'},charmed:{name:'Hechizado',abbr:'HE',color:'#C86BA8'},
+  deafened:{name:'Ensordecido',abbr:'EN',color:'#7A8590'},frightened:{name:'Asustado',abbr:'AS',color:'#8E6AC8'},
+  grappled:{name:'Agarrado',abbr:'AG',color:'#A67C52'},incapacitated:{name:'Incapacitado',abbr:'IN',color:'#B0B0B0'},
+  invisible:{name:'Invisible',abbr:'IV',color:'#6FB7D6'},paralyzed:{name:'Paralizado',abbr:'PA',color:'#D6C36F'},
+  petrified:{name:'Petrificado',abbr:'PE',color:'#8C8C8C'},poisoned:{name:'Envenenado',abbr:'EV',color:'#5FA85A'},
+  prone:{name:'Derribado',abbr:'DE',color:'#C98A3B'},restrained:{name:'Apresado',abbr:'AP',color:'#8A6D3B'},
+  stunned:{name:'Aturdido',abbr:'AT',color:'#E0B84C'},unconscious:{name:'Inconsciente',abbr:'IC',color:'#4A4F57'},
+  dead:{name:'Muerto',abbr:'MU',color:'#2B2B2B'},concentration:{name:'Concentración',abbr:'CO',color:'#4C8FE0'},
+  exhaustion:{name:'Agotamiento',abbr:'AG',color:'#9A6F5F'},burning:{name:'En llamas',abbr:'LL',color:'#E0602E'},
+  blessed:{name:'Bendecido',abbr:'BE',color:'#F0C74C'},marked:{name:'Marcado',abbr:'MA',color:'#D9705F'}
+};
+
 /* ---------- Estado ---------- */
 const S={};
 const IMG=new Map();      // id de imagen -> HTMLImageElement
 function blankState(){return{
   version:2,name:'Escena nueva',cols:32,rows:22,env:'interior',ambient:0,darkColor:ENVS.interior.dark,
-  fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,
+  fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,hpVisibility:'all',
   weather:{id:'none',intensity:.6,wind:0},
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],nextId:1
