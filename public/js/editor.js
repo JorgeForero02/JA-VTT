@@ -672,9 +672,11 @@ function renderWeather(){
   sel.value=WEATHERS[w.id]?w.id:'none';
   const on=sel.value!=='none';$$('.weatherOnly').forEach(el=>el.style.display=on?'':'none');
   if(document.activeElement!==$('#weatherIntensity')){$('#weatherIntensity').value=Math.round(w.intensity*100);$('#weatherIntensityOut').textContent=Math.round(w.intensity*100)+' %'}
+  $('#weatherIndoor').checked=!!(w.indoor&&w.indoor[sel.value]);
   if(document.activeElement!==$('#weatherWind')){$('#weatherWind').value=Math.round(w.wind*100);$('#weatherWindOut').textContent=Math.round(w.wind*100)+' %'}
 }
 $('#weatherId').onchange=e=>{pushUndo();S.weather=Object.assign({},S.weather,{id:e.target.value});changed();renderWeather()};
+$('#weatherIndoor').onchange=e=>{pushUndo();const indoor=Object.assign({},S.weather.indoor);if(e.target.checked)indoor[S.weather.id]=true;else delete indoor[S.weather.id];S.weather=Object.assign({},S.weather,{indoor});changed()};
 let weatherSnap=null;
 for(const[id,key,div]of[['weatherIntensity','intensity',100],['weatherWind','wind',100]]){
   const el=$('#'+id);

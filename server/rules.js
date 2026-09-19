@@ -110,6 +110,12 @@ function cleanSettings(sc) {
   if (sc.weather && typeof sc.weather === 'object' && WEATHER_IDS.includes(sc.weather.id)) {
     const w = sc.weather;
     o.weather = { id: w.id, intensity: fin(w.intensity) ? clamp(w.intensity, 0, 1) : .6, wind: fin(w.wind) ? clamp(w.wind, -1, 1) : 0 };
+    // indoor: efectos que sí se notan dentro de las zonas interiores (el director decide por tipo)
+    if (w.indoor && typeof w.indoor === 'object' && !Array.isArray(w.indoor)) {
+      const indoor = {};
+      for (const id of WEATHER_IDS) if (id !== 'none' && w.indoor[id]) indoor[id] = true;
+      if (Object.keys(indoor).length) o.weather.indoor = indoor;
+    }
   }
   if (sc.layers && typeof sc.layers === 'object') {
     o.layers = {};

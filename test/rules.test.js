@@ -40,3 +40,10 @@ test('weather: ajuste de escena con id de la lista, intensidad 0–1 y viento �
   assert.equal(R.cleanSettings({}).weather, undefined);
   assert.equal(R.splitSettings({ weather: { id: 'rain' } }).scene.weather.id, 'rain');
 });
+
+test('weather.indoor: sólo ids de la lista (sin none) con true; lo demás se descarta', () => {
+  assert.deepEqual(R.cleanSettings({ weather: { id: 'rain', indoor: { rain: true, fog: 1, none: true, tsunami: true, ash: false } } }).weather.indoor, { rain: true, fog: true });
+  assert.equal(R.cleanSettings({ weather: { id: 'rain' } }).weather.indoor, undefined);
+  assert.equal(R.cleanSettings({ weather: { id: 'rain', indoor: ['rain'] } }).weather.indoor, undefined);
+  assert.equal(R.cleanSettings({ weather: { id: 'rain', indoor: {} } }).weather.indoor, undefined);
+});
