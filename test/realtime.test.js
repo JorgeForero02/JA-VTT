@@ -180,3 +180,44 @@ test('un jugador que gira su propia luz no recibe corrección (las claves vienen
   assert.equal(stored.light.rot, 45);
   await player.close();
 });
+
+test('hpVisibility gm: el jugador no recibe el hp de las fichas ajenas (estado, ops y correcciones); al volver a all lo recibe', async () => {
+  const gm = connect(base, boardId, gmCookie);
+  const player = connect(base, boardId, playerCookie);
+  await gm.opened; await player.opened;
+  await gm.next(isState); const ps0 = await player.next(isState);
+  const playerId = ps0.me.id;
+  const ogre = { id: 3001, type: 'token', kind: 'enemy', x: 100, y: 100, name: 'Ogro', owner: null, hp: { cur: 40, max: 59 }, conditions: ['prone'] };
+  const hero = { id: 3002, type: 'token', kind: 'player', x: 200, y: 100, name: 'Héroe', owner: playerId, hp: { cur: 9, max: 12 } };
+  gm.send({ t: 'ops', scene: sceneId, up: [ogre, hero], del: [], settings: { hpVisibility: 'gm' } });
+  // el cambio de ajuste reenvía el estado completo al jugador, ya filtrado
+  const st = await player.next(isState);
+  const seenOgre = st.objects.find((o) => o.id === 3001), seenHero = st.objects.find((o) => o.id === 3002);
+  assert.equal(st.settings.hpVisibility, 'gm');
+  assert.equal(seenOgre.hp, undefined);
+  assert.deepEqual(seenOgre.conditions, ['prone']);
+  assert.deepEqual(seenHero.hp, { cur: 9, max: 12, temp: 0 }, 'la propia llega entera');
+  // ops posteriores del director: también sin hp
+  gm.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, ogre, { hp: { cur: 10, max: 59 } })], del: [] });
+  const ops = await player.next((m) => isOps(m) && m.up.some((o) => o.id === 3001));
+  assert.equal(ops.up.find((o) => o.id === 3001).hp, undefined);
+  // el jugador intenta curar al ogro: corrección, y la corrección tampoco trae hp
+  player.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, ogre, { hp: { cur: 59, max: 59 } })], del: [] });
+  const fix = await player.next((m) => isOps(m) && m.fix);
+  assert.equal(fix.up.find((o) => o.id === 3001).hp, undefined);
+  await app.flushAll();
+  assert.deepEqual((await db.q.sceneObjects(sceneId)).find((o) => o.id === 3001).hp, { cur: 10, max: 59, temp: 0 }, 'en la base sigue el valor del director');
+  // el jugador edita su propia ficha: se acepta y el director lo recibe
+  player.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, hero, { hp: { cur: 3, max: 12, temp: 2 }, conditions: ['poisoned'], elevation: 10 })], del: [] });
+  const toGm = await gm.next((m) => isOps(m) && m.up.some((o) => o.id === 3002));
+  const heroGm = toGm.up.find((o) => o.id === 3002);
+  assert.deepEqual(heroGm.hp, { cur: 3, max: 12, temp: 2 });
+  assert.deepEqual(heroGm.conditions, ['poisoned']);
+  assert.equal(heroGm.elevation, 10);
+  // de vuelta a 'all': el jugador recibe el estado con el hp del ogro
+  gm.send({ t: 'ops', scene: sceneId, up: [], del: [], settings: { hpVisibility: 'all' } });
+  const st2 = await player.next(isState);
+  assert.deepEqual(st2.objects.find((o) => o.id === 3001).hp, { cur: 10, max: 59, temp: 0 });
+  await gm.close(); await player.close();
+});
+

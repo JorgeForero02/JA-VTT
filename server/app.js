@@ -204,7 +204,7 @@ async function stateFor(b, c) {
     scene: { id: sc.id, name: sc.name },
     scenes: sceneList(b), where: memberScenes(b), active: b.active,
     settings: settingsFor(b, sc, c.role),
-    objects: [...sc.objects.values()].filter((o) => R.visibleTo(o, member, sc.settings)),
+    objects: [...sc.objects.values()].filter((o) => R.visibleTo(o, member, sc.settings)).map((o) => R.objectFor(o, member, b.settings)),
     members: b.members,
     online: onlineList(b),
     fog,
@@ -267,14 +267,18 @@ async function moveUser(b, uid, targetId, point) {
     if (moved.length) {
       broadcast(b, { t: 'ops', del: moved.map((o) => o.id) }, null, sc.id);
       for (const c of b.clients) if (c.sceneId === targetId && c.user.id !== uid) {
-        const vis = moved.filter((o) => R.visibleTo(o, { role: c.role, user_id: c.user.id }, target.settings));
+        const member = { role: c.role, user_id: c.user.id };
+        const vis = moved.filter((o) => R.visibleTo(o, member, target.settings)).map((o) => R.objectFor(o, member, b.settings));
         if (vis.length) c.ws.send({ t: 'ops', up: vis, by: uid });
       }
     }
   }
   if (point) for (const o of target.objects.values()) if (o.type === 'token' && o.owner === uid && (o.x !== point.x || o.y !== point.y)) {
     o.x = point.x; o.y = point.y; target.dirty.add(o.id);
-    broadcast(b, { t: 'ops', up: [o], by: uid }, null, targetId);
+    for (const c of b.clients) if (c.sceneId === targetId) {
+      const member = { role: c.role, user_id: c.user.id };
+      c.ws.send({ t: 'ops', up: [R.objectFor(o, member, b.settings)], by: uid });
+    }
   }
   await setMemberScene(b, uid, targetId);
   for (const c of b.clients) if (c.user.id === uid) { c.sceneId = targetId; await sendState(b, c); }
@@ -322,10 +326,11 @@ async function handleOps(b, c, d) {
       else corrections.push(o);
     }
   }
-  let resendPlayers = false, boardChanged = false;
+  let resendPlayers = false, boardChanged = false, hpVisChanged = false;
   if (d.settings && gm) {
     const { board, scene } = R.splitSettings(d.settings);
     if ('plansReleased' in scene && scene.plansReleased !== sc.settings.plansReleased) resendPlayers = true;
+    if ('hpVisibility' in board && board.hpVisibility !== b.settings.hpVisibility) hpVisChanged = true;
     const bsBefore = JSON.stringify(b.settings);
     Object.assign(sc.settings, scene); sc.settingsDirty = true;
     Object.assign(b.settings, board);
@@ -334,20 +339,21 @@ async function handleOps(b, c, d) {
   const back = corrections.filter(Boolean);
   for (const a of accepted) if (a.changed) back.push(a.obj);
   if (back.length || dels.length || (d.settings && !gm)) {
-    c.ws.send({ t: 'ops', up: back, del: dels, settings: d.settings && !gm ? settingsFor(b, sc, c.role) : undefined, fix: true });
+    const me = { role: c.role, user_id: c.user.id };
+    c.ws.send({ t: 'ops', up: back.map((o) => R.objectFor(o, me, b.settings)), del: dels, settings: d.settings && !gm ? settingsFor(b, sc, c.role) : undefined, fix: true });
   }
   for (const other of b.clients) {
     if (other === c) continue;
+    const member = { role: other.role, user_id: other.user.id };
+    if (other.role !== 'gm' && (hpVisChanged || (resendPlayers && other.sceneId === c.sceneId))) { await sendState(b, other); continue; }
     if (other.sceneId !== c.sceneId) {
       if (boardChanged) other.ws.send({ t: 'ops', settings: settingsFor(b, b.scenes.get(other.sceneId), other.role) });
       continue;
     }
-    const member = { role: other.role, user_id: other.user.id };
-    if (resendPlayers && other.role !== 'gm') { await sendState(b, other); continue; }
     const up = [], del = [...removed];
     for (const a of accepted) {
       const vis = R.visibleTo(a.obj, member, sc.settings);
-      if (vis) up.push(a.obj);
+      if (vis) up.push(R.objectFor(a.obj, member, b.settings));
       else if (!a.old || R.visibleTo(a.old, member, sc.settings)) del.push(a.obj.id);
     }
     const settings = d.settings && gm ? settingsFor(b, sc, other.role) : undefined;
