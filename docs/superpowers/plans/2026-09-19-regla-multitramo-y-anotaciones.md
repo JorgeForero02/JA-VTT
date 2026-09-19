@@ -537,6 +537,94 @@ npm run check && npm run test:ui && git add docs README.md && git commit -m "doc
 
 ---
 
+### Task 8 (añadida el 2026-09-19, P-27): las anotaciones publicadas se ven sólo donde el grupo ve
+
+**Contexto:** decisión del usuario (P-27): una nota publicada se comporta como una ficha enemiga: el jugador la ve
+sólo si alguna de sus fichas con visión alcanza ese punto (luz o visión en la oscuridad, sin muro por medio).
+El director la ve siempre. No cambia nada del servidor (`gmOnly` sigue filtrando en difusión).
+
+**Files:**
+- Modify: `public/js/core.js` (tras `propVisibleToPlayers`, ~L237)
+- Modify: `public/js/render.js` (`drawNotes`)
+- Modify: `docs/02-funcional.md`, `docs/06-pendientes.md`, `docs/07-historial.md`
+- Test: `test/frontend.test.js`, `test/e2e/ui.mjs`
+
+**Interfaces:**
+- Consumes: `viewers()`, `canSee(v,p,'hide')`, `frame` (caché por fotograma, como `visibleToPlayers`).
+- Produces (global): `noteVisibleToPlayers(n)` → `true` si algún `viewer` ve el punto `{x:n.x,y:n.y}` con `canSee(v,n,'hide')`; cacheado en `frame.nvis` por `n.id`. `drawNotes(c,gm)` salta la nota si `!gm&&!noteVisibleToPlayers(n)`.
+
+- [ ] **Step 1: Test de contrato que falla**
+
+```js
+test('notas: para el jugador, una anotación publicada sólo se pinta donde el grupo ve (noteVisibleToPlayers)', () => {
+  const core = read('js/core.js');
+  assert.match(core, /^function noteVisibleToPlayers\(n\)\{\s*frame\.nvis=frame\.nvis\|\|new Map\(\);if\(frame\.nvis\.has\(n\.id\)\)return frame\.nvis\.get\(n\.id\);\s*const ok=viewers\(\)\.some\(v=>canSee\(v,n,'hide'\)\);\s*frame\.nvis\.set\(n\.id,ok\);return ok;\s*\}$/m);
+  const render = read('js/render.js');
+  assert.match(render, /for\(const n of S\.notes\)\{\s*if\(!gm&&!noteVisibleToPlayers\(n\)\)continue;/);
+});
+```
+
+Run: `node --test test/frontend.test.js 2>&1 | grep -E "^not ok"` → falla.
+
+- [ ] **Step 2: Implementar**
+
+`core.js`, tras `propVisibleToPlayers` (antes de `doorVisibleToPlayers`):
+
+```js
+/* Una anotación publicada se ve donde el grupo ve (luz o visión en la oscuridad, sin muro por medio) */
+function noteVisibleToPlayers(n){
+  frame.nvis=frame.nvis||new Map();if(frame.nvis.has(n.id))return frame.nvis.get(n.id);
+  const ok=viewers().some(v=>canSee(v,n,'hide'));
+  frame.nvis.set(n.id,ok);return ok;
+}
+```
+
+Comprobar cómo se vacía `frame` en cada fotograma (`grep -n "frame.vis=\|frame={}\|frame.pvis=" public/js/*.js`): si se reinicia con `frame={}` o borrando claves concretas, `nvis` debe reiniciarse igual (si borra claves una a una, añade `frame.nvis`).
+
+`render.js`, en `drawNotes`, primera línea del bucle:
+
+```js
+  for(const n of S.notes){
+    if(!gm&&!noteVisibleToPlayers(n))continue;
+```
+
+Run: `node --test test/frontend.test.js 2>&1 | grep -E "^# (pass|fail)"` y `npm run lint` → verdes.
+
+- [ ] **Step 3: Paso visual en `ui.mjs`** — dentro del bloque de notas, sustituir el paso `step('notas: publicada, el jugador la recibe con su texto', true);` por:
+
+```js
+  // publicada pero el jugador no tiene ficha: la recibe (S.notes) pero no la ve (sin visión no se pinta)
+  const seenBlind = await pl.evaluate(() => { frame.nvis = null; return noteVisibleToPlayers(S.notes.find((n) => n.text === 'Trampa DC 15')); });
+  step('notas: publicada, el jugador la recibe pero sin ficha con visión no la ve', seenBlind === false);
+  // el director le da una ficha con antorcha junto a la nota: ahora sí
+  await gm.evaluate((pid) => { const t = addObj(newToken({ x: 900, y: 450 }, 'player', { owner: pid })); t.name = 'Vigía'; changed(); }, playerId);
+  await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Vigía'), null, { timeout: 5000 });
+  await pl.waitForTimeout(400);
+  const seenLit = await pl.evaluate(() => { frame.nvis = null; return noteVisibleToPlayers(S.notes.find((n) => n.text === 'Trampa DC 15')); });
+  await shot(pl, '11-nota-publicada-jugador');
+  step('notas: con una ficha con antorcha al lado, el jugador la ve', seenLit === true);
+```
+
+y al final del bloque, en la limpieza, borrar también la ficha: `await gm.evaluate(() => { S.notes = []; S.tokens = S.tokens.filter((t) => t.name !== 'Vigía'); changed(); });`
+
+`playerId` ya existe (bloque de fichas). `newToken(...,'player')` lleva antorcha por defecto (`tokenLightFrom('torch', true)`), alcance suficiente para 50 px. Si `frame` no es global accesible desde `evaluate`, usa `requestRender()` + `waitForTimeout(300)` en vez de `frame.nvis=null` y lee el resultado igualmente.
+
+Run (servidor local en 3999): `npm run test:ui 2>&1 | tail -6` → 41/41. Abrir `11-nota-publicada-jugador.png`: la nota junto a la ficha «Vigía» iluminada.
+
+- [ ] **Step 4: Mutación** — en `drawNotes`, quitar el `continue` → el paso «sin ficha con visión no la ve» sigue pasando (mide la función, no el dibujo), pero el de contrato falla. En `noteVisibleToPlayers`, cambiar `'hide'` por `'sight'`... no cambia el resultado aquí; la mutación válida es devolver `true` fijo → falla el paso visual «no la ve». Restaurar.
+
+- [ ] **Step 5: Docs y commit**
+
+`docs/02-funcional.md`, en «Regla multitramo y anotaciones»: `- Una anotación **publicada** se ve donde el grupo ve (como una ficha enemiga): en la oscuridad o tras un muro no aparece. Decisión P-27, 2026-09-19.`
+`docs/06-pendientes.md`: P-27 a cerrados (`decidido: tapada por visión; test en ui.mjs`).
+`docs/07-historial.md`: `## 2026-09-19 — P-27: las notas publicadas se ven sólo donde el grupo ve` (qué: `noteVisibleToPlayers` + salto en `drawNotes` / por qué: decisión del usuario, evitaba leer notas a oscuras / revertir: `git revert` del commit).
+
+```bash
+npm run check && git add public/js/core.js public/js/render.js test/frontend.test.js test/e2e/ui.mjs docs/02-funcional.md docs/06-pendientes.md docs/07-historial.md && git commit -m "feat(notas): las anotaciones publicadas se ven sólo donde el grupo ve (P-27)"
+```
+
+---
+
 ## Self-review
 
 - **Spec §4:** waypoints con Espacio ✓ (Task 2), «con clic» → clic **derecho** (el izquierdo termina el arrastre; decisión documentada en 02) ✓; distancia acumulada y por tramo ✓. Criterio de aceptación 5 («al presionar Espacio se añade un punto y la distancia suma ambos tramos») → paso visual «3 + 3 = 30 ft».
