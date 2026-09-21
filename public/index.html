@@ -210,8 +210,8 @@
       <details class="fold" data-fold="contenido" open>
         <summary><span class="foldTitle">Contenido</span></summary>
         <div class="foldBody">
-          <p>El tablero de fondo se elige en Imágenes. Vaciar la escena se puede deshacer.</p>
-          <div class="row"><button class="btn" id="pickBoard" data-ic="image">Elegir tablero de fondo</button></div>
+          <p>El mapa de fondo se elige en Imágenes. Vaciar la escena se puede deshacer.</p>
+          <div class="row"><button class="btn" id="pickBoard" data-ic="image">Elegir mapa de fondo</button></div>
           <div class="row"><button class="btn danger" id="clearBtn" data-ic="trash-2">Vaciar escena</button></div>
         </div>
       </details>
@@ -236,14 +236,18 @@
       <details class="fold" data-fold="subir" open>
         <summary><span class="foldTitle">Subir imágenes</span></summary>
         <div class="foldBody">
-          <p>Primero elige qué vas a subir.</p>
-          <div class="segCat" id="upCat" role="group" aria-label="Categoría de la subida"></div>
+          <p>Mapas, objetos o retratos. Después de elegirlas dices qué es cada una.</p>
           <label class="drop" id="dropZone">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21" /> <path d="m14 19.5 3-3 3 3" /> <path d="M17 22v-5.5" /> <circle cx="9" cy="9" r="2" /></svg>
           <b>Arrastra imágenes o haz clic</b>
-          <span class="small muted" id="dropHint"></span>
+          <span class="small muted">o suéltalas directamente sobre el mapa</span>
           <input id="libFile" type="file" accept="image/*" multiple>
         </label>
+          <form class="upAsk" id="upAsk" hidden>
+            <div class="upAskHead"><img id="upAskImg" alt=""><div><b id="upAskName"></b><span class="small muted">¿Qué es?</span></div></div>
+            <div class="upOpts" id="upOpts" role="radiogroup" aria-label="Qué es la imagen"></div>
+            <div class="upAskBtns"><button type="button" class="btn ghost" id="upAskCancel">Cancelar</button><button type="submit" class="btn primary" id="upAskOk" data-ic="upload">Añadir</button></div>
+          </form>
           <div id="uploads"></div>
           <div class="meter"><div class="bar"><i id="usageBar"></i></div><span id="usageText"></span></div>
         </div>

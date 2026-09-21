@@ -2,10 +2,10 @@
 /* Biblioteca de imágenes del tablero. Los archivos viven en SQLite en el
    servidor; aquí se listan, se suben con progreso real y se sirven por URL. */
 const CATS={
-  board:{name:'Tableros',one:'Tablero',icon:'map'},
-  prop:{name:'Objetos',one:'Objeto',icon:'armchair'},
-  pc:{name:'Personajes',one:'Personaje',icon:'circle-user-round'},
-  npc:{name:'Enemigos',one:'Enemigo',icon:'skull'}
+  board:{name:'Mapas',one:'Mapa',icon:'map',desc:'Fondo de la escena, debajo de todo'},
+  prop:{name:'Objetos',one:'Objeto',icon:'armchair',desc:'Mesa, cofre, árbol… encima del mapa'},
+  pc:{name:'Personajes',one:'Personaje',icon:'circle-user-round',desc:'Ficha de un jugador, con este retrato'},
+  npc:{name:'Enemigos',one:'Enemigo',icon:'skull',desc:'Ficha que mueve el director, con este retrato'}
 };
 async function apiJson(url,opt){
   const r=await fetch(url,Object.assign({credentials:'same-origin',headers:{'Content-Type':'application/json'}},opt||{}));

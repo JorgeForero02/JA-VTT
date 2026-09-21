@@ -435,10 +435,16 @@ try {
   // biblioteca: buscador por nombre + desplegable «Mostrar» en una fila, en vez de cinco botones que saltaban de línea
   await gm.click('[data-tab="library"]'); await gm.waitForTimeout(200);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  // subir: primero la imagen, luego «¿Qué es?» con una línea por tipo (antes había que elegir el tipo antes, sin explicación)
   await gm.setInputFiles('#libFile', [{ name: 'Cueva helada.png', mimeType: 'image/png', buffer: png }, { name: 'Taberna.png', mimeType: 'image/png', buffer: png }]);
+  await gm.waitForSelector('#upAsk:not([hidden])', { timeout: 5000 }).catch(() => {});
+  const ask = await gm.evaluate(() => { const f = document.getElementById('upAsk'); if (!f || f.hidden) return null; return { title: document.getElementById('upAskName').textContent, opts: [...f.querySelectorAll('input[name=upCat]')].map((i) => i.value), descs: [...f.querySelectorAll('.upOpt small')].filter((d) => d.textContent.trim().length > 8).length, beforeUpload: document.querySelectorAll('#thumbGrid .thumb').length }; });
+  if (ask) { await gm.check('#upAsk input[value="prop"]'); await gm.click('#upAskOk'); }
   await gm.waitForFunction(() => document.querySelectorAll('#thumbGrid .thumb').length >= 2, null, { timeout: 10000 }).catch(() => {});
+  const tags = await gm.$$eval('#thumbGrid .thumb .tag', (t) => t.map((x) => x.textContent));
+  step('subir: tras elegir las imágenes pregunta qué son, con explicación por tipo, y las guarda como se eligió', !!ask && ask.title === '2 imágenes' && ask.opts.join() === 'board,prop,pc,npc' && ask.descs === 4 && ask.beforeUpload === 0 && tags.length === 2 && tags.every((t) => t === 'Objeto'), JSON.stringify({ ask, tags }));
   const thumbs = () => gm.evaluate(() => document.querySelectorAll('#thumbGrid .thumb').length);
-  const libUi = await gm.evaluate(() => { const s = document.getElementById('libSearch'), c = document.getElementById('libCat'); return { chips: document.querySelectorAll('#libFilter .chip').length, controls: !!(s && c), oneRow: !!(s && c) && Math.round(s.getBoundingClientRect().top) === Math.round(c.getBoundingClientRect().top), opts: c ? c.options.length : 0 }; });
+  const libUi = await gm.evaluate(() => { const s = document.getElementById('libSearch'), c = document.getElementById('libCat'); return { chips: document.querySelectorAll('#libFilter .chip').length, controls: !!(s && c), oneRow: !!(s && c) && Math.round(s.getBoundingClientRect().top) === Math.round(c.getBoundingClientRect().top), opts: c ? c.options.length : 0, names: c ? [...c.options].map((o) => o.text).join() : '' }; });
   const allN = await thumbs();
   let byName = -1, byCat = -1, emptyMsg = '';
   if (libUi.controls) {
@@ -447,7 +453,7 @@ try {
     emptyMsg = (await gm.textContent('#thumbGrid')).trim();
     await gm.selectOption('#libCat', 'all');
   }
-  step('biblioteca: buscar por nombre y elegir tipo en una fila; filtra bien y el vacío lo explica', libUi.chips === 0 && libUi.oneRow && libUi.opts === 5 && allN >= 2 && byName === 1 && byCat === 0 && /enemigos/i.test(emptyMsg), JSON.stringify({ libUi, allN, byName, byCat, emptyMsg }));
+  step('biblioteca: buscar por nombre y elegir tipo en una fila; filtra bien y el vacío lo explica', libUi.chips === 0 && libUi.oneRow && libUi.opts === 5 && libUi.names.includes('Mapas') && allN >= 2 && byName === 1 && byCat === 0 && /enemigos/i.test(emptyMsg), JSON.stringify({ libUi, allN, byName, byCat, emptyMsg }));
 
   // legibilidad: luces con el mismo nombre numeradas, separadas de los botones de arriba y resaltadas al pasar
   const velas = await gm.evaluate(() => { const ids = [0, 1, 2].map((i) => addObj(newLight({ x: 4000 + i * 200, y: 4000 }, 'candle')).id); changed(); refreshPanels(); return ids; });

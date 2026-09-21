@@ -183,9 +183,20 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #app.noPanel #subbar{right:12px}
 #liveBadge{display:none;align-items:center;gap:6px;border:1px solid var(--line);background:var(--raise);border-radius:99px;padding:3px 10px 3px 8px;font-size:13px;cursor:pointer}
 #liveBadge i{width:8px;height:8px;border-radius:50%;background:#5FC08A;box-shadow:0 0 0 3px rgba(95,192,138,.25)}
-.segCat{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
-.segCat button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:9px;border:1px solid var(--line);background:var(--raise);cursor:pointer;font-size:12px}
-.segCat button[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+/* subida: tras elegir las imágenes se pregunta qué son */
+.upAsk{margin-top:10px;padding:12px;border:1px solid var(--amber);border-radius:10px;background:var(--amber-soft)}
+.upAskHead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.upAskHead img{width:48px;height:48px;object-fit:cover;border-radius:8px;background:var(--ink-deep);flex:none}
+.upAskHead div{display:flex;flex-direction:column;min-width:0}
+.upAskHead b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.upOpts{display:flex;flex-direction:column;gap:4px}
+.upOpt{display:grid;grid-template-columns:auto 20px 1fr;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}
+.upOpt:has(input:checked){border-color:var(--amber)}
+.upOpt input{accent-color:var(--amber);margin:0}
+.upOpt .ic{width:18px;height:18px}
+.upOpt span{display:flex;flex-direction:column;line-height:1.25}
+.upOpt small{color:var(--fog);font-size:12px}
+.upAskBtns{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
 .drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:1.5px dashed var(--line);border-radius:12px;text-align:center;cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--amber);background:var(--amber-soft)}
 .drop .ic{width:26px;height:26px;color:var(--amber)}
