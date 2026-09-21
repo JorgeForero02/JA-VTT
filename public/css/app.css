@@ -12,6 +12,8 @@
   --sans:"Alegreya Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --serif:"Alegreya",Georgia,"Times New Roman",serif;
   color-scheme:light;
+  /* capas: controles del lienzo (4–7) < panel lateral < menús emergentes < avisos < ventanas */
+  --z-panel:35;--z-pop:40;--z-toast:45;--z-modal:60;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -85,11 +87,11 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #selbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:none;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px 5px 5px 12px;box-shadow:var(--shadow);z-index:7;white-space:nowrap}
 #selbar .count{margin-right:6px}
 #status{position:absolute;left:12px;bottom:14px;color:var(--fog);font-size:12px;background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px;pointer-events:none;z-index:5}
-#toast{position:absolute;left:50%;bottom:66px;transform:translateX(-50%);background:var(--bone);color:var(--ink);border-radius:10px;padding:8px 14px;display:none;z-index:40;pointer-events:none;box-shadow:var(--shadow);max-width:80%;text-align:center}
+#toast{position:absolute;left:50%;bottom:66px;transform:translateX(-50%);background:var(--bone);color:var(--ink);border-radius:10px;padding:8px 14px;display:none;z-index:var(--z-toast);pointer-events:none;box-shadow:var(--shadow);max-width:80%;text-align:center}
 #blindNote{position:absolute;inset:0;display:none;place-items:center;pointer-events:none;z-index:4}
 #blindNote div{background:var(--panel);border:1px solid var(--line);padding:12px 16px;border-radius:12px;max-width:340px;text-align:center}
 
-.pop{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:30;display:none}
+.pop{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:var(--z-pop);display:none}
 #ctx{min-width:210px;padding:5px}
 #ctx .ctxTitle{font-size:12px;color:var(--fog);padding:4px 9px 6px}
 #ctx button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;padding:8px 9px;border-radius:7px;cursor:pointer}
@@ -104,6 +106,7 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 #statusPop .chip .dot{width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 8px/1 var(--sans);color:#F4EEE2}
 #statusPop .chip.on{background:var(--raise);border-color:var(--bone)}
 #editor{width:300px;max-height:calc(100% - 24px);overflow:auto}
+#editor .field{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
 .edHead{display:flex;align-items:center;gap:8px;padding:10px 10px 8px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
 .edHead h3{margin:0;font:700 17px var(--serif);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .edBody{padding:6px 14px 14px}
@@ -112,6 +115,10 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 .field input[type=number],.field input[type=text],.field select{width:100%;min-height:32px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px}
 .field input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:7px;background:var(--ink);padding:2px}
 .field input[type=range]{width:100%;accent-color:var(--amber)}
+.field.stack{grid-template-columns:1fr;gap:4px}
+/* desplegables del panel sin clase propia: mismo control que los campos (select.mini y .field select mandan) */
+:where(#panel) select{min-height:32px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px;color:var(--bone)}
+#weatherId{width:100%}
 .check{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer}
 .check input{accent-color:var(--amber);width:16px;height:16px}
 .edSection{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font:700 15px var(--serif)}
@@ -119,7 +126,7 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
 
 /* El panel es una capa encima del lienzo (no una columna): abrir/cerrar no cambia el tamaño del #stage,
    así el mapa, la luz y el clima no se reajustan (decisión del usuario, 2026-09-19). */
-#panel{position:absolute;right:0;top:54px;bottom:0;width:330px;z-index:35;box-shadow:var(--shadow);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#panel{position:absolute;right:0;top:54px;bottom:0;width:330px;z-index:var(--z-panel);box-shadow:var(--shadow);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;border-bottom:1px solid var(--line);padding:0 4px}
 .tabs button{flex:1;min-width:0;border:0;background:transparent;padding:8px 2px 6px;cursor:pointer;color:var(--fog);border-bottom:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px}
 .tabs button .ic{width:19px;height:19px}
@@ -272,7 +279,7 @@ input[type=color].swatch{width:100%;height:34px;border:1px solid var(--line);bor
 .sceneBtn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sceneBtn .chev{width:14px;height:14px;opacity:.7}
 .sceneBtn:disabled{cursor:default}.sceneBtn:disabled .chev{display:none}
-.scenePop{position:fixed;z-index:60;width:min(420px,calc(100vw - 16px));max-height:min(560px,calc(100vh - 80px));overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px}
+.scenePop{position:fixed;z-index:var(--z-modal);width:min(420px,calc(100vw - 16px));max-height:min(560px,calc(100vh - 80px));overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px}
 .scenePop h2{font:700 19px var(--serif);margin:0 0 10px}
 .sceneRow{display:flex;align-items:center;gap:4px;padding:4px;border-radius:10px;border:1px solid transparent}
 .sceneRow.current{border-color:var(--amber);background:var(--amber-soft)}

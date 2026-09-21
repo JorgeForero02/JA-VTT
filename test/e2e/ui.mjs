@@ -401,6 +401,24 @@ try {
   });
   step('luz: el ambiente exterior no se cuela como línea sobre el muro de una zona interior (alfa de la oscuridad ≥ 250)', wallLine >= 250, `alfa mínimo ${wallLine}`);
 
+  // panel lateral: el editor que se abre desde una lista del panel queda entero a su izquierda y por encima
+  const edTok = await gm.evaluate(() => { const t = addObj({ id: nid(), type: 'token', kind: 'enemy', name: 'Editable', x: 0, y: 0, size: 1, color: '#D9705F', hidden: false }); changed(); refreshPanels(); return t.id; });
+  await gm.click('[data-tab="tokens"]'); await gm.waitForTimeout(300);
+  await gm.locator('#panel button[aria-label="Editar"]:visible').last().click(); await gm.waitForTimeout(300);
+  const edPlace = await gm.evaluate(() => { const e = document.getElementById('editor').getBoundingClientRect(), p = document.getElementById('panel').getBoundingClientRect(); const hit = document.elementFromPoint(e.right - 12, e.top + 30); return { right: Math.round(e.right), panelLeft: Math.round(p.left), onTop: !!(hit && hit.closest('#editor')) }; });
+  step('panel: el editor abierto desde la lista no queda tapado por el panel', edPlace.right <= edPlace.panelLeft && edPlace.onTop, JSON.stringify(edPlace));
+  const edSel = await gm.evaluate(() => [...document.querySelectorAll('#editor select')].map((s) => { const c = document.createElement('canvas').getContext('2d'); c.font = getComputedStyle(s).font; const need = Math.round(Math.max(0, ...[...s.options].map((o) => c.measureText(o.text).width)) + 30); return { opt: s.options[0] && s.options[0].text, need, has: s.clientWidth }; }));
+  step('editor: sus desplegables muestran la opción entera', edSel.length > 0 && edSel.every((x) => x.has >= x.need), JSON.stringify(edSel));
+  await gm.keyboard.press('Escape');
+  await gm.evaluate((id) => { S.tokens.splice(S.tokens.findIndex((t) => t.id === id), 1); closePops(); changed(); refreshPanels(); }, edTok);
+  // los desplegables del panel muestran su opción entera (Mesa → «Vida de las fichas», Escena → Clima)
+  const selFit = [];
+  for (const [tab, id] of [['live', 'hpVisibility'], ['scene', 'weatherId']]) {
+    await gm.click(`[data-tab="${tab}"]`); await gm.waitForTimeout(200);
+    selFit.push(await gm.evaluate((id) => { const s = document.getElementById(id), cs = getComputedStyle(s), c = document.createElement('canvas').getContext('2d'); c.font = cs.font; const need = Math.max(0, ...[...s.options].map((o) => c.measureText(o.text).width)) + 30; return { id, need: Math.round(need), has: s.clientWidth, h: s.offsetHeight }; }, id));
+  }
+  step('panel: los desplegables caben enteros y tienen el alto de los demás controles (≥ 32 px)', selFit.every((x) => x.has >= x.need && x.h >= 32), JSON.stringify(selFit));
+
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';
   await rec.goto(BASE + '/');

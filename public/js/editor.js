@@ -438,7 +438,10 @@ window.addEventListener('keyup',e=>{if(e.code==='Space'){UI.space=false;stage.st
 const ctxEl=$('#ctx'),edEl=$('#editor'),statusEl=$('#statusPop');
 for(const el of[ctxEl,edEl,statusEl,$('#subbar'),$('#selbar')])for(const ev of['pointerdown','wheel','dblclick','contextmenu'])el.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
 function closePops(){ctxEl.style.display='none';edEl.style.display='none';statusEl.style.display='none';edState=null}
-function placePop(el,sp,w,h){el.style.display='block';el.style.maxHeight='';const r=el.getBoundingClientRect();const top=clamp(sp.y+8,8,Math.max(8,H-(h||r.height)-8));el.style.left=clamp(sp.x+8,8,W-(w||r.width)-8)+'px';el.style.top=top+'px';if(el===edEl)el.style.maxHeight=(H-top-8)+'px'}
+/* Borde derecho útil para un menú de ancho w: el panel lateral va encima del lienzo, así que el menú se queda a
+   su izquierda; si no cabe (pantalla estrecha, panel casi a lo ancho) puede ir encima de él */
+function popRight(w){const p=$('#panel');if(!p||!p.offsetParent)return W;const left=p.getBoundingClientRect().left-stage.getBoundingClientRect().left;return left>=w+16?Math.min(W,left):W}
+function placePop(el,sp,w,h){el.style.display='block';el.style.maxHeight='';const r=el.getBoundingClientRect(),pw=w||r.width;const top=clamp(sp.y+8,8,Math.max(8,H-(h||r.height)-8));el.style.left=clamp(sp.x+8,8,popRight(pw)-pw-8)+'px';el.style.top=top+'px';if(el===edEl)el.style.maxHeight=(H-top-8)+'px'}
 function describe(o){
   if(o.type==='wall'&&o.kind==='portal'){const dst=o.target&&UI.scenes.find(x=>x.id===o.target.scene);return (o.name||'Portal')+(dst?` a ${dst.name}`:' sin destino')}
   if(o.type==='wall')return WALL_TYPES[o.kind].name+(o.kind==='door'?(o.open?' abierta':' cerrada'):'');
@@ -582,8 +585,8 @@ function openEditor(o,sp){
     if(gm){
       text('Nombre',o.name,v=>o.name=v);
       select('Tipo',o.kind,[['player','Personaje'],['enemy','Enemigo']],v=>o.kind=v);
-      select('Controla',o.owner==null?'':String(o.owner),[['','Nadie (solo el director)'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
-      select('Tamaño',String(o.size||1),[['1','Mediano (1 casilla)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
+      select('Controla',o.owner==null?'':String(o.owner),[['','Sólo el director'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
+      select('Tamaño',String(o.size||1),[['1','Mediano (1)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
       color('Color',o.color,v=>o.color=v);
       if(hpOn()||condsOn())section('Vida y altura');
       if(hpOn()){num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
