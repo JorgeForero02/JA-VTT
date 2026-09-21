@@ -47,9 +47,9 @@ intenta algo que no puede.
 - En el lienzo: badges de dos letras encima de la ficha (máximo 6, luego `+n`), barra de vida bajo la ficha
   (verde > 50 %, ámbar > 25 %, rojo; franja cian = vida temporal), pastilla `+20'` arriba a la izquierda si
   la altura no es 0, velo y calavera si está muerta.
-- Ajustes → Reglas para jugadores → **Vida de las fichas**: todos · sólo el director (cada jugador sigue
+- Mesa → Reglas para jugadores → **Vida de las fichas**: todos · sólo el director (cada jugador sigue
   viendo la suya) · los jugadores ven sólo la barra.
-- Ajustes → Chat, dados y fichas: **Vida de las fichas** y **Condiciones y altura** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.
+- Mesa → Chat, dados y fichas: **Vida de las fichas** y **Condiciones y altura** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.
 
 ### Regla multitramo y anotaciones (2026-09-19)
 

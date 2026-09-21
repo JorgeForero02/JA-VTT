@@ -63,18 +63,17 @@ recuerda cuáles dejaste abiertas):
 
 | Pestaña | Contenido |
 |---|---|
-| **Escena** | Iluminación, zonas interiores, niebla de guerra y contenido (tablero de fondo) |
-| **Luces** | Biblioteca de fuentes de luz y luces de la escena |
-| **Imágenes** | Subida y biblioteca de tableros, objetos y retratos |
-| **Fichas** | Crear fichas, personajes y enemigos (el jugador ve «Mi personaje») |
-| **Chat** | Mensajes del grupo y dados 3D (d4 a d100): botonera o `/r 2d6+3 # etiqueta`. El servidor decide el resultado y todos ven caer los dados |
-| **Mesa** | Participantes, invitaciones, reglas para jugadores, iniciativa y conexión |
-| **Ajustes** | Vista, cuadrícula, capas, tipos de muro y atajos de teclado |
+| **Escena** | Iluminación, clima, zonas interiores, niebla de guerra, contenido (mapa de fondo), cuadrícula, capas y tipos de muro |
+| **Luces** | Biblioteca de fuentes de luz y luces de la escena (pasa el ratón por una fila para verla en el mapa) |
+| **Fichas** | Crear fichas, personajes y enemigos; subir imágenes y biblioteca (el jugador ve «Mi personaje») |
+| **Mesa** | Participantes, invitaciones, reglas para jugadores, chat/dados/fichas, vista, conexión y atajos |
+| **Chat** | Iniciativa arriba; mensajes del grupo y dados 3D (d4 a d100): botonera o `/r 2d6+3 # etiqueta`. El servidor decide el resultado y todos ven caer los dados |
 
-Los jugadores ven Fichas, Chat, Mesa y Ajustes. El director puede apagar el chat, los dados o
-ambos para **todo el mundo** (Ajustes → Chat y dados; si apaga los dos, la pestaña desaparece),
-puede hacer **tiradas privadas** (candado en la botonera o `/rs 1d20`) que sólo él ve y no quedan
-en el chat, y decide si los jugadores ven la **iniciativa**: la gestiona en Mesa
+Los jugadores ven Fichas, Mesa y Chat. El director puede apagar el chat, los dados o
+ambos para **todo el mundo** (Mesa → Chat, dados y fichas; si apaga los dos, los jugadores pierden
+la pestaña y el director la conserva como «Iniciativa»), puede hacer **tiradas ocultas**
+(interruptor «Tirada oculta a los jugadores» bajo los dados, o `/rs 1d20`) que sólo él ve y no
+quedan en el chat, y decide si los jugadores ven la **iniciativa**: la gestiona arriba en Chat
 (añadir fichas o entradas, tirar d20, ordenar, siguiente turno) y, si la muestra, aparece como
 barra sobre el mapa con el turno actual y la ronda; las fichas ocultas no salen.
 
@@ -102,7 +101,7 @@ en la niebla de guerra, también lo que sólo alcanza a ver gracias a una luz le
 En **Vista de jugador** el director ve la escena como la ven los jugadores y puede
 seguir moviendo a los personajes (con los muros bloqueando el paso, como a ellos).
 
-- Director: clic derecho en una ficha → **Estado** para condiciones, vida y altura; en Ajustes decide quién ve la vida.
+- Director: clic derecho en una ficha → **Estado** para condiciones, vida y altura; en Mesa → Reglas para jugadores decide quién ve la vida.
 - Jugador: lo mismo sobre su propio personaje.
 
 El servidor valida cada cambio; lo que un jugador no puede hacer se rechaza y se
@@ -110,7 +109,7 @@ deshace en su pantalla.
 
 ### Colocación libre o en casillas
 
-En **Ajustes → Cuadrícula** eliges qué se ajusta a la cuadrícula. Por defecto:
+En **Escena → Cuadrícula** eliges qué se ajusta a la cuadrícula. Por defecto:
 
 - **Fichas y puntos al dibujar muros:** se ajustan a las casillas.
 - **Luces, objetos, zonas y el movimiento de muros y barreras:** quedan libres. Una
@@ -128,7 +127,7 @@ Para colocar con precisión, selecciona y usa las flechas:
 
 ### Mapas comerciales
 
-Sube el mapa en **Imágenes → Tablero**. Si el nombre del archivo indica la escala
+Sube el mapa en **Fichas → Subir imágenes** y, cuando pregunte «¿Qué es?», elige **Mapa**. Si el nombre del archivo indica la escala
 (por ejemplo `Taberna - 14x15 - 72 DPI.png`), se coloca a ese tamaño automáticamente.
 Si no, ajústala en el editor del tablero con **Píxeles por casilla**.
 

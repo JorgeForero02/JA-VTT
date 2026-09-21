@@ -2,6 +2,26 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-21 — Panel lateral: menús por encima, legibilidad, dados, iniciativa, biblioteca, subida y 5 pestañas (rama `ui-panel`)
+
+- **Qué:** siete commits sobre `release`: (1) escala de capas `--z-panel < --z-pop < --z-toast < --z-modal` y `placePop` a la izquierda del panel (el editor quedaba 278/300 px tapado) + desplegables enteros; (2) cifras `lining-nums`, nombres repetidos numerados, fila que resalta su objeto en el mapa; (3) dados en rejilla, contador por dado, aviso en la bandeja e interruptor «Tirada oculta a los jugadores»; (4) iniciativa en rejilla 2×2, «Vaciar» con segundo clic en vez de `confirm()`; (5) biblioteca con buscador y desplegable; (6) subida en dos pasos con «¿Qué es?» y «Tablero» → «Mapa» para la imagen de fondo; (7) cinco pestañas (Escena, Luces, Fichas, Mesa, Chat).
+- **Por qué:** revisión de interfaz del usuario; el editor abierto desde el panel era inusable desde que el panel es una capa (09fe180).
+- **Verificado:** `test:ui` 53/53 con un paso por punto (cada uno rojo antes del cambio) · `check` 95/95.
+- **Revertir:** `git revert` de los commits de `ui-panel`; sin migración ni cambios de servidor.
+
+## 2026-09-21 — Luz: el ambiente exterior ya no se cuela como línea sobre los muros de una zona interior
+
+- **Qué:** `buildLightMask` resta cada zona interior con relleno **y contorno** (2 px en pantalla). `release` `8b6d4b4`, `clima-2d` `1396af7`.
+- **Por qué:** el borde antialias de la zona y el de la línea de visión coincidían sobre el muro y dejaban media franja de ambiente: una línea clara a lo largo de los muros vista desde dentro (alfa de la oscuridad 238 en vez de 255).
+- **Verificado:** paso nuevo en `test:ui` (238 → 254) · `check` verde en las dos ramas.
+- **Revertir:** `git revert 8b6d4b4` (y `1396af7` en `clima-2d`).
+
+## 2026-09-21 — Producción pasa de `prod-2d` a `release`
+
+- **Qué:** rama `release` creada desde `prod-2d` (`aa59e2b`) y subida; `PATCH git_branch=release` + deploy `b98xacyqucsqosqxa9ujxh5p` (commit `aa59e2b`, sólo docs respecto a lo desplegado).
+- **Verificado desde el servidor:** `git_branch=release`, `running:healthy`, `/api/health` ok, JS servido con `noteVisibleToPlayers`.
+- **Revertir:** `PATCH git_branch=prod-2d` + deploy. `prod-2d` no se ha borrado.
+
 ## 2026-09-19 — Despliegue de prod-2d @ 6a05644 (plan B: regla multitramo, anotaciones, P-27)
 
 - **Qué:** push de `prod-2d` y `POST /api/v1/deploy` (deployment `94gpa6e5pmqgvdrj8iqeqbfg`), 10 commits sobre `d54cc6a`.
