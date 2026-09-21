@@ -679,10 +679,10 @@ function setRole(r){
   $('#fogOfWrap').style.display=r==='player'&&UI.realRole==='gm'?'flex':'none';
   $('#previewBtn').style.display=r==='gm'?'':'none';
   const realGmTabs=UI.realRole==='gm';
-  for(const t of['lights','library'])$(`[data-tab="${t}"]`).style.display=r==='gm'?'':'none';
+  $('[data-tab="lights"]').style.display=r==='gm'?'':'none';
   $('[data-tab="scene"]').style.display=realGmTabs&&r==='gm'?'':'none';
   syncChatTab();
-  if(r!=='gm'&&['lights','library','scene'].includes(UI.tab))selectTab('tokens');
+  if(r!=='gm'&&['lights','scene'].includes(UI.tab))selectTab('tokens');
   Net.roleChanged();
   frame={};refreshAll();requestRender();
 }
@@ -709,14 +709,15 @@ setPanelHidden((()=>{try{return localStorage.getItem('jav.panel')==='oculto'}cat
 $$('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 /* Chat y dados se apagan para todos; la pestaña sólo existe si queda algo que enseñar */
 function syncChatTab(){
-  const chat=S.chatEnabled!==false,dice=S.diceEnabled!==false;
-  $('[data-tab="chat"]').style.display=chat||dice?'':'none';
+  const chat=S.chatEnabled!==false,dice=S.diceEnabled!==false,gm=UI.role==='gm',tab=$('[data-tab="chat"]');
+  // la pestaña lleva también la iniciativa: el director la conserva aunque apague chat y dados
+  tab.style.display=chat||dice||gm?'':'none';tab.lastChild.textContent=chat||dice?'Chat':'Iniciativa';
   $('#chatForm').style.display=chat?'':'none';
   $('#diceBar').style.display=dice?'':'none';
   $('#chatLog').classList.toggle('noDice',!dice);
-  if(!chat&&!dice&&UI.tab==='chat')selectTab('tokens');
+  if(!chat&&!dice&&!gm&&UI.tab==='chat')selectTab('tokens');
 }
-function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='library')renderLibraryGrid();if(name==='live')renderLive();if(name==='chat')Chat.scrollToEnd()}
+function selectTab(name){UI.tab=name;$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));$$('.tabpane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));if(name==='tokens')renderLibraryGrid();if(name==='live')renderLive();if(name==='chat')Chat.scrollToEnd()}
 $$('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 $('#selbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
   if(a==='del')deleteSel();else if(a==='dup')duplicateSel();else if(a==='edit'){const o=selObjs()[0];if(o){const r=$('#selbar').getBoundingClientRect(),sr=stage.getBoundingClientRect();openEditor(o,{x:r.left-sr.left,y:r.top-sr.top-330})}}});
@@ -774,7 +775,7 @@ $('#diceEnabled').onchange=e=>{S.diceEnabled=e.target.checked;changed();syncChat
 $('#hpEnabled').onchange=e=>{S.hpEnabled=e.target.checked;changed()};
 $('#conditionsEnabled').onchange=e=>{S.conditionsEnabled=e.target.checked;changed()};
 $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
-$('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';selectTab('library')};
+$('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';selectTab('tokens');$('details[data-fold="biblioteca"]').scrollIntoView({block:'start'})};
 $('#centerBtn').onclick=centerView;
 $('#zoneToolBtn').onclick=()=>setTool('zone');
 function clearScene(){
@@ -943,7 +944,7 @@ function askUpload(files,at){
     const t=document.createElement('span');const b=document.createElement('b');b.textContent=C.one;const d=document.createElement('small');d.textContent=C.desc;t.append(b,d);
     l.append(r);l.insertAdjacentHTML('beforeend',svgIcon(C.icon));l.append(t);box.appendChild(l);
   }
-  const form=$('#upAsk');form.hidden=false;selectTab('library');$('#panel').classList.add('open');
+  const form=$('#upAsk');form.hidden=false;selectTab('tokens');$('#panel').classList.add('open');
   form.scrollIntoView({block:'nearest'});$('#upAskOk').focus();
 }
 function closeUpAsk(){$('#upAsk').hidden=true;upPending=null}

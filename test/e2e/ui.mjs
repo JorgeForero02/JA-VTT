@@ -136,7 +136,7 @@ try {
   await shot(pl, '04-dados-2d6');
 
   // iniciativa: oculta por defecto para el jugador; el director la crea y la muestra
-  await gm.click('[data-tab="live"]');
+  await gm.click('[data-tab="chat"]');
   await gm.click('#initAddCustom'); await gm.click('#initAddCustom');
   await gm.waitForTimeout(300);
   await gm.click('#initRollAll');
@@ -144,7 +144,7 @@ try {
   const gmBar = await gm.evaluate(() => !document.getElementById('initBar').hidden);
   const plBarHidden = await pl.evaluate(() => document.getElementById('initBar').hidden);
   step('iniciativa: el director ve la barra; el jugador no (oculta por defecto)', gmBar && plBarHidden);
-  await gm.check('#initiativeShown');
+  await gm.click('[data-tab="live"]'); await gm.check('#initiativeShown'); await gm.click('[data-tab="chat"]');
   await pl.waitForFunction(() => !document.getElementById('initBar').hidden, null, { timeout: 5000 });
   step('iniciativa: al mostrarla, el jugador la ve', true);
   await gm.click('#initNext');
@@ -175,14 +175,14 @@ try {
   await shot(gm, '05b-tirada-privada');
 
   // director apaga el chat (Ajustes): nadie escribe, la pestaña sigue por los dados; apaga dados: la pestaña desaparece para todos
-  await gm.click('[data-tab="layers"]');
+  await gm.click('[data-tab="live"]');
   await gm.uncheck('#chatEnabled');
   await pl.waitForFunction(() => document.getElementById('chatForm').style.display === 'none' && document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
   step('chat apagado: el jugador pierde la caja de texto pero conserva los dados', true);
   await gm.uncheck('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display === 'none', null, { timeout: 5000 });
-  const gmTabHidden = await gm.evaluate(() => document.querySelector('[data-tab="chat"]').style.display === 'none');
-  step('chat y dados apagados: la pestaña desaparece para jugador y director', gmTabHidden);
+  const gmTab = await gm.evaluate(() => { const t = document.querySelector('[data-tab="chat"]'); return { shown: t.style.display !== 'none', label: t.textContent.trim() }; });
+  step('chat y dados apagados: el jugador pierde la pestaña; el director la conserva como «Iniciativa»', gmTab.shown && gmTab.label === 'Iniciativa', JSON.stringify(gmTab));
   await gm.check('#chatEnabled'); await gm.check('#diceEnabled');
   await pl.waitForFunction(() => document.querySelector('[data-tab="chat"]').style.display !== 'none', null, { timeout: 5000 });
 
@@ -241,7 +241,7 @@ try {
     return [rect.left + sp.x, rect.top + sp.y];
   });
   const barOn = await pxAt(pl, hx, hy);
-  await gm.click('[data-tab="layers"]');
+  await gm.click('[data-tab="live"]');
   await gm.uncheck('#hpEnabled');
   await pl.waitForFunction(() => S.hpEnabled === false, null, { timeout: 5000 });
   await pl.waitForTimeout(400);
@@ -433,7 +433,7 @@ try {
   step('panel: los desplegables caben enteros y tienen el alto de los demás controles (≥ 32 px)', selFit.every((x) => x.has >= x.need && x.h >= 32), JSON.stringify(selFit));
 
   // biblioteca: buscador por nombre + desplegable «Mostrar» en una fila, en vez de cinco botones que saltaban de línea
-  await gm.click('[data-tab="library"]'); await gm.waitForTimeout(200);
+  await gm.click('[data-tab="tokens"]'); await gm.waitForTimeout(200);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
   // subir: primero la imagen, luego «¿Qué es?» con una línea por tipo (antes había que elegir el tipo antes, sin explicación)
   await gm.setInputFiles('#libFile', [{ name: 'Cueva helada.png', mimeType: 'image/png', buffer: png }, { name: 'Taberna.png', mimeType: 'image/png', buffer: png }]);
@@ -454,6 +454,11 @@ try {
     await gm.selectOption('#libCat', 'all');
   }
   step('biblioteca: buscar por nombre y elegir tipo en una fila; filtra bien y el vacío lo explica', libUi.chips === 0 && libUi.oneRow && libUi.opts === 5 && libUi.names.includes('Mapas') && allN >= 2 && byName === 1 && byCat === 0 && /enemigos/i.test(emptyMsg), JSON.stringify({ libUi, allN, byName, byCat, emptyMsg }));
+
+  // pestañas: cinco con sentido — Escena (el mapa y cómo se ve), Luces, Fichas (fichas e imágenes), Mesa (gente y reglas), Chat (iniciativa arriba)
+  const tabsUi = await gm.evaluate(() => { const vis = [...document.querySelectorAll('.tabs button')].filter((b) => b.style.display !== 'none'); const where = (id) => { const e = document.getElementById(id); const p = e && e.closest('.tabpane'); return p ? p.id.replace('tab-', '') : null; }; return { tabs: vis.map((b) => b.dataset.tab).join(), labelsFit: vis.every((b) => b.scrollWidth <= b.clientWidth + 1), iniFirst: document.querySelector('#tab-chat > details') === document.querySelector('details[data-fold="iniciativa"]'), upload: where('libFile'), library: where('thumbGrid'), grid: where('gridToggle'), toggles: where('chatEnabled'), people: where('inviteCode'), shortcuts: !!document.querySelector('#tab-live details[data-fold="atajos"]') }; });
+  const plTabs = await pl.evaluate(() => [...document.querySelectorAll('.tabs button')].filter((b) => b.style.display !== 'none').map((b) => b.dataset.tab).join());
+  step('pestañas: cinco, cada cosa donde se busca, y el jugador ve Fichas, Mesa y Chat', tabsUi.tabs === 'scene,lights,tokens,live,chat' && tabsUi.labelsFit && tabsUi.iniFirst && tabsUi.upload === 'tokens' && tabsUi.library === 'tokens' && tabsUi.grid === 'scene' && tabsUi.toggles === 'live' && tabsUi.people === 'live' && tabsUi.shortcuts && plTabs === 'tokens,live,chat', JSON.stringify({ tabsUi, plTabs }));
 
   // legibilidad: luces con el mismo nombre numeradas, separadas de los botones de arriba y resaltadas al pasar
   const velas = await gm.evaluate(() => { const ids = [0, 1, 2].map((i) => addObj(newLight({ x: 4000 + i * 200, y: 4000 }, 'candle')).id); changed(); refreshPanels(); return ids; });

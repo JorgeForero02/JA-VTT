@@ -124,11 +124,13 @@ test('ajustes de chat/dados para todos, tirada privada, favicon propio', () => {
   const html = read('index.html');
   assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="favicon\.svg">/);
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'favicon.svg')));
-  assert.match(html, /id="tab-layers">\s*<details class="fold gmSect" data-fold="mesa"/, 'los interruptores viven en Ajustes');
+  assert.match(html, /<details class="fold gmSect" data-fold="mesa"[^>]*>[\s\S]*id="chatEnabled"/, 'los interruptores de chat, dados y fichas');
+  assert.ok(html.indexOf('data-fold="mesa"') > html.indexOf('id="tab-live"') && html.indexOf('data-fold="mesa"') < html.indexOf('id="tab-chat"'), 'viven en Mesa');
   assert.match(html, /id="diceEnabled"/);
   assert.match(html, /class="btn secretToggle gmOnly" id="secretRoll" aria-pressed="false"/);
   const editor = read('js/editor.js');
-  assert.match(editor, /const chat=S\.chatEnabled!==false,dice=S\.diceEnabled!==false;/);
+  assert.match(editor, /const chat=S\.chatEnabled!==false,dice=S\.diceEnabled!==false,gm=UI\.role==='gm'/);
+  assert.match(editor, /tab\.style\.display=chat\|\|dice\|\|gm\?'':'none'/, 'el director conserva la pestaña por la iniciativa');
   assert.match(editor, /rs|gr|privada/, 'comandos de tirada privada');
   const net = read('js/net.js');
   assert.match(net, /roll\(formula,label,secret\)\{return send\(\{t:'roll',formula,label,secret:!!secret\}\)\}/);

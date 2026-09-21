@@ -128,7 +128,7 @@ main{display:grid;grid-template-columns:58px 1fr;min-height:0}
    así el mapa, la luz y el clima no se reajustan (decisión del usuario, 2026-09-19). */
 #panel{position:absolute;right:0;top:54px;bottom:0;width:330px;z-index:var(--z-panel);box-shadow:var(--shadow);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;border-bottom:1px solid var(--line);padding:0 4px}
-.tabs button{flex:1;min-width:0;border:0;background:transparent;padding:8px 2px 6px;cursor:pointer;color:var(--fog);border-bottom:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px}
+.tabs button{flex:1;min-width:0;border:0;background:transparent;padding:8px 2px 6px;cursor:pointer;color:var(--fog);border-bottom:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13px}
 .tabs button .ic{width:19px;height:19px}
 .tabs button[aria-selected="true"]{color:var(--bone);border-bottom-color:var(--amber);font-weight:700}
 .tabpane{display:none;overflow-y:auto;padding:14px;flex:1}
@@ -339,6 +339,8 @@ select.mini{max-width:120px;min-height:28px;background:var(--ink);border:1px sol
 code.secret{letter-spacing:.08em}
 .chatPane{flex-direction:column;min-height:0;padding:0}
 .chatPane.active{display:flex}
+/* iniciativa arriba del chat: plegable y con su propio scroll para no comerse el chat */
+.chatPane>details.fold{flex:none;max-height:55%;overflow-y:auto;padding:4px 14px 10px;border-bottom:1px solid var(--line)}
 .chatLog{flex:1;min-height:0;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth}
 .chatMsg{font-size:14px;line-height:1.35;word-break:break-word}
 .chatMsg .who{font-weight:700;margin-right:4px}
