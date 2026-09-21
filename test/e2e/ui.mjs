@@ -432,6 +432,23 @@ try {
   }
   step('panel: los desplegables caben enteros y tienen el alto de los demás controles (≥ 32 px)', selFit.every((x) => x.has >= x.need && x.h >= 32), JSON.stringify(selFit));
 
+  // biblioteca: buscador por nombre + desplegable «Mostrar» en una fila, en vez de cinco botones que saltaban de línea
+  await gm.click('[data-tab="library"]'); await gm.waitForTimeout(200);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await gm.setInputFiles('#libFile', [{ name: 'Cueva helada.png', mimeType: 'image/png', buffer: png }, { name: 'Taberna.png', mimeType: 'image/png', buffer: png }]);
+  await gm.waitForFunction(() => document.querySelectorAll('#thumbGrid .thumb').length >= 2, null, { timeout: 10000 }).catch(() => {});
+  const thumbs = () => gm.evaluate(() => document.querySelectorAll('#thumbGrid .thumb').length);
+  const libUi = await gm.evaluate(() => { const s = document.getElementById('libSearch'), c = document.getElementById('libCat'); return { chips: document.querySelectorAll('#libFilter .chip').length, controls: !!(s && c), oneRow: !!(s && c) && Math.round(s.getBoundingClientRect().top) === Math.round(c.getBoundingClientRect().top), opts: c ? c.options.length : 0 }; });
+  const allN = await thumbs();
+  let byName = -1, byCat = -1, emptyMsg = '';
+  if (libUi.controls) {
+    await gm.fill('#libSearch', 'cueva'); await gm.waitForTimeout(150); byName = await thumbs();
+    await gm.fill('#libSearch', ''); await gm.selectOption('#libCat', 'npc'); await gm.waitForTimeout(150); byCat = await thumbs();
+    emptyMsg = (await gm.textContent('#thumbGrid')).trim();
+    await gm.selectOption('#libCat', 'all');
+  }
+  step('biblioteca: buscar por nombre y elegir tipo en una fila; filtra bien y el vacío lo explica', libUi.chips === 0 && libUi.oneRow && libUi.opts === 5 && allN >= 2 && byName === 1 && byCat === 0 && /enemigos/i.test(emptyMsg), JSON.stringify({ libUi, allN, byName, byCat, emptyMsg }));
+
   // legibilidad: luces con el mismo nombre numeradas, separadas de los botones de arriba y resaltadas al pasar
   const velas = await gm.evaluate(() => { const ids = [0, 1, 2].map((i) => addObj(newLight({ x: 4000 + i * 200, y: 4000 }, 'candle')).id); changed(); refreshPanels(); return ids; });
   await gm.click('[data-tab="lights"]'); await gm.waitForTimeout(250);

@@ -976,12 +976,15 @@ function placeImage(m,at,free){
   UI.selected=[o.id];setTool('select');changed();
   $('#panel').classList.remove('open');
 }
+$('#libCat').onchange=e=>{UI.libCat=e.target.value;renderLibraryGrid()};
+$('#libSearch').oninput=()=>renderLibraryGrid();
 function renderLibraryGrid(){
-  const grid=$('#thumbGrid'),filt=$('#libFilter');if(!grid)return;
-  filt.innerHTML='';
-  for(const[k,n]of[['all','Todas'],...Object.entries(CATS).map(([k,C])=>[k,C.name])]){const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(UI.libCat===k));b.textContent=n;b.onclick=()=>{UI.libCat=k;renderLibraryGrid()};filt.appendChild(b)}
-  const items=Store.list(UI.libCat);grid.innerHTML='';
-  if(!items.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">No hay imágenes en esta categoría. Sube alguna arriba.</div>'}
+  const grid=$('#thumbGrid'),cat=$('#libCat');if(!grid)return;
+  if(!cat.options.length)for(const[k,n]of[['all','Todas'],...Object.entries(CATS).map(([k,C])=>[k,C.name])])cat.add(new Option(n,k));
+  cat.value=UI.libCat;
+  const q=$('#libSearch').value.trim().toLowerCase();
+  const items=Store.list(UI.libCat).filter(m=>!q||m.name.toLowerCase().includes(q));grid.innerHTML='';
+  if(!items.length){const e=document.createElement('div');e.className='empty';e.style.gridColumn='1/-1';e.textContent=q?`Ninguna imagen se llama «${$('#libSearch').value.trim()}».`:UI.libCat==='all'?'Aún no hay imágenes. Sube alguna arriba.':`No hay ${CATS[UI.libCat].name.toLowerCase()}. Sube una imagen arriba.`;grid.appendChild(e)}
   for(const m of items){
     const card=document.createElement('div');card.className='thumb';card.draggable=true;card.title=`${m.name}: clic para colocar, arrastra al mapa para elegir el sitio`;
     const im=document.createElement('img');im.src=m.thumb;im.alt='';im.loading='lazy';
