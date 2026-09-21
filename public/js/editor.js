@@ -1255,15 +1255,16 @@ const Chat=(()=>{
 })();
 $('#chatForm').onsubmit=e=>{e.preventDefault();Chat.submit()};
 const secretMode=()=>UI.realRole==='gm'&&$('#secretRoll').getAttribute('aria-pressed')==='true';
-$('#secretRoll').onclick=()=>{const b=$('#secretRoll');const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));toast(on?'Tiradas privadas: sólo las ves tú':'Tiradas públicas',1400)};
+$('#secretRoll').onclick=()=>{const b=$('#secretRoll');const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));toast(on?'Tiradas ocultas: sólo las ves tú':'Tiradas visibles para todos',1400)};
 /* Bandeja: cada clic añade un dado; se tira con «Tirar», Enter, o sola a los 2,5 s */
 const Tray=(()=>{
   const pool=new Map();let timer=0;
   const formula=()=>[...pool.entries()].sort((a,b)=>b[0]-a[0]).map(([d,n])=>`${n}d${d}`).join(' + ');
   function render(){
     const tray=$('#diceTray');const has=pool.size>0;tray.hidden=!has;
-    if(!has)return;
+    if(!has){for(const b of $$('#diceBar .die[data-n]'))delete b.dataset.n;return}
     $('#trayFormula').textContent=formula();
+    for(const b of $$('#diceBar .die[data-d]')){const n=pool.get(Number(b.dataset.d));if(n)b.dataset.n=n;else delete b.dataset.n}
     const bar=$('#trayProgress');bar.style.animation='none';void bar.offsetWidth;bar.style.animation='';
   }
   function add(d,n){pool.set(d,Math.min(20,(pool.get(d)||0)+n));render();clearTimeout(timer);timer=setTimeout(roll,2500)}

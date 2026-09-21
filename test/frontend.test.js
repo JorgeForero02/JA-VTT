@@ -126,7 +126,7 @@ test('ajustes de chat/dados para todos, tirada privada, favicon propio', () => {
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'favicon.svg')));
   assert.match(html, /id="tab-layers">\s*<details class="fold gmSect" data-fold="mesa"/, 'los interruptores viven en Ajustes');
   assert.match(html, /id="diceEnabled"/);
-  assert.match(html, /class="die secretToggle gmOnly" id="secretRoll"/);
+  assert.match(html, /class="btn secretToggle gmOnly" id="secretRoll" aria-pressed="false"/);
   const editor = read('js/editor.js');
   assert.match(editor, /const chat=S\.chatEnabled!==false,dice=S\.diceEnabled!==false;/);
   assert.match(editor, /rs|gr|privada/, 'comandos de tirada privada');

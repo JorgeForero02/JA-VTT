@@ -125,6 +125,8 @@ try {
   for (let i = 0; i < 4; i++) await pl.click('#diceBar .die[data-d="6"]');
   await pl.click('#diceBar .die[data-d="8"]'); await pl.click('#diceBar .die[data-d="8"]');
   const trayText = await pl.textContent('#trayFormula');
+  const trayUi = await pl.evaluate(() => ({ hint: (document.getElementById('trayHint') || {}).textContent || '', n6: document.querySelector('#diceBar .die[data-d="6"]').dataset.n, rows: new Set([...document.querySelectorAll('#diceBar .die[data-d]')].map((b) => Math.round(b.getBoundingClientRect().top))).size }));
+  step('bandeja: mientras espera avisa de que se pueden añadir más, cada dado muestra cuántos lleva y los 7 van en una fila', /añade/i.test(trayUi.hint) && trayUi.n6 === '4' && trayUi.rows === 1, JSON.stringify(trayUi));
   await pl.click('#trayRoll');
   await gm.waitForFunction(() => document.querySelectorAll('.chatMsg.roll').length === 3, null, { timeout: 5000 });
   step('bandeja: varios dados a la vez (4d6 + 2d8)', trayText.trim() === '2d8 + 4d6' && (await gm.textContent('.chatMsg.roll:last-child')).includes('2d8+4d6'), trayText.trim());
@@ -153,6 +155,8 @@ try {
 
   // tirada privada del director: sólo él la ve
   await gm.click('[data-tab="chat"]');
+  const secretUi = await gm.evaluate(() => { const b = document.getElementById('secretRoll'); return { text: b.textContent.trim(), inDiceRow: !!b.closest('#diceBar') }; });
+  step('dados: la tirada oculta dice lo que hace y no descuadra la fila de dados', /jugadores/.test(secretUi.text) && !secretUi.inDiceRow, JSON.stringify(secretUi));
   await gm.click('#secretRoll');
   await gm.click('#diceBar .die[data-d="20"]');
   await gm.waitForSelector('.chatMsg.roll.secret', { timeout: 5000 });
