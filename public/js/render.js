@@ -399,6 +399,8 @@ function drawOverlay(player){
       c.restore();
     }
   }
+  // objeto señalado desde una lista del panel
+  if(UI.hoverItem!=null){const o=S.lights.find(x=>x.id===UI.hoverItem)||S.tokens.find(x=>x.id===UI.hoverItem);if(o){const r=o.type==='token'?tokenRadius(o)+px(7):px(24);c.save();c.lineWidth=px(6);c.strokeStyle='rgba(240,179,90,.25)';c.beginPath();c.arc(o.x,o.y,r,0,Math.PI*2);c.stroke();c.lineWidth=px(2.5);c.strokeStyle='#F0B35A';c.stroke();c.restore()}}
   if(S.layers.plans.visible){for(const p of S.plans)if(gm||S.plansReleased||p.owner!=null)drawPlan(c,p,isSel(p)?'#F0B35A':(p.color||'#8EC5E8'),false)}
   drawNotes(c,gm);
   const A=UI.act;

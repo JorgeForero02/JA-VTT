@@ -419,6 +419,21 @@ try {
   }
   step('panel: los desplegables caben enteros y tienen el alto de los demás controles (≥ 32 px)', selFit.every((x) => x.has >= x.need && x.h >= 32), JSON.stringify(selFit));
 
+  // legibilidad: luces con el mismo nombre numeradas, separadas de los botones de arriba y resaltadas al pasar
+  const velas = await gm.evaluate(() => { const ids = [0, 1, 2].map((i) => addObj(newLight({ x: 4000 + i * 200, y: 4000 }, 'candle')).id); changed(); refreshPanels(); return ids; });
+  await gm.click('[data-tab="lights"]'); await gm.waitForTimeout(250);
+  const lightNames = await gm.$$eval('#lightList .item .name', (ns) => ns.map((n) => n.textContent));
+  const lightGap = await gm.evaluate(() => Math.round(document.querySelector('#lightList').getBoundingClientRect().top - document.getElementById('allOn').getBoundingClientRect().bottom));
+  await gm.hover('#lightList .item:nth-child(2) .name'); await gm.waitForTimeout(100);
+  const hovered = await gm.evaluate((id) => UI.hoverItem === id, velas[1]);
+  await gm.mouse.move(700, 400);
+  const unhovered = await gm.evaluate(() => UI.hoverItem == null);
+  step('luces: las del mismo nombre se numeran, la lista respira bajo los botones y la fila resalta su luz', lightNames.slice(-3).join('|') === 'Vela 1|Vela 2|Vela 3' && lightGap >= 10 && hovered && unhovered, `${lightNames.join('|')} · hueco ${lightGap} px · hover ${hovered}/${unhovered}`);
+  await gm.evaluate((ids) => { for (const id of ids) S.lights.splice(S.lights.findIndex((l) => l.id === id), 1); changed(); refreshPanels(); }, velas);
+  // números con altura uniforme (Alegreya Sans usa cifras antiguas por defecto: «d10» se leía «d1o», «0» como «o»)
+  const nums = await gm.evaluate(() => [document.body, document.querySelector('.diceBar .die'), document.querySelector('#weatherIntensityOut')].map((e) => e && getComputedStyle(e).fontVariantNumeric));
+  step('texto: cifras de altura uniforme en toda la interfaz', nums.every((v) => v && v.includes('lining-nums')), JSON.stringify(nums));
+
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';
   await rec.goto(BASE + '/');

@@ -803,10 +803,14 @@ function renderLibrary(){
     g.appendChild(b);
   }
 }
-function itemRow(o,{dot,onToggle,toggleIc,toggleTitle,extra,owner:extraOwner,edit}){
+/* Nombres de una lista: los repetidos se numeran en orden («Vela 1», «Vela 2»…) para distinguirlos */
+function listLabels(list){const n=new Map(),k=new Map();for(const o of list){const d=describe(o);n.set(d,(n.get(d)||0)+1)}return o=>{const d=describe(o);if(n.get(d)<2)return d;k.set(d,(k.get(d)||0)+1);return`${d} ${k.get(d)}`}}
+function itemRow(o,{dot,onToggle,toggleIc,toggleTitle,extra,owner:extraOwner,edit,label}){
   const row=document.createElement('div');row.className='item'+(isSel(o)?' sel':'');
+  // al pasar por la fila se resalta el objeto en el mapa
+  row.onpointerenter=()=>{UI.hoverItem=o.id;requestRender()};row.onpointerleave=()=>{if(UI.hoverItem===o.id){UI.hoverItem=null;requestRender()}};
   const d=document.createElement('span');d.className='dot';d.style.background=dot;row.appendChild(d);
-  const n=document.createElement('span');n.className='name';n.textContent=describe(o);n.title='Seleccionar y centrar';
+  const n=document.createElement('span');n.className='name';n.textContent=label?label(o):describe(o);n.title='Seleccionar y centrar';
   n.onclick=()=>{UI.selected=[o.id];UI.cam.x=o.x;UI.cam.y=o.y;refreshPanels();requestRender()};row.appendChild(n);
   if(extra)row.appendChild(extra);
   if(onToggle){const b=document.createElement('button');b.className='btn sq ghost';b.title=toggleTitle;b.setAttribute('aria-label',toggleTitle);b.innerHTML=svgIcon(toggleIc);b.onclick=onToggle;row.appendChild(b)}
@@ -819,20 +823,22 @@ function renderLists(){
   setCount('#lightCount',S.lights.length);
   setCount('#pcCount',S.tokens.filter(t=>t.kind==='player').length);
   setCount('#npcCount',S.tokens.filter(t=>t.kind!=='player').length);
-  const ll=$('#lightList');ll.innerHTML='';
+  UI.hoverItem=null;
+  const ll=$('#lightList');ll.innerHTML='';const lightLabel=listLabels(S.lights);
   if(!S.lights.length)ll.innerHTML='<div class="empty">Todavía no hay luces. Elige una arriba.</div>';
-  for(const l of S.lights)ll.appendChild(itemRow(l,{dot:l.darkness?'#000':(l.on?l.color:'transparent'),toggleIc:l.on?'lightbulb':'lightbulb-off',toggleTitle:l.on?'Apagar':'Encender',onToggle:()=>{pushUndo();l.on=!l.on;changed()}}));
+  for(const l of S.lights)ll.appendChild(itemRow(l,{label:lightLabel,dot:l.darkness?'#000':(l.on?l.color:'transparent'),toggleIc:l.on?'lightbulb':'lightbulb-off',toggleTitle:l.on?'Apagar':'Encender',onToggle:()=>{pushUndo();l.on=!l.on;changed()}}));
   const pc=$('#pcList'),np=$('#npcList');pc.innerHTML='';np.innerHTML='';
   const pcs=S.tokens.filter(t=>t.kind==='player'),npcs=S.tokens.filter(t=>t.kind!=='player');
   if(!pcs.length)pc.innerHTML='<div class="empty">No hay personajes. Sin ellos, los jugadores no ven nada.</div>';
   if(!npcs.length)np.innerHTML='<div class="empty">No hay enemigos.</div>';
+  const pcLabel=listLabels(pcs),npcLabel=listLabels(npcs);
   const mine=S.tokens.filter(ownsToken);
   const mc=$('#myCharList');mc.innerHTML='';
   for(const t of mine)mc.appendChild(itemRow(t,{dot:t.color,edit:true,toggleIc:t.light&&t.light.on?'flame':'lightbulb-off',toggleTitle:t.light&&t.light.on?'Apagar mi luz':'Encender mi luz',onToggle:()=>{if(!t.light||t.light.preset==='none')t.light=tokenLightFrom('torch');else t.light.on=!t.light.on;changed()}}));
   $('#createChar').style.display=mine.length||UI.realRole==='gm'?'none':'';
   if(!mine.length)mc.innerHTML='<div class="empty">Aún no tienes personaje. Crea uno o pide al director que te asigne una ficha.</div>';
-  for(const t of pcs)pc.appendChild(itemRow(t,{dot:t.color,owner:t.owner,toggleIc:t.light&&t.light.on?'flame':'lightbulb-off',toggleTitle:t.light&&t.light.on?'Apagar su luz':'Encender su luz',onToggle:isGM()?()=>{pushUndo();if(!t.light||t.light.preset==='none')t.light=tokenLightFrom('torch');else t.light.on=!t.light.on;changed()}:null}));
-  for(const t of npcs)np.appendChild(itemRow(t,{dot:t.color,toggleIc:t.hidden?'eye-off':'eye',toggleTitle:t.hidden?'Mostrar a jugadores':'Ocultar a jugadores',onToggle:()=>{pushUndo();t.hidden=!t.hidden;changed()}}));
+  for(const t of pcs)pc.appendChild(itemRow(t,{label:pcLabel,dot:t.color,owner:t.owner,toggleIc:t.light&&t.light.on?'flame':'lightbulb-off',toggleTitle:t.light&&t.light.on?'Apagar su luz':'Encender su luz',onToggle:isGM()?()=>{pushUndo();if(!t.light||t.light.preset==='none')t.light=tokenLightFrom('torch');else t.light.on=!t.light.on;changed()}:null}));
+  for(const t of npcs)np.appendChild(itemRow(t,{label:npcLabel,dot:t.color,toggleIc:t.hidden?'eye-off':'eye',toggleTitle:t.hidden?'Mostrar a jugadores':'Ocultar a jugadores',onToggle:()=>{pushUndo();t.hidden=!t.hidden;changed()}}));
   const va=$('#viewAs');const cur=String(UI.viewAs);va.innerHTML='<option value="party">Todo el grupo</option>';
   for(const t of pcs){const op=document.createElement('option');op.value=t.id;op.textContent=t.name;va.appendChild(op)}
   va.value=[...va.options].some(o=>o.value===cur)?cur:'party';if(va.value==='party')UI.viewAs='party';
