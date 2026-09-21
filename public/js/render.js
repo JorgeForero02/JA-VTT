@@ -247,7 +247,9 @@ function buildLightMask(t,player,vs){
   const c=mctx;setRaw(c);c.globalCompositeOperation='source-over';c.clearRect(0,0,maskC.width,maskC.height);
   if(S.ambient>0){
     c.fillStyle=`rgba(255,255,255,${S.ambient})`;c.fillRect(0,0,maskC.width,maskC.height);
-    if(S.zones.length){c.globalCompositeOperation='destination-out';setWorld(c);c.fillStyle='#000';for(const z of S.zones){traceZone(c,z);c.fill()}setRaw(c)}
+    // la zona se resta con su contorno: si su borde antialias coincide con el de la línea de visión (un muro),
+    // dejaría media franja de ambiente exterior pintada sobre el muro
+    if(S.zones.length){c.globalCompositeOperation='destination-out';setWorld(c);c.fillStyle=c.strokeStyle='#000';c.lineWidth=px(2);c.lineJoin='round';for(const z of S.zones){traceZone(c,z);c.fill();c.stroke()}setRaw(c)}
   }
   c.globalCompositeOperation='lighter';
   const src=lightSources();

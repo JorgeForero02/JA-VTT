@@ -378,6 +378,29 @@ try {
   step('niebla ajena: «Reiniciar mi vista» recarga la del jugador y la del jugador sigue intacta', gmAfterReset === plChunks && plIntact === plChunks, `${gmAfterReset} · jugador ${plIntact}`);
   await gm.click('#roleGm'); await gm.waitForTimeout(300);
 
+  // luz ambiente fuera de una zona interior cerrada por muros: desde dentro no se ve ni una línea sobre el muro
+  // (el borde antialias de la zona y el de la línea de visión coincidían y dejaban media franja de ambiente)
+  const wallLine = await gm.evaluate(async () => {
+    const before = { ambient: S.ambient, viewAs: UI.viewAs, cam: { ...UI.cam } };
+    const R = 300.4, ox = 5000, oy = 5000, ids = [];
+    const P = [[-R, -R], [R, -R], [R, R], [-R, R]];
+    for (let i = 0; i < 4; i++) { const a = P[i], b = P[(i + 1) % 4]; ids.push(addObj({ id: nid(), type: 'wall', kind: 'wall', a: { x: ox + a[0], y: oy + a[1] }, b: { x: ox + b[0], y: oy + b[1] } }).id); }
+    ids.push(addObj({ id: nid(), type: 'zone', name: 'Casa', x: ox - R, y: oy - R, w: 2 * R, h: 2 * R }).id);
+    const tok = addObj({ id: nid(), type: 'token', kind: 'player', name: 'Dentro', x: ox - 150, y: oy - 150, size: 1, owner: Net.members.find((m) => m.role !== 'gm').id, color: '#7FB2E5', vision: true, sight: 0, darkvision: 0, light: { preset: 'none' }, hidden: false });
+    ids.push(tok.id);
+    S.ambient = .3; UI.viewAs = tok.id; changed(true);
+    UI.cam.x = ox + 13.37; UI.cam.y = oy + 7.21; UI.cam.zoom = .731; setRole('player');
+    for (let i = 0; i < 10; i++) { requestRender(); await new Promise((r) => requestAnimationFrame(r)); }
+    const x = cv.dark.getContext('2d'), d = scaleOf(x), sp = toScreen({ x: ox + 200, y: oy + R });
+    let min = 255;
+    for (let dy = -6; dy <= 6; dy++) min = Math.min(min, x.getImageData(Math.round(sp.x * d), Math.round((sp.y + dy) * d), 1, 1).data[3]);
+    setRole('gm');
+    for (const k of ['walls', 'zones', 'tokens']) for (let i = S[k].length - 1; i >= 0; i--) if (ids.includes(S[k][i].id)) S[k].splice(i, 1);
+    S.ambient = before.ambient; UI.viewAs = before.viewAs; Object.assign(UI.cam, before.cam); changed(true);
+    return min;
+  });
+  step('luz: el ambiente exterior no se cuela como línea sobre el muro de una zona interior (alfa de la oscuridad ≥ 250)', wallLine >= 250, `alfa mínimo ${wallLine}`);
+
   // recuperación de contraseña desde la pantalla de entrada
   const rec = await newPage(); rec.__name = 'recover';
   await rec.goto(BASE + '/');
