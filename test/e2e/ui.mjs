@@ -152,6 +152,15 @@ try {
   step('iniciativa: «Siguiente» mueve el turno en el jugador', true);
   await shot(gm, '05-iniciativa-director');
   await shot(pl, '06-iniciativa-jugador');
+  // herramientas de iniciativa: rejilla ordenada de botones iguales; «Vaciar» se confirma dentro de la app
+  const initUi = await gm.evaluate(() => { const bs = [...document.querySelectorAll('.initTools .btn')].filter((b) => b.id !== 'initClear'); const svg = document.querySelector('#initSort svg'); return { ghost: bs.filter((b) => b.classList.contains('ghost')).map((b) => b.id), rows: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size, widths: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().width))).size, sortIcon: !!svg && svg.innerHTML.includes('M7 20V4') }; });
+  let dialogs = 0; const onDialog = (d) => { dialogs++; d.dismiss(); }; gm.on('dialog', onDialog);
+  await gm.click('#initClear'); await gm.waitForTimeout(200);
+  const armed = { text: (await gm.textContent('#initClear')).trim(), left: await gm.evaluate(() => UI.initiative.entries.length) };
+  await gm.click('#initClear'); await gm.waitForTimeout(500);
+  const cleared = await gm.evaluate(() => !UI.initiative || !UI.initiative.entries.length);
+  gm.off('dialog', onDialog);
+  step('iniciativa: herramientas en rejilla de botones iguales (icono de ordenar propio) y «Vaciar» pide un segundo clic sin diálogo del navegador', initUi.ghost.length === 0 && initUi.rows === 2 && initUi.widths === 1 && initUi.sortIcon && /otra vez/.test(armed.text) && armed.left === 2 && cleared && dialogs === 0, JSON.stringify({ initUi, armed, cleared, dialogs }));
 
   // tirada privada del director: sólo él la ve
   await gm.click('[data-tab="chat"]');

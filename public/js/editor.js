@@ -1323,7 +1323,8 @@ $('#initAddTokens').onclick=()=>{
 $('#initAddCustom').onclick=()=>{const c=initCopy();c.entries.push({id:nid(),name:'Entrada',value:0});initSend(c)};
 $('#initRollAll').onclick=()=>{const c=initCopy();for(const e of c.entries)e.value=1+Math.floor(Math.random()*20);initSend(initSort(c));toast('Iniciativa tirada y ordenada',1600)};
 $('#initSort').onclick=()=>initSend(initSort(initCopy()));
-$('#initClear').onclick=()=>{if(!confirm('¿Vaciar la iniciativa?'))return;initSend({entries:[],turn:0,round:1})};
+/* Vaciar pide un segundo clic en 3 s (como borrar una imagen), sin diálogo del navegador */
+$('#initClear').onclick=(()=>{let armed=0;const b=$('#initClear'),reset=()=>{clearTimeout(armed);armed=0;b.classList.remove('on');b.lastChild.textContent='Vaciar'};return()=>{if(!armed){armed=setTimeout(reset,3000);b.classList.add('on');b.lastChild.textContent='Pulsa otra vez para vaciar';return}reset();initSend({entries:[],turn:0,round:1})}})();
 function initStep(dir){
   const c=initCopy();if(!c.entries.length)return;
   c.turn+=dir;
