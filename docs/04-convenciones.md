@@ -32,7 +32,21 @@ renumerar documentos.
 - Estilo: `'use strict'`, comillas simples, punto y coma, 2 espacios, comentarios sólo para
   decisiones no obvias.
 
-## B.2 Flujo por cambio
+## B.2 Ramas
+
+| Rama | Qué es |
+|---|---|
+| `release` | **Lo que está en producción** y lo que ve quien visita el repo. Coolify despliega desde aquí |
+| `main` | Desarrollo: lleva el modo 2.5D a medias. No se despliega hasta cerrar su fase E |
+| `clima-2d` | `main` + clima 2D y hotfixes; pendiente de mergear en `main` (P-14) |
+
+- Un **hotfix** de producción se hace en `release` y se porta por `cherry-pick` a `clima-2d`
+  (y a `main` cuando P-14 esté cerrado), resolviendo a mano lo que toque al 2.5D.
+- Trabajo grande para producción: rama desde `release`, un commit por punto, y merge a `release`
+  sólo con `check` y `test:ui` verdes.
+- `release` no recibe nada del 2.5D.
+
+## B.3 Flujo por cambio
 
 1. Test que falla → implementación → verde. Cada test se rompe una vez a propósito
    (mutación manual) para comprobar que muerde.

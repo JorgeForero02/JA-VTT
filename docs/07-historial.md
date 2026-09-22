@@ -20,7 +20,8 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
 - **Qué:** rama `release` creada desde `prod-2d` (`aa59e2b`) y subida; `PATCH git_branch=release` + deploy `b98xacyqucsqosqxa9ujxh5p` (commit `aa59e2b`, sólo docs respecto a lo desplegado).
 - **Verificado desde el servidor:** `git_branch=release`, `running:healthy`, `/api/health` ok, JS servido con `noteVisibleToPlayers`.
-- **Revertir:** `PATCH git_branch=prod-2d` + deploy. `prod-2d` no se ha borrado.
+- **Después:** el usuario dio por bueno el despliegue y `prod-2d` se borró en local y en GitHub (estaba contenida entera en `release`). Flujo de ramas en [04](04-convenciones.md) B.2.
+- **Revertir:** `PATCH git_branch=<rama>` + deploy; `prod-2d` se puede recrear desde `aa59e2b`.
 
 ## 2026-09-19 — Despliegue de prod-2d @ 6a05644 (plan B: regla multitramo, anotaciones, P-27)
 
