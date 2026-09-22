@@ -19,7 +19,7 @@ Desplegar: push a **`release`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr
 UI). El push solo no despliega (`instant_deploy: false`, sin webhook). `main` lleva el 2.5D y no se despliega. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
-Último despliegue: 2026-09-21, `release @ aa59e2b` (mismo código que `prod-2d @ 6a05644`: planes A y B). Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
+Último despliegue: 2026-09-21, `release @ be83c7e` (panel en cinco pestañas, CA opcional, línea en los muros). Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
 correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RESTART=no` → 10/10
 (WSS por Traefik, 190 ms por mensaje); restart por API → mismas filas antes y después.
 

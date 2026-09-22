@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-21 — Despliegue de release @ be83c7e (panel, CA, línea en los muros)
+
+- **Qué:** `ui-panel` → `release` (avance rápido) y `POST /api/v1/deploy` (deployment `syvxcebmeloabwf6nki0tegg`), 10 commits sobre `aa59e2b`. Antes: `test:ui` 54/54, `check` 98/98, pila local + `test:e2e` 11/11.
+- **Verificado desde el servidor:** `finished` en `be83c7e`, `app`/`db` healthy, `/api/health` ok, JS servido con `acOn`/`upAsk`/`popRight`/`libSearch`; datos intactos (4 usuarios, 5 tableros, 440 objetos).
+- **Revertir:** redeploy de `aa59e2b` en Coolify (o `git revert` en `release` + deploy). Sin migración.
+
 ## 2026-09-21 — Clase de armadura (CA) opcional en las fichas
 
 - **Qué:** `token.ac` (0–99, opcional) saneado en `rules.js`; el dueño la edita (`playerUpsert`); `objectFor` la quita siempre de las fichas ajenas para los jugadores; interruptor de tablero `acEnabled` (true por defecto) en Mesa → Chat, dados y fichas; campo en el editor y en el Estado; escudo con el número en la esquina inferior izquierda de la ficha.
