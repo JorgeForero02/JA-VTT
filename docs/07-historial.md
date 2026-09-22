@@ -2,6 +2,13 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-21 — Clase de armadura (CA) opcional en las fichas
+
+- **Qué:** `token.ac` (0–99, opcional) saneado en `rules.js`; el dueño la edita (`playerUpsert`); `objectFor` la quita siempre de las fichas ajenas para los jugadores; interruptor de tablero `acEnabled` (true por defecto) en Mesa → Chat, dados y fichas; campo en el editor y en el Estado; escudo con el número en la esquina inferior izquierda de la ficha.
+- **Por qué:** petición del usuario: la CA «opcional como el resto» (vida y condiciones).
+- **Verificado:** tests de reglas y de tiempo real (rojos antes; mutación de `objectFor` detectada) · `test:ui` 54/54 con paso de CA · `check` 98/98.
+- **Revertir:** `git revert` del commit; sin migración (la CA vive en `objects.data`).
+
 ## 2026-09-21 — Panel lateral: menús por encima, legibilidad, dados, iniciativa, biblioteca, subida y 5 pestañas (rama `ui-panel`)
 
 - **Qué:** siete commits sobre `release`: (1) escala de capas `--z-panel < --z-pop < --z-toast < --z-modal` y `placePop` a la izquierda del panel (el editor quedaba 278/300 px tapado) + desplegables enteros; (2) cifras `lining-nums`, nombres repetidos numerados, fila que resalta su objeto en el mapa; (3) dados en rejilla, contador por dado, aviso en la bandeja e interruptor «Tirada oculta a los jugadores»; (4) iniciativa en rejilla 2×2, «Vaciar» con segundo clic en vez de `confirm()`; (5) biblioteca con buscador y desplegable; (6) subida en dos pasos con «¿Qué es?» y «Tablero» → «Mapa» para la imagen de fondo; (7) cinco pestañas (Escena, Luces, Fichas, Mesa, Chat).

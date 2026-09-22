@@ -101,7 +101,7 @@ en la niebla de guerra, también lo que sólo alcanza a ver gracias a una luz le
 En **Vista de jugador** el director ve la escena como la ven los jugadores y puede
 seguir moviendo a los personajes (con los muros bloqueando el paso, como a ellos).
 
-- Director: clic derecho en una ficha → **Estado** para condiciones, vida y altura; en Mesa → Reglas para jugadores decide quién ve la vida.
+- Director: clic derecho en una ficha → **Estado** para condiciones, vida, clase de armadura (CA) y altura; la CA de los enemigos sólo la ve el director; en Mesa → Reglas para jugadores decide quién ve la vida.
 - Jugador: lo mismo sobre su propio personaje.
 
 El servidor valida cada cambio; lo que un jugador no puede hacer se rechaza y se

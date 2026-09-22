@@ -351,12 +351,28 @@ test('estado de la ficha: popover #statusPop con chips, vida ± y altura; entrad
   assert.match(html, /<select id="hpVisibility" class="gmOnly">[\s\S]*<option value="all">[\s\S]*<option value="gm">[\s\S]*<option value="bar_only">/);
   const js = read('js/editor.js');
   assert.match(js, /^function openStatus\(o,sp\)\{/m);
-  assert.match(js, /add\('heart-pulse','Estado: condiciones, vida y altura',\(\)=>openStatus\(o,sp\)\)/);
+  assert.match(js, /add\('heart-pulse','Estado: condiciones, vida, CA y altura',\(\)=>openStatus\(o,sp\)\)/);
   assert.match(js, /\$\('#hpVisibility'\)\.onchange=e=>\{S\.hpVisibility=e\.target\.value;changed\(\)\}/);
   assert.match(js, /\$\('#hpVisibility'\)\.value=S\.hpVisibility\|\|'all'/);
   assert.match(js, /e\.deltaY<0\?1:-1/, 'la rueda sobre la vida suma o resta');
   assert.match(read('js/icons.js'), /"heart-pulse"/);
   assert.match(read('css/app.css'), /#statusPop \.chip\.on\{/);
+});
+
+test('CA opcional: interruptor en Mesa, helper acOn, campo en el editor y el Estado, escudo en la ficha', () => {
+  const html = read('index.html');
+  assert.match(html, /<input type="checkbox" id="acEnabled"> Clase de armadura \(CA\)/);
+  assert.match(html, /<div class="statusRow" id="statusAc"><span>Clase de armadura<\/span><input id="acVal" type="number" min="0" max="99"/);
+  const core = read('js/core.js');
+  assert.match(core, /conditionsEnabled:true,acEnabled:true/);
+  assert.match(core, /^const acOn=\(\)=>S\.acEnabled!==false;$/m);
+  assert.match(read('js/net.js'), /'conditionsEnabled','acEnabled'/);
+  const editor = read('js/editor.js');
+  assert.match(editor, /\$\('#acEnabled'\)\.onchange=e=>\{S\.acEnabled=e\.target\.checked;changed\(\)\}/);
+  assert.match(editor, /if\(acOn\(\)\)num\('Clase de armadura \(0 = sin CA\)'/);
+  assert.match(editor, /\$\('#statusAc'\)\.style\.display=acOn\(\)\?'':'none'/);
+  const render = read('js/render.js');
+  assert.match(render, /if\(acOn\(\)&&t\.ac!=null\)\{/);
 });
 
 test('interruptores de vida y condiciones: checkboxes en Ajustes, helpers hpOn/condsOn y el render los respeta', () => {
@@ -367,14 +383,14 @@ test('interruptores de vida y condiciones: checkboxes en Ajustes, helpers hpOn/c
   assert.match(core, /hpEnabled:true,conditionsEnabled:true/);
   assert.match(core, /^const hpOn=\(\)=>S\.hpEnabled!==false;$/m);
   assert.match(core, /^const condsOn=\(\)=>S\.conditionsEnabled!==false;$/m);
-  assert.match(read('js/net.js'), /'hpVisibility','hpEnabled','conditionsEnabled'\]/);
+  assert.match(read('js/net.js'), /'hpVisibility','hpEnabled','conditionsEnabled','acEnabled'\]/);
   const render = read('js/render.js');
   assert.match(render, /const conds=condsOn\(\)\?\(t\.conditions\|\|\[\]\):\[\];/);
   assert.match(render, /if\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\)\{/);
   assert.match(render, /if\(condsOn\(\)&&t\.elevation\)\{/);
   assert.match(render, /\(hpOn\(\)&&t\.hp&&t\.hp\.max>0\?px\(7\):0\)/, 'el nombre sólo baja si hay barra visible');
   const editor = read('js/editor.js');
-  assert.match(editor, /if\(hpOn\(\)\|\|condsOn\(\)\)add\('heart-pulse'/);
+  assert.match(editor, /if\(hpOn\(\)\|\|condsOn\(\)\|\|acOn\(\)\)add\('heart-pulse'/);
   assert.match(editor, /\$\('#hpEnabled'\)\.onchange=e=>\{S\.hpEnabled=e\.target\.checked;changed\(\)\}/);
   assert.match(editor, /\$\('#conditionsEnabled'\)\.onchange=e=>\{S\.conditionsEnabled=e\.target\.checked;changed\(\)\}/);
   assert.match(editor, /\$\('#statusHp'\)\.style\.display=hpOn\(\)\?'':'none'/);

@@ -116,6 +116,32 @@ test('hpVisibility: ajuste de tablero con tres valores; objectFor quita el hp a 
   assert.equal(R.objectFor(wall, player, { hpVisibility: 'gm' }), wall);
 });
 
+test('CA: entero 0–99 opcional en la ficha; el dueño la edita; al jugador sólo le llega la de sus fichas; acEnabled de tablero', () => {
+  const base = { id: 2, type: 'token', x: 0, y: 0 };
+  assert.equal(R.sanitize(Object.assign({ ac: 15 }, base)).ac, 15);
+  assert.equal(R.sanitize(Object.assign({ ac: 14.6 }, base)).ac, 15);
+  assert.equal(R.sanitize(Object.assign({ ac: 500 }, base)).ac, 99);
+  assert.equal(R.sanitize(Object.assign({ ac: -3 }, base)).ac, 0);
+  assert.equal(R.sanitize(Object.assign({ ac: 'mucha' }, base)).ac, undefined);
+  assert.equal(R.sanitize(base).ac, undefined, 'sin CA no hay campo');
+  const uid = 7;
+  const old = R.sanitize({ id: 3, type: 'token', kind: 'player', owner: uid, x: 0, y: 0, ac: 12 });
+  assert.equal(R.playerUpsert(uid, old, R.sanitize(Object.assign({}, old, { ac: 16 })), { settings: {} }, 1, 0).ac, 16);
+  assert.equal(R.playerUpsert(uid, old, R.sanitize(Object.assign({}, old, { ac: undefined })), { settings: {} }, 1, 0).ac, undefined, 'también la puede quitar');
+  const ogre = R.sanitize({ id: 4, type: 'token', kind: 'enemy', owner: null, x: 0, y: 0, ac: 17 });
+  assert.equal(R.playerUpsert(uid, ogre, R.sanitize(Object.assign({}, ogre, { ac: 5 })), { settings: {} }, 1, 0), null);
+  const player = { role: 'player', user_id: uid }, gm = { role: 'gm', user_id: 1 };
+  for (const board of [{}, { hpVisibility: 'all' }, { hpVisibility: 'gm' }]) {
+    assert.equal(R.objectFor(ogre, player, board).ac, undefined, 'la CA ajena no sale del servidor');
+    assert.equal(R.objectFor(old, player, board).ac, 12, 'la propia sí');
+    assert.equal(R.objectFor(ogre, gm, board).ac, 17);
+  }
+  assert.equal(ogre.ac, 17, 'el original no se toca');
+  assert.equal(R.DEFAULT_BOARD.acEnabled, true);
+  assert.equal(R.splitSettings({ acEnabled: false }).board.acEnabled, false);
+  assert.equal(R.cleanSettings({ acEnabled: 'no' }).acEnabled, undefined);
+});
+
 test('hpEnabled y conditionsEnabled: booleanos de tablero, true por defecto', () => {
   assert.equal(R.DEFAULT_BOARD.hpEnabled, true);
   assert.equal(R.DEFAULT_BOARD.conditionsEnabled, true);

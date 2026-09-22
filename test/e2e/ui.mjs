@@ -196,6 +196,11 @@ try {
     ogre.name = 'Ogro'; hero.name = 'Héroe'; changed();
   }, playerId);
   await pl.waitForFunction(() => S.tokens.some((t) => t.name === 'Ogro' && (t.conditions || []).includes('prone')), null, { timeout: 5000 });
+  // CA: el director la pone en el Estado; al jugador le llega la de su ficha y no la del ogro; apagarla oculta la fila
+  const acGm = await gm.evaluate(() => { const ogre = S.tokens.find((t) => t.name === 'Ogro'), hero = S.tokens.find((t) => t.name === 'Héroe'); hero.ac = 14; changed(); openStatus(ogre, { x: 300, y: 200 }); const inp = document.getElementById('acVal'); if (!inp) return null; inp.value = '17'; inp.dispatchEvent(new Event('input')); const row = inp.parentElement.style.display !== 'none'; closePops(); return { ogre: ogre.ac, row }; });
+  await pl.waitForFunction(() => (S.tokens.find((t) => t.name === 'Héroe') || {}).ac === 14, null, { timeout: 5000 }).catch(() => {});
+  const acPl = await pl.evaluate(() => ({ ogre: (S.tokens.find((t) => t.name === 'Ogro') || {}).ac, hero: (S.tokens.find((t) => t.name === 'Héroe') || {}).ac }));
+  step('CA: el director la pone desde el Estado; el jugador recibe la de su ficha y nunca la del ogro', !!acGm && acGm.ogre === 17 && acGm.row && acPl.hero === 14 && acPl.ogre === undefined, JSON.stringify({ acGm, acPl }));
   await pl.evaluate(() => { UI.cam.zoom = 1; UI.cam.x = 800; UI.cam.y = 550; requestRender(); });
   await gm.waitForTimeout(500); await pl.waitForTimeout(500);
   await shot(gm, '08-fichas-estado');

@@ -107,6 +107,7 @@ function sanitize(o) {
       conditions: Array.isArray(o.conditions) ? [...new Set(o.conditions.filter((x) => CONDITION_IDS.includes(x)))] : [],
     });
     c.elevation = fin(o.elevation) ? clamp(Math.round(o.elevation), -9999, 9999) : 0;
+    if (fin(o.ac)) c.ac = clamp(Math.round(o.ac), 0, 99);
     if (o.hp && typeof o.hp === 'object' && fin(o.hp.max)) {
       const max = clamp(Math.round(o.hp.max), 0, 9999);
       c.hp = { cur: fin(o.hp.cur) ? clamp(Math.round(o.hp.cur), 0, max) : max, max, temp: fin(o.hp.temp) ? clamp(Math.round(o.hp.temp), 0, 9999) : 0 };
@@ -117,14 +118,14 @@ function sanitize(o) {
 }
 
 const HP_VISIBILITY = ['all', 'gm', 'bar_only'];
-const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative', 'hpVisibility', 'hpEnabled', 'conditionsEnabled'];
+const BOARD_KEYS = ['sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'initiative', 'hpVisibility', 'hpEnabled', 'conditionsEnabled', 'acEnabled'];
 function cleanSettings(sc) {
   const o = {};
   if (!sc || typeof sc !== 'object') return o;
   if (ENVS.includes(sc.env)) o.env = sc.env;
   if (fin(sc.ambient)) o.ambient = clamp(sc.ambient, 0, 1);
   if (typeof sc.darkColor === 'string') o.darkColor = col(sc.darkColor, '#0B0E11');
-  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'hpEnabled', 'conditionsEnabled']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
+  for (const k of ['fog', 'grid', 'snap', 'animate', 'plansReleased', 'sharedVision', 'playersDoors', 'chatEnabled', 'diceEnabled', 'initiativeShown', 'hpEnabled', 'conditionsEnabled', 'acEnabled']) if (typeof sc[k] === 'boolean') o[k] = sc[k];
   if (HP_VISIBILITY.includes(sc.hpVisibility)) o.hpVisibility = sc.hpVisibility;
   if (sc.initiative !== undefined) o.initiative = cleanInitiative(sc.initiative);
   if (sc.weather && typeof sc.weather === 'object' && WEATHER_IDS.includes(sc.weather.id)) {
@@ -148,7 +149,7 @@ function cleanSettings(sc) {
 }
 
 const DEFAULT_SCENE = { env: 'interior', ambient: 0, darkColor: '#0B0E11', fog: true, grid: true, snap: true, animate: true, plansReleased: false };
-const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, hpVisibility: 'all', hpEnabled: true, conditionsEnabled: true, initiative: { entries: [], turn: 0, round: 1 } };
+const DEFAULT_BOARD = { sharedVision: true, playersDoors: true, chatEnabled: true, diceEnabled: true, initiativeShown: false, hpVisibility: 'all', hpEnabled: true, conditionsEnabled: true, acEnabled: true, initiative: { entries: [], turn: 0, round: 1 } };
 function splitSettings(sc) {
   const all = cleanSettings(sc), board = {}, scene = {};
   for (const [k, v] of Object.entries(all)) (BOARD_KEYS.includes(k) ? board : scene)[k] = v;
@@ -197,6 +198,8 @@ function playerUpsert(uid, old, neu, board, ownedCount, plansCount) {
       });
       if (neu.hp) out.hp = neu.hp;
       else delete out.hp;
+      if (neu.ac != null) out.ac = neu.ac;
+      else delete out.ac;
       return out;
     }
     if (ownedCount >= 1 || neu.kind !== 'player' || neu.owner !== uid) return null;
@@ -225,12 +228,16 @@ function visibleTo(o, member, settings) {
   return true;
 }
 
-/* Lo que un cliente recibe de un objeto visible: al jugador se le quita la vida de las fichas ajenas
-   cuando el director la reserva (hpVisibility 'gm'). 'bar_only' lo respeta el cliente al pintar. */
+/* Lo que un cliente recibe de un objeto visible: al jugador se le quita, de las fichas ajenas, la vida
+   cuando el director la reserva (hpVisibility 'gm'; 'bar_only' lo respeta el cliente al pintar) y la CA
+   siempre (la CA de un enemigo es información del director). */
 function objectFor(o, member, board) {
-  if (member.role === 'gm' || o.type !== 'token' || !o.hp || board.hpVisibility !== 'gm' || o.owner === member.user_id) return o;
+  if (member.role === 'gm' || o.type !== 'token' || o.owner === member.user_id) return o;
+  const hideHp = !!o.hp && board.hpVisibility === 'gm', hideAc = o.ac != null;
+  if (!hideHp && !hideAc) return o;
   const copy = Object.assign({}, o);
-  delete copy.hp;
+  if (hideHp) delete copy.hp;
+  if (hideAc) delete copy.ac;
   return copy;
 }
 

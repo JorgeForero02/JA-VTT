@@ -221,6 +221,30 @@ test('hpVisibility gm: el jugador no recibe el hp de las fichas ajenas (estado, 
   await gm.close(); await player.close();
 });
 
+test('CA: el jugador no recibe la CA de las fichas ajenas (estado y ops); la de la suya sí y la puede cambiar', async () => {
+  const gm = connect(base, boardId, gmCookie);
+  const player = connect(base, boardId, playerCookie);
+  await gm.opened; await player.opened;
+  await gm.next(isState); const ps0 = await player.next(isState);
+  const playerId = ps0.me.id;
+  const troll = { id: 3101, type: 'token', kind: 'enemy', x: 100, y: 300, name: 'Trol', owner: null, ac: 15 };
+  const elf = { id: 3102, type: 'token', kind: 'player', x: 200, y: 300, name: 'Elfa', owner: playerId, ac: 14 };
+  gm.send({ t: 'ops', scene: sceneId, up: [troll, elf], del: [] });
+  const ops = await player.next((m) => isOps(m) && m.up.some((o) => o.id === 3101));
+  assert.equal(ops.up.find((o) => o.id === 3101).ac, undefined);
+  assert.equal(ops.up.find((o) => o.id === 3102).ac, 14);
+  player.send({ t: 'ops', scene: sceneId, up: [Object.assign({}, elf, { ac: 16 })], del: [] });
+  const toGm = await gm.next((m) => isOps(m) && m.up.some((o) => o.id === 3102));
+  assert.equal(toGm.up.find((o) => o.id === 3102).ac, 16);
+  await gm.close(); await player.close();
+  // al volver a entrar, el estado tampoco trae la CA del trol
+  const again = connect(base, boardId, playerCookie); await again.opened;
+  const st = await again.next(isState);
+  assert.equal(st.objects.find((o) => o.id === 3101).ac, undefined);
+  assert.equal(st.objects.find((o) => o.id === 3102).ac, 16);
+  await again.close();
+});
+
 test('notas: una gmOnly no llega al jugador ni en estado ni en ops; al publicarla llega; al ocultarla recibe del', async () => {
   const gm = connect(base, boardId, gmCookie);
   const player = connect(base, boardId, playerCookie);

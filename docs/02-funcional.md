@@ -49,7 +49,8 @@ intenta algo que no puede.
   la altura no es 0, velo y calavera si está muerta.
 - Mesa → Reglas para jugadores → **Vida de las fichas**: todos · sólo el director (cada jugador sigue
   viendo la suya) · los jugadores ven sólo la barra.
-- Mesa → Chat, dados y fichas: **Vida de las fichas** y **Condiciones y altura** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.
+- **Clase de armadura (CA)**: opcional por ficha (0 = sin CA), en el editor y en el Estado; se pinta como un escudo con el número. El director ve todas; cada jugador, sólo la de sus fichas (el servidor no envía las demás).
+- Mesa → Chat, dados y fichas: **Vida de las fichas**, **Condiciones y altura** y **Clase de armadura (CA)** se apagan por tablero (se ocultan, no se borran) para quien lleve esto en otro sistema.
 
 ### Regla multitramo y anotaciones (2026-09-19)
 

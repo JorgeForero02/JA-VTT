@@ -43,10 +43,11 @@ Objetos de tipo `token` en `objects.data`:
 - `conditions: string[]` — ids del catálogo `CONDITION_IDS` (`server/rules.js`; espejo `CONDITIONS` en `public/js/core.js`, test de contrato en `frontend.test.js`). Siempre presente.
 - `hp?: {cur, max, temp}` — enteros ≥ 0, `cur ≤ max`. Sólo existe si `max` se ha fijado; sin `hp` no hay barra.
 - `elevation: number` — pies, entero ±9999, 0 por defecto.
+- `ac?: number` — clase de armadura, entero 0–99. Sólo existe si se ha fijado. `R.objectFor` la quita **siempre** de las fichas ajenas antes de enviarlas a un jugador (la CA de un enemigo es del director); la edita el director y el dueño de la ficha.
 
 - `note` — `{x, y, text (≤200), gmOnly}`. Sólo el director la crea/edita (`playerUpsert` devuelve `null` para el tipo). Con `gmOnly` no se envía a jugadores (`visibleTo`); al cambiar `gmOnly` el `handleOps` existente manda `up`/`del`. Capa `notes` en `LAYER_IDS`/`LAYERS`.
 
-Ajustes de **tablero** (`DEFAULT_BOARD`): `hpVisibility: 'all' | 'gm' | 'bar_only'`, `hpEnabled: boolean` y `conditionsEnabled: boolean` (ambos `true` por defecto; si se apagan ocultan barra, badges, pastilla y popover sin borrar los datos). Con `'gm'` el servidor quita
+Ajustes de **tablero** (`DEFAULT_BOARD`): `hpVisibility: 'all' | 'gm' | 'bar_only'`, `hpEnabled: boolean`, `acEnabled: boolean` y `conditionsEnabled: boolean` (ambos `true` por defecto; si se apagan ocultan barra, badges, pastilla y popover sin borrar los datos). Con `'gm'` el servidor quita
 `hp` de las fichas ajenas antes de enviarlas a un jugador (`R.objectFor`, aplicada en `stateFor`, `handleOps`
 y `moveUser`; al cambiar el ajuste cada jugador recibe un `state` completo). `'bar_only'` viaja entero y lo
 respeta el cliente al pintar (los números se pueden leer desde la consola: aceptado, es cosmética).

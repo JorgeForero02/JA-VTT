@@ -177,6 +177,13 @@ function drawTokenStatus(c,t,P,r,player){
       c.fillStyle='#F4EEE2';c.fillText(txt,x+w+px(6),y+h/2);
     }
   }
+  // CA: escudo con el número en la esquina inferior izquierda (el servidor sólo la manda al director y al dueño)
+  if(acOn()&&t.ac!=null){
+    const w=px(t.ac>9?19:15),h=px(18),cx=P.x-r*.78,cy=P.y+r*.6;
+    c.beginPath();c.moveTo(cx-w/2,cy-h/2);c.lineTo(cx+w/2,cy-h/2);c.lineTo(cx+w/2,cy);c.quadraticCurveTo(cx+w/2,cy+h*.32,cx,cy+h/2);c.quadraticCurveTo(cx-w/2,cy+h*.32,cx-w/2,cy);c.closePath();
+    c.fillStyle='rgba(18,22,25,.9)';c.fill();c.lineWidth=px(1.2);c.strokeStyle='#9CB8D9';c.stroke();
+    c.fillStyle='#F4EEE2';c.font=`700 ${px(10)}px "Alegreya Sans", system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(t.ac),cx,cy-px(1));
+  }
   if(condsOn()&&t.elevation){
     const txt=(t.elevation>0?'+':'')+t.elevation+"'",fs=px(10);
     c.font=`600 ${fs}px "Alegreya Sans", system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';

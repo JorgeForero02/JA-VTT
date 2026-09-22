@@ -71,7 +71,7 @@ const S={};
 const IMG=new Map();      // id de imagen -> HTMLImageElement
 function blankState(){return{
   version:2,name:'Escena nueva',cols:32,rows:22,env:'interior',ambient:0,darkColor:ENVS.interior.dark,
-  fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,hpVisibility:'all',hpEnabled:true,conditionsEnabled:true,
+  fog:true,grid:true,snap:true,animate:!reduceMotion,plansReleased:false,sharedVision:true,playersDoors:true,hpVisibility:'all',hpEnabled:true,conditionsEnabled:true,acEnabled:true,
   weather:{id:'none',intensity:.6,wind:0},
   layers:Object.fromEntries(LAYERS.map(l=>[l.id,{visible:true,locked:false}])),
   walls:[],lights:[],tokens:[],assets:[],plans:[],zones:[],notes:[],nextId:1
@@ -95,6 +95,7 @@ const canControl=t=>ownsToken(t)||(UI.realRole==='gm'&&!!t&&t.type==='token'&&t.
 // interruptores de tablero: el usuario puede llevar vida y efectos en otro sistema
 const hpOn=()=>S.hpEnabled!==false;
 const condsOn=()=>S.conditionsEnabled!==false;
+const acOn=()=>S.acEnabled!==false;
 const PLAYER_TOOLS=['select','pan','ruler','plan'];
 /* Ajuste a la cuadrícula por tipo de objeto (preferencia de este navegador).
    El interruptor general de la escena manda sobre todos; Alt lo ignora al vuelo. */

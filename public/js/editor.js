@@ -469,7 +469,7 @@ function openContext(o,sp){
   }
   if(!gm){
     if(ownsPlan(o))add('trash-2','Borrar este plano',()=>{UI.selected=[o.id];deleteSel()},'danger');
-    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp));if(hpOn()||condsOn())add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp))}
+    if(ownsToken(o)){add('lightbulb',o.light&&o.light.on?'Apagar mi luz':'Encender mi luz',()=>{pushUndo();if(!o.light||o.light.preset==='none')o.light=tokenLightFrom('torch');else o.light.on=!o.light.on;changed()});add('settings-2','Editar mi personaje',()=>openEditor(o,sp));if(hpOn()||condsOn()||acOn())add('heart-pulse','Estado: condiciones, vida, CA y altura',()=>openStatus(o,sp))}
   }else{
     add('settings-2','Editar',()=>openEditor(o,sp));
     if(o.type==='wall'){
@@ -485,7 +485,7 @@ function openContext(o,sp){
     }
     if(o.type==='light')add(o.on?'lightbulb-off':'lightbulb',o.on?'Apagar':'Encender',()=>{pushUndo();o.on=!o.on;changed()});
     if(o.type==='token'){
-      if(hpOn()||condsOn())add('heart-pulse','Estado: condiciones, vida y altura',()=>openStatus(o,sp));
+      if(hpOn()||condsOn()||acOn())add('heart-pulse','Estado: condiciones, vida, CA y altura',()=>openStatus(o,sp));
       add(o.hidden?'eye':'eye-off',o.hidden?'Mostrar a jugadores':'Ocultar a jugadores',()=>{pushUndo();o.hidden=!o.hidden;changed()});
       if(o.light&&o.light.preset!=='none')add('lightbulb',o.light.on?'Apagar su luz':'Encender su luz',()=>{pushUndo();o.light.on=!o.light.on;changed()});
       if(o.kind==='player')add('scan-eye','Ver como esta ficha',()=>{UI.viewAs=o.id;setRole('player')});
@@ -505,13 +505,14 @@ function openStatus(o,sp){
   let snap=snapshot(),dirty=false;
   const touch=()=>{if(!dirty){pushUndo(snap);dirty=true}changed();paint()};
   $('#statusTitle').textContent=o.name||'Ficha';
-  const cur=$('#hpCur'),max=$('#hpMax'),temp=$('#hpTemp'),elev=$('#elevation');
+  const cur=$('#hpCur'),max=$('#hpMax'),temp=$('#hpTemp'),elev=$('#elevation'),acv=$('#acVal');
   const hp=()=>o.hp||(o.hp={cur:0,max:0,temp:0});
   const setHp=(k,v)=>{const h=hp();h[k]=clamp(Math.round(v)||0,0,9999);if(k==='max')h.cur=Math.min(h.cur,h.max);if(k==='cur')h.cur=Math.min(h.cur,h.max);if(h.max===0)delete o.hp;touch()};
   const paint=()=>{
     const h=o.hp||{cur:0,max:0,temp:0};
     if(document.activeElement!==cur)cur.value=h.cur;if(document.activeElement!==max)max.value=h.max;if(document.activeElement!==temp)temp.value=h.temp||0;
     if(document.activeElement!==elev)elev.value=o.elevation||0;
+    if(document.activeElement!==acv)acv.value=o.ac||0;
     const chips=$('#statusChips');chips.innerHTML='';
     for(const[id,C]of Object.entries(CONDITIONS)){
       const b=document.createElement('button');b.type='button';b.className='chip'+((o.conditions||[]).includes(id)?' on':'');b.title=C.name;b.dataset.cond=id;
@@ -525,7 +526,8 @@ function openStatus(o,sp){
   cur.onwheel=e=>{e.preventDefault();setHp('cur',hp().cur+(e.deltaY<0?1:-1)*(e.shiftKey?5:1))};
   $('#hpMinus').onclick=e=>setHp('cur',hp().cur-(e.shiftKey?5:1));$('#hpPlus').onclick=e=>setHp('cur',hp().cur+(e.shiftKey?5:1));
   elev.oninput=()=>{o.elevation=clamp(Math.round(+elev.value)||0,-9999,9999);touch()};
-  $('#statusHp').style.display=hpOn()?'':'none';$('#elevation').parentElement.style.display=condsOn()?'':'none';$('#statusChips').style.display=condsOn()?'':'none';
+  acv.oninput=()=>{const v=clamp(Math.round(+acv.value)||0,0,99);if(v>0)o.ac=v;else delete o.ac;touch()};
+  $('#statusHp').style.display=hpOn()?'':'none';$('#statusAc').style.display=acOn()?'':'none';$('#elevation').parentElement.style.display=condsOn()?'':'none';$('#statusChips').style.display=condsOn()?'':'none';
   paint();placePop(statusEl,sp);
 }
 
@@ -574,9 +576,10 @@ function openEditor(o,sp){
     if(!gm){
       text('Nombre',o.name,v=>o.name=v);
       color('Color',o.color,v=>o.color=v);
-      if(hpOn()||condsOn())section('Vida y altura');
+      if(hpOn()||condsOn()||acOn())section('Vida, CA y altura');
       if(hpOn()){num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
       num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)})}
+      if(acOn())num('Clase de armadura (0 = sin CA)',o.ac||0,0,99,1,v=>{if(v>0)o.ac=v;else delete o.ac});
       if(condsOn())num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
@@ -588,9 +591,10 @@ function openEditor(o,sp){
       select('Controla',o.owner==null?'':String(o.owner),[['','Sólo el director'],...Net.members.filter(m=>m.role!=='gm').map(m=>[String(m.id),m.name])],v=>o.owner=v?+v:null);
       select('Tamaño',String(o.size||1),[['1','Mediano (1)'],['2','Grande (2)'],['3','Enorme (3)'],['4','Gargantuesco (4)']],v=>o.size=+v);
       color('Color',o.color,v=>o.color=v);
-      if(hpOn()||condsOn())section('Vida y altura');
+      if(hpOn()||condsOn()||acOn())section('Vida, CA y altura');
       if(hpOn()){num('Vida máxima',o.hp?o.hp.max:0,0,9999,1,v=>{if(v>0){o.hp=o.hp||{cur:v,max:v,temp:0};o.hp.max=v;o.hp.cur=Math.min(o.hp.cur,v)}else delete o.hp});
       num('Vida actual',o.hp?o.hp.cur:0,0,9999,1,v=>{if(o.hp)o.hp.cur=Math.min(v,o.hp.max)})}
+      if(acOn())num('Clase de armadura (0 = sin CA)',o.ac||0,0,99,1,v=>{if(v>0)o.ac=v;else delete o.ac});
       if(condsOn())num('Altura (pies)',o.elevation||0,-9999,9999,5,v=>o.elevation=v);
       section('Retrato');
       body.appendChild(portraitPicker(o,()=>{touch();setTimeout(()=>openEditor(o,sp))}));
@@ -774,6 +778,7 @@ $('#chatEnabled').onchange=e=>{S.chatEnabled=e.target.checked;changed();syncChat
 $('#diceEnabled').onchange=e=>{S.diceEnabled=e.target.checked;changed();syncChatTab()};
 $('#hpEnabled').onchange=e=>{S.hpEnabled=e.target.checked;changed()};
 $('#conditionsEnabled').onchange=e=>{S.conditionsEnabled=e.target.checked;changed()};
+$('#acEnabled').onchange=e=>{S.acEnabled=e.target.checked;changed()};
 $('#initiativeShown').onchange=e=>{S.initiativeShown=e.target.checked;changed();renderInitiative()};
 $('#pickBoard').onclick=()=>{UI.libCat='board';UI.upCat='board';selectTab('tokens');$('details[data-fold="biblioteca"]').scrollIntoView({block:'start'})};
 $('#centerBtn').onclick=centerView;
@@ -917,7 +922,7 @@ function refreshPanels(){renderLists();renderSelbar();syncUndo()}
 function syncSceneInputs(){
   $('#sharedVision').checked=S.sharedVision!==false;$('#playersDoors').checked=S.playersDoors!==false;
   $('#hpVisibility').value=S.hpVisibility||'all';
-  $('#hpEnabled').checked=hpOn();$('#conditionsEnabled').checked=condsOn();$('#hpVisibility').disabled=!hpOn();
+  $('#hpEnabled').checked=hpOn();$('#conditionsEnabled').checked=condsOn();$('#acEnabled').checked=acOn();$('#hpVisibility').disabled=!hpOn();
   $('#chatEnabled').checked=S.chatEnabled!==false;$('#diceEnabled').checked=S.diceEnabled!==false;$('#initiativeShown').checked=S.initiativeShown===true;syncChatTab();renderInitiative();
   $('#fogToggle').checked=S.fog;$('#gridToggle').checked=S.grid;$('#snapToggle').checked=S.snap;renderSnapPrefs();$('#animToggle').checked=S.animate;
   renderWeather();

@@ -153,9 +153,10 @@
         <span class="statusSep">temp</span>
         <input id="hpTemp" type="number" min="0" max="9999" step="1" title="Vida temporal">
       </div>
+      <div class="statusRow" id="statusAc"><span>Clase de armadura</span><input id="acVal" type="number" min="0" max="99" step="1" title="0 = sin CA"></div>
       <div class="statusRow"><span>Altura (pies)</span><input id="elevation" type="number" min="-9999" max="9999" step="5"></div>
       <div class="chips" id="statusChips"></div>
-      <div class="edNote">Clic en una condición para ponerla o quitarla. Sin vida máxima no se muestra la barra.</div>
+      <div class="edNote">Clic en una condición para ponerla o quitarla. Sin vida máxima no se muestra la barra; con CA 0, tampoco el escudo.</div>
     </div>
     <div id="editor" class="pop" role="dialog" aria-label="Propiedades">
       <div class="edHead"><h3 id="edTitle">Propiedades</h3><button id="edClose" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
@@ -350,6 +351,7 @@
           <label class="check"><input type="checkbox" id="diceEnabled"> Dados</label>
           <label class="check"><input type="checkbox" id="hpEnabled"> Vida de las fichas</label>
           <label class="check"><input type="checkbox" id="conditionsEnabled"> Condiciones y altura</label>
+          <label class="check"><input type="checkbox" id="acEnabled"> Clase de armadura (CA)</label>
           <p class="small muted">Lo que apagues desaparece para todo el mundo, tú incluido. Si apagas chat y dados, la pestaña Chat se quita. Vida y condiciones se ocultan pero no se borran.</p>
         </div>
       </details>
