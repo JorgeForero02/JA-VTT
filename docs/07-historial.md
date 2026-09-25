@@ -2,11 +2,11 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
-## 2026-09-25 — `release` pasa a ser la rama única; se retira el trabajo experimental
+## 2026-09-25 — `main` pasa a ser la rama única; se retira el trabajo experimental
 
-- **Qué:** borradas las ramas `clima-2d`, `modo-25d-fase-a` y `ui-panel` (local y GitHub; todo su trabajo 2D ya estaba en `release`) y el material experimental suelto de la carpeta. `main` queda para retirarla a mano (cambiar la rama por defecto de GitHub a `release` y borrarla).
-- **Por qué:** decisión del usuario: no se sigue esa línea; `release` es la versión y la rama estable única.
-- **Revertir:** no aplica (decisión deliberada). Producción no cambia: ya desplegaba `release`.
+- **Qué:** borradas las ramas `clima-2d`, `modo-25d-fase-a` y `ui-panel` (local y GitHub; todo su trabajo 2D ya estaba en `release`) y el material experimental suelto de la carpeta. Después `main` se reescribió con `release` (`git push --force origin release:main`, lanzado por el usuario), Coolify pasó a `git_branch=main` por API (sin redeploy: mismo código) y `release` se borró en local y GitHub.
+- **Por qué:** decisión del usuario: no se sigue esa línea; una sola rama estable; se queda `main` por ser la rama por defecto de GitHub.
+- **Revertir:** no aplica (decisión deliberada). Coolify: `PATCH git_branch=release` si se recrea esa rama. Producción no cambió de código.
 
 ## 2026-09-21 — Despliegue de release @ be83c7e (panel, CA, línea en los muros)
 

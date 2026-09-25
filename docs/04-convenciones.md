@@ -36,10 +36,10 @@ renumerar documentos.
 
 | Rama | Qué es |
 |---|---|
-| `release` | **Rama única y estable**: lo que está en producción y lo que ve quien visita el repo. Coolify despliega desde aquí |
+| `main` | **Rama única y estable**: lo que está en producción y lo que ve quien visita el repo. Coolify despliega desde aquí |
 
-- Un **hotfix** se hace directamente en `release`.
-- Trabajo grande: rama corta desde `release`, un commit por punto, merge a `release` sólo con
+- Un **hotfix** se hace directamente en `main`.
+- Trabajo grande: rama corta desde `main`, un commit por punto, merge a `main` sólo con
   `check` y `test:ui` verdes, y la rama se borra tras el merge.
 
 ## B.3 Flujo por cambio
