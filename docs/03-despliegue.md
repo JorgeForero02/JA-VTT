@@ -16,7 +16,7 @@ Estado al 2026-09-16: **en producción en https://tablero.supportive.pro** (Cool
 | Dominio en Coolify | `docker_compose_domains = {"app":{"domain":"https://tablero.supportive.pro"}}` |
 
 Desplegar: push a **`release`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br29fna"}` (o botón en la
-UI). El push solo no despliega (`instant_deploy: false`, sin webhook). `main` lleva el 2.5D y no se despliega. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
+UI). El push solo no despliega (`instant_deploy: false`, sin webhook). `release` es la única rama. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
 Último despliegue: 2026-09-21, `release @ be83c7e` (panel en cinco pestañas, CA opcional, línea en los muros). Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado

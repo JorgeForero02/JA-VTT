@@ -1157,7 +1157,7 @@ Actualizar «Última actualización», el conteo de tests (`npm test` → **83 t
 - [ ] **Step 8: Verificación final y commit**
 
 Run: `npm run check 2>&1 | tail -8` y `npm run test:ui 2>&1 | tail -5`
-Expected: ambos verdes. `git status` sin ficheros sueltos (no commitear `diorama-jav/` ni capturas).
+Expected: ambos verdes. `git status` sin ficheros sueltos (no commitear capturas).
 
 ```bash
 git add docs/ README.md
@@ -1316,7 +1316,7 @@ Run (servidor local en 3999): `npm run test:ui 2>&1 | tail -8` → 35/35.
 npm run check && git add server public test docs && git commit -m "feat(mesa): interruptores de tablero para vida y condiciones/altura (se ocultan, no se borran)"
 ```
 
-No incluir `diorama-jav/` en el commit (`git add` con rutas, nunca `-A`).
+`git add` con rutas, nunca `-A`.
 
 ---
 

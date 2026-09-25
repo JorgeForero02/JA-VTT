@@ -4,6 +4,7 @@ Actualizado: 2026-09-19. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 
 | ID | P | Tarea | Evidencia para cerrar |
 |---|---|---|---|
+| P-30 | P1 | Retirar `main`: en GitHub (Settings → Branches) poner `release` como rama por defecto, luego `git push origin --delete main` y `git branch -D main`. Lo hace el usuario | `git branch -a` sólo muestra `release` |
 | P-04 | P2 | Subir el pipeline a **N3**: mutación automatizada (N2 —cobertura con umbral— cerrado el 2026-09-19) | Comando en [04](04-convenciones.md) Parte C |
 | P-06 | P2 | Renombrar la carpeta local `mini-vtt` → `just-another-vtt` (no se hizo para no romper la sesión) | `git status` limpio tras mover |
 | P-07 | P2 | El pulso de luz aún se percibe «un poco» a saltos (usuario, 2026-09-16, con 60 Hz, 0,2 ms/frame y dithering ±1). Siguiente vuelta: dithering ±2 niveles o ruido temporal; medir con capturas consecutivas | El usuario lo da por fluido |

@@ -2,6 +2,12 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-25 — `release` pasa a ser la rama única; se retira el trabajo experimental
+
+- **Qué:** borradas las ramas `clima-2d`, `modo-25d-fase-a` y `ui-panel` (local y GitHub; todo su trabajo 2D ya estaba en `release`) y el material experimental suelto de la carpeta. `main` queda para retirarla a mano (cambiar la rama por defecto de GitHub a `release` y borrarla).
+- **Por qué:** decisión del usuario: no se sigue esa línea; `release` es la versión y la rama estable única.
+- **Revertir:** no aplica (decisión deliberada). Producción no cambia: ya desplegaba `release`.
+
 ## 2026-09-21 — Despliegue de release @ be83c7e (panel, CA, línea en los muros)
 
 - **Qué:** `ui-panel` → `release` (avance rápido) y `POST /api/v1/deploy` (deployment `syvxcebmeloabwf6nki0tegg`), 10 commits sobre `aa59e2b`. Antes: `test:ui` 54/54, `check` 98/98, pila local + `test:e2e` 11/11.
@@ -24,10 +30,10 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
 ## 2026-09-21 — Luz: el ambiente exterior ya no se cuela como línea sobre los muros de una zona interior
 
-- **Qué:** `buildLightMask` resta cada zona interior con relleno **y contorno** (2 px en pantalla). `release` `8b6d4b4`, `clima-2d` `1396af7`.
+- **Qué:** `buildLightMask` resta cada zona interior con relleno **y contorno** (2 px en pantalla). `release` `8b6d4b4`.
 - **Por qué:** el borde antialias de la zona y el de la línea de visión coincidían sobre el muro y dejaban media franja de ambiente: una línea clara a lo largo de los muros vista desde dentro (alfa de la oscuridad 238 en vez de 255).
 - **Verificado:** paso nuevo en `test:ui` (238 → 254) · `check` verde en las dos ramas.
-- **Revertir:** `git revert 8b6d4b4` (y `1396af7` en `clima-2d`).
+- **Revertir:** `git revert 8b6d4b4`.
 
 ## 2026-09-21 — Producción pasa de `prod-2d` a `release`
 

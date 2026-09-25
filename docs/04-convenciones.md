@@ -36,15 +36,11 @@ renumerar documentos.
 
 | Rama | Qué es |
 |---|---|
-| `release` | **Lo que está en producción** y lo que ve quien visita el repo. Coolify despliega desde aquí |
-| `main` | Desarrollo: lleva el modo 2.5D a medias. No se despliega hasta cerrar su fase E |
-| `clima-2d` | `main` + clima 2D y hotfixes; pendiente de mergear en `main` (P-14) |
+| `release` | **Rama única y estable**: lo que está en producción y lo que ve quien visita el repo. Coolify despliega desde aquí |
 
-- Un **hotfix** de producción se hace en `release` y se porta por `cherry-pick` a `clima-2d`
-  (y a `main` cuando P-14 esté cerrado), resolviendo a mano lo que toque al 2.5D.
-- Trabajo grande para producción: rama desde `release`, un commit por punto, y merge a `release`
-  sólo con `check` y `test:ui` verdes.
-- `release` no recibe nada del 2.5D.
+- Un **hotfix** se hace directamente en `release`.
+- Trabajo grande: rama corta desde `release`, un commit por punto, merge a `release` sólo con
+  `check` y `test:ui` verdes, y la rama se borra tras el merge.
 
 ## B.3 Flujo por cambio
 
