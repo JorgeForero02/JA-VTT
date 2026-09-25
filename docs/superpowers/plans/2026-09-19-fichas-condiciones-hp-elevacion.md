@@ -1164,7 +1164,7 @@ git add docs/ README.md
 git commit -m "docs: condiciones, vida y altura en fichas (01, 02, 05, 06, 07, 00, README)"
 ```
 
-**No desplegar.** Avisar al usuario: rama `prod-2d` lista para revisión; el despliegue (API de Coolify, ver `docs/03-despliegue.md`) y el porte a `clima-2d`/`main` se deciden después.
+**No desplegar.** Avisar al usuario: rama `prod-2d` lista para revisión; el despliegue (API de Coolify, ver `docs/03-despliegue.md`) se decide después.
 
 ---
 
