@@ -80,6 +80,11 @@ No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producció
 - `npm test` dio 2 fallos intermitentes en `realtime.test.js` el 2026-09-15 mientras Docker
   construía la imagen (CPU saturada); 9 corridas posteriores limpias. La espera por mensaje
   WS en tests es de 5 s (`test/helpers/ws.js`). No correr la suite mientras se construye.
+- **`test:ui`: esperar a la condición, no a un tiempo ni a «algo cambió».** P-47: en Vista de jugador el director
+  explora su propia vista en el primer fotograma, así que `EXP.chunks.size > 0` se cumplía antes de que llegase la
+  niebla del jugador. Para mensajes del servidor, `fogofApplied()` en `ui.mjs` espera el marco WS concreto
+  (`page.__ws`, `framereceived`) y luego su efecto. Para reproducir fallos de temporización: varias `test:ui` a la
+  vez contra el mismo servidor (3 en paralelo sacó éste en 1 de 12).
 - **Añadir una condición** = dos sitios: `CONDITION_IDS` en `server/rules.js` **y** `CONDITIONS` en
   `public/js/core.js` (mismo orden). El test de contrato de `frontend.test.js` avisa si se desincronizan.
 - **`hp` sin `max` no existe**: `sanitize` lo elimina. Para quitar la barra a una ficha, pon la vida máxima a 0.

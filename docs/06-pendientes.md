@@ -14,7 +14,6 @@ Actualizado: 2026-09-26. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 | P-39 | P2 | Tablero 3D, abiertos tras T8 (P-09 de `3d-tablero`): (a) si JA-VTT cambia sus ajustes por otro camino que `handleOps`, la mesa 3D se entera en su siguiente acción; (b) un cambio de ajustes desde el 3D puede perderse si coincide con que JA-VTT descarga un tablero sin nadie conectado; (c) la iniciativa del 3D y la de JA-VTT no se comparten; (d) dos copias de three.js en una mesa 3D (r170 de los dados + r128 del módulo) | Cada punto resuelto o aceptado por el usuario |
 | P-40 | P1 | Tablero 3D: medir con GPU real y en un portátil (todo lo medido hasta ahora fue con SwiftShader y a tamaño de escritorio). Junto con P-35 (móvil) | Tabla de fps/CPU en portátil real en [07](07-historial.md) |
 | P-42 | P2 | Licencia: el módulo vive ahora en este repositorio público con `LICENSE` MIT; `3d-tablero` no tenía licencia. Confirmar que el módulo queda bajo MIT (decisión legal del usuario) | Decisión anotada en [07](07-historial.md) |
-| P-47 | P2 | `npm run test:ui` (2D) falló una vez en 8 ejecuciones el 2026-09-26 (53/54, primera tras arrancar el servidor; el paso no quedó registrado) y pasó 7 seguidas después. Vigilar: si vuelve, registrar el paso que falla | Diez `test:ui` seguidos en verde, o el paso identificado y arreglado |
 | P-48 | P1 | Fase 1, primeras tareas (menores de la revisión final de la fase 0, sólo alcanzables con piezas `p:`): (a) una puerta `p:` de varias casillas cerrada bloquea en el cliente sólo su casilla de origen (`blocked`/`doorShut` en `refreshEntities` y `toggleDoor`) mientras el servidor bloquea todas; (b) `WALLAT` guarda una pieza por casilla: una `p:` que tapa sobre un muro de fábrica lo pisa; (c) volver a medir `refreshEntities` tras `senseOf` (el ×1,09 es de antes de la ola final) | Tests de (a) y (b) y medida anotada en [07](07-historial.md) |
 | P-04 | P2 | Subir el pipeline a **N3**: mutación automatizada (N2 —cobertura con umbral— cerrado el 2026-09-19) | Comando en [04](04-convenciones.md) Parte C |
 | P-06 | P2 | Renombrar la carpeta local `mini-vtt` → `just-another-vtt` (no se hizo para no romper la sesión) | `git status` limpio tras mover |
@@ -39,7 +38,11 @@ Cerrados: P-01, P-02, P-03 (2026-09-16); **P-05** el 2026-09-19 (ya existía `#p
 `rules`, `frontend`, `realtime`, `db`… de `test/t3d/` — corren contra el servidor de JA-VTT en `npm test`);
 **P-28** el 2026-09-26 (causa real hallada y arreglada: `sock.on('error', () => {})` en
 `server.on('upgrade', ...)` de `server/app.js`, ver [07](07-historial.md); `test/realtime.test.js` 5/5
-seguidas en verde tras el arreglo).
+seguidas en verde tras el arreglo);
+**P-47** el 2026-09-26 (paso «niebla ajena: el director ve los bloques explorados por el jugador»: la espera
+se cumplía con el bloque que el director explora en su propia vista antes de que llegase la respuesta `fogof`;
+arreglado en el test, que ahora espera esa respuesta. Reproducido 1/22 antes y a voluntad retrasando la
+respuesta; después, la misma tanda sin fallos, ver [07](07-historial.md)).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
 

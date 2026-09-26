@@ -2,6 +2,27 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — P-47: `test:ui` intermitente en «niebla ajena» (fallo del test, no del 2D) — rama `p47-test-ui`
+
+- **Reproducido:** servidor propio (3998, base `jav_ui47`). 10 ejecuciones «primera tras arrancar» con base recién
+  creada: 10/10 verdes. 3 `test:ui` a la vez contra el mismo servidor, 4 tandas con reinicio y base nueva: **1 fallo
+  en 12** — `FAIL niebla ajena: el director ve los bloques explorados por el jugador … — 4 → 1`. En total 1/22.
+- **Causa:** al elegir «La de <jugador>» el cliente del director hace `resetExplored()`, pide `fogof` y repinta; en
+  Vista de jugador ese primer fotograma ya explora la vista del propio director (1 bloque). El test esperaba
+  `EXP.chunks.size > 0`, que ese bloque cumplía antes de que llegase la respuesta si el servidor tardaba más de un
+  fotograma (carga, o el primer arranque con la conexión a la base en frío). Confirmado a voluntad: retrasando 300 ms
+  el procesado de `fogof` en la página, el test viejo da exactamente `4 → 1` (el servidor sí había mandado 4).
+  **No es un fallo del 2D:** al llegar la respuesta, el cliente reinicia y carga los 4 bloques (el paso siguiente
+  siempre veía 4).
+- **Qué:** `test/e2e/ui.mjs` guarda el WebSocket del tablero de cada página (`page.__ws`) y `fogofApplied()` espera el
+  marco `fogof` y a que todos sus bloques estén en `EXP.chunks`; los dos pasos de «niebla ajena» comprueban además
+  que el servidor mandó tantos bloques como exploró el jugador. Quitada la espera fija de 600 ms tras «Reiniciar mi
+  vista» (misma carrera). Nada cambia en el producto.
+- **Verificado:** con el retraso inyectado de 300 ms y de 1500 ms, 54/54; con la respuesta que nunca se procesa, el
+  paso falla (tiempo de espera). Misma tanda tras el arreglo: 10 frías con base nueva + 6 tandas de 3 en paralelo con
+  reinicio y base nueva = **28/28 verdes**. Salidas en el scratchpad de la sesión.
+- **Revertir:** `git revert` del commit; sólo toca el test.
+
 ## 2026-09-26 — Despliegue de main @ d69bd08 (fase 0 del arte propio + arreglo de caída del upgrade)
 
 - **Antes:** ensayo de sólo lectura con los datos reales (`cleanMap`/`cleanCampaign` nuevos sobre la escena y la campaña de
