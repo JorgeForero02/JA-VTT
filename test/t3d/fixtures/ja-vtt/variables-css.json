@@ -1,0 +1,25 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): variables CSS definidas en public/css/app.css. Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "variables": [
+    "--amber",
+    "--amber-ink",
+    "--amber-soft",
+    "--bone",
+    "--fog",
+    "--ink",
+    "--ink-deep",
+    "--line",
+    "--panel",
+    "--raise",
+    "--rust",
+    "--sans",
+    "--serif",
+    "--shadow",
+    "--verdigris",
+    "--z-modal",
+    "--z-panel",
+    "--z-pop",
+    "--z-toast"
+  ]
+}

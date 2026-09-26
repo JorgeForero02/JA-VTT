@@ -1,0 +1,52 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): ENVS (nombre, icono, descripción, ambient y dark) de public/js/core.js; ENVS y DEFAULT_SCENE (env, ambient, darkColor) de server/rules.js; la herramienta de zona interior (data-tool=\"zone\") de public/index.html y el color de las zonas de public/js/render.js. Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "envs": {
+    "interior": {
+      "name": "Interior",
+      "icon": "brick-wall",
+      "desc": "Oscuro. Solo ven las luces y la visión en la oscuridad.",
+      "ambient": 0,
+      "dark": "#0B0E11"
+    },
+    "day": {
+      "name": "Exterior de día",
+      "icon": "sun",
+      "desc": "Todo lo que esté a la vista se ve.",
+      "ambient": 1,
+      "dark": "#0E1316"
+    },
+    "dusk": {
+      "name": "Atardecer",
+      "icon": "sunset",
+      "desc": "Se ve a la vista, en penumbra.",
+      "ambient": 0.55,
+      "dark": "#1A1220"
+    },
+    "night": {
+      "name": "Noche",
+      "icon": "moon",
+      "desc": "Luna tenue: se intuye el terreno; las criaturas, solo con luz.",
+      "ambient": 0.18,
+      "dark": "#081026"
+    }
+  },
+  "ids": [
+    "interior",
+    "day",
+    "dusk",
+    "night"
+  ],
+  "defaultScene": {
+    "env": "interior",
+    "ambient": 0,
+    "darkColor": "#0B0E11"
+  },
+  "zone": {
+    "tool": "zone",
+    "icon": "house",
+    "title": "Zona interior: aquí no llega la luz ambiental (Z)",
+    "key": "Z",
+    "color": "#B79BD8"
+  }
+}

@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=\"server/**\" --test-coverage-lines=78 --test-coverage-branches=72 --test-coverage-functions=82 \"test/*.test.js\"",
+    "test": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-include=\"server/**\" --test-coverage-include=\"modules/tablero3d/*.js\" --test-coverage-lines=78 --test-coverage-branches=72 --test-coverage-functions=82 \"test/*.test.js\" \"test/t3d/*.test.js\"",
     "lint": "eslint .",
     "check": "npm run lint && npm test",
     "test:e2e": "node test/e2e/realtime.mjs",

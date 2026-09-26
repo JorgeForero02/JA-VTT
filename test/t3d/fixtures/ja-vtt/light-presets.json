@@ -1,0 +1,150 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): LIGHT_PRESETS y TOKEN_LIGHTS de public/js/core.js; LIGHT_PRESETS y ANIMS de server/rules.js. Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "presets": {
+    "candle": {
+      "name": "Vela",
+      "icon": "candle",
+      "bright": 5,
+      "dim": 5,
+      "color": "#FFC878",
+      "intensity": 0.9,
+      "anim": "flicker"
+    },
+    "torch": {
+      "name": "Antorcha",
+      "icon": "torch",
+      "bright": 20,
+      "dim": 20,
+      "color": "#FFA652",
+      "intensity": 1,
+      "anim": "flicker"
+    },
+    "lantern": {
+      "name": "Farol",
+      "icon": "lantern",
+      "bright": 30,
+      "dim": 30,
+      "color": "#FFD28F",
+      "intensity": 1,
+      "anim": "soft"
+    },
+    "bullseye": {
+      "name": "Linterna sorda",
+      "icon": "flashlight",
+      "bright": 60,
+      "dim": 60,
+      "color": "#FFE6B8",
+      "intensity": 1,
+      "anim": "none",
+      "angle": 60
+    },
+    "campfire": {
+      "name": "Hoguera",
+      "icon": "flame-kindling",
+      "bright": 20,
+      "dim": 20,
+      "color": "#FF8F3F",
+      "intensity": 1,
+      "anim": "flicker"
+    },
+    "brazier": {
+      "name": "Brasero",
+      "icon": "brazier",
+      "bright": 10,
+      "dim": 15,
+      "color": "#FF7A35",
+      "intensity": 0.95,
+      "anim": "flicker"
+    },
+    "magic": {
+      "name": "Luz mágica",
+      "icon": "wand-sparkles",
+      "bright": 20,
+      "dim": 20,
+      "color": "#DDE8FF",
+      "intensity": 1,
+      "anim": "none"
+    },
+    "crystal": {
+      "name": "Cristal arcano",
+      "icon": "gem",
+      "bright": 10,
+      "dim": 20,
+      "color": "#A98BFF",
+      "intensity": 0.9,
+      "anim": "pulse"
+    },
+    "moon": {
+      "name": "Rayo de luna",
+      "icon": "moon-star",
+      "bright": 5,
+      "dim": 15,
+      "color": "#9DBBFF",
+      "intensity": 0.8,
+      "anim": "none"
+    },
+    "daylight": {
+      "name": "Luz diurna",
+      "icon": "sun",
+      "bright": 60,
+      "dim": 60,
+      "color": "#FFF1D0",
+      "intensity": 1,
+      "anim": "none"
+    },
+    "window": {
+      "name": "Luz de ventana",
+      "icon": "sunrise",
+      "bright": 10,
+      "dim": 20,
+      "color": "#FFE9C2",
+      "intensity": 0.85,
+      "anim": "none",
+      "angle": 120
+    },
+    "darkness": {
+      "name": "Oscuridad mágica",
+      "icon": "circle-off",
+      "bright": 15,
+      "dim": 0,
+      "color": "#000000",
+      "intensity": 1,
+      "anim": "none",
+      "darkness": true
+    }
+  },
+  "tokenLights": [
+    "none",
+    "candle",
+    "torch",
+    "lantern",
+    "bullseye",
+    "magic",
+    "crystal"
+  ],
+  "servidor": {
+    "presets": [
+      "candle",
+      "torch",
+      "lantern",
+      "bullseye",
+      "campfire",
+      "brazier",
+      "magic",
+      "crystal",
+      "moon",
+      "daylight",
+      "window",
+      "darkness",
+      "custom",
+      "none"
+    ],
+    "anims": [
+      "none",
+      "flicker",
+      "soft",
+      "pulse"
+    ]
+  }
+}

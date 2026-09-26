@@ -1,0 +1,97 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): WALL_TYPES (nombre, icono, banderas sight/light/move/hide/door/portal, color, trazo y descripción) de public/js/core.js y WALL_KINDS de server/rules.js. Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "types": {
+    "wall": {
+      "name": "Muro",
+      "icon": "brick-wall",
+      "sight": 1,
+      "light": 1,
+      "move": 1,
+      "color": "#6FB8A8",
+      "desc": "Bloquea vista, luz y paso"
+    },
+    "door": {
+      "name": "Puerta",
+      "icon": "door-closed",
+      "sight": 1,
+      "light": 1,
+      "move": 1,
+      "color": "#F0B35A",
+      "door": 1,
+      "desc": "Como un muro mientras está cerrada"
+    },
+    "window": {
+      "name": "Ventana",
+      "icon": "window-wall",
+      "sight": 0,
+      "light": 0,
+      "move": 1,
+      "color": "#8EC5E8",
+      "dash": [
+        10,
+        6
+      ],
+      "desc": "Deja pasar vista y luz, no el paso"
+    },
+    "veil": {
+      "name": "Velo",
+      "icon": "cloud-fog",
+      "sight": 1,
+      "light": 1,
+      "move": 0,
+      "color": "#B79BD8",
+      "dash": [
+        3,
+        5
+      ],
+      "desc": "Follaje, humo o cortinas: tapa la vista, se puede cruzar"
+    },
+    "cover": {
+      "name": "Maleza",
+      "icon": "trees",
+      "sight": 0,
+      "light": 0,
+      "move": 0,
+      "hide": 1,
+      "color": "#9ED3A6",
+      "dash": [
+        6,
+        4
+      ],
+      "desc": "Hierba alta, niebla baja: el fondo y la luz se ven, pero oculta a las fichas y objetos que haya detrás; se puede cruzar"
+    },
+    "barrier": {
+      "name": "Barrera",
+      "icon": "fence",
+      "sight": 0,
+      "light": 0,
+      "move": 1,
+      "color": "#A7AFAF",
+      "dash": [
+        2,
+        8
+      ],
+      "desc": "Invisible: solo frena el movimiento"
+    },
+    "portal": {
+      "name": "Portal",
+      "icon": "log-in",
+      "sight": 1,
+      "light": 1,
+      "move": 1,
+      "color": "#E8A0BF",
+      "portal": 1,
+      "desc": "Puerta a otra escena: un clic junto a él lleva al personaje allí"
+    }
+  },
+  "kinds": [
+    "wall",
+    "door",
+    "window",
+    "veil",
+    "cover",
+    "barrier",
+    "portal"
+  ]
+}

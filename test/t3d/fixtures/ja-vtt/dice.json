@@ -1,0 +1,257 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): SIDES, MAX_DICE y MAX_TERMS de server/dice.js, parse() de cada fórmula (o su error) y tres tiradas de ejemplo con el cuerpo que guarda handleRoll en chat_messages (kind roll: formula, dice, mod, total y, si lo hay, label). Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "SIDES": [
+    4,
+    6,
+    8,
+    10,
+    12,
+    20,
+    100
+  ],
+  "MAX_DICE": 20,
+  "MAX_TERMS": 5,
+  "parse": {
+    "5": {
+      "error": "La fórmula necesita al menos un dado"
+    },
+    "d20": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 20,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "1d20": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 20,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "2d6+3": {
+      "terms": [
+        {
+          "n": 2,
+          "sides": 6,
+          "sign": 1
+        }
+      ],
+      "mod": 3
+    },
+    "2d6 + 3": {
+      "terms": [
+        {
+          "n": 2,
+          "sides": 6,
+          "sign": 1
+        }
+      ],
+      "mod": 3
+    },
+    "1d100-1": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 100,
+          "sign": 1
+        }
+      ],
+      "mod": -1
+    },
+    "4d6 + 2d8": {
+      "terms": [
+        {
+          "n": 4,
+          "sides": 6,
+          "sign": 1
+        },
+        {
+          "n": 2,
+          "sides": 8,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "2d8 1d4": {
+      "terms": [
+        {
+          "n": 2,
+          "sides": 8,
+          "sign": 1
+        },
+        {
+          "n": 1,
+          "sides": 4,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "D20+5": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 20,
+          "sign": 1
+        }
+      ],
+      "mod": 5
+    },
+    "3d6-2+1d4": {
+      "terms": [
+        {
+          "n": 3,
+          "sides": 6,
+          "sign": 1
+        },
+        {
+          "n": 1,
+          "sides": 4,
+          "sign": 1
+        }
+      ],
+      "mod": -2
+    },
+    "d20-0": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 20,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "": {
+      "error": "Fórmula vacía o demasiado larga"
+    },
+    "   ": {
+      "error": "Fórmula vacía o demasiado larga"
+    },
+    "1d7": {
+      "error": "No hay dados de 7 caras (sí: 4, 6, 8, 10, 12, 20, 100)"
+    },
+    "0d6": {
+      "error": "Entre 1 y 20 dados por término"
+    },
+    "21d6": {
+      "error": "Entre 1 y 20 dados por término"
+    },
+    "1d6+1d6+1d6+1d6+1d6+1d6": {
+      "error": "Como mucho 5 grupos de dados"
+    },
+    "1d20+1001": {
+      "error": "Modificador demasiado grande"
+    },
+    "abc": {
+      "error": "No entiendo «abc»"
+    },
+    "2d6+x": {
+      "error": "No entiendo «+x»"
+    },
+    "+d8": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 8,
+          "sign": 1
+        }
+      ],
+      "mod": 0
+    },
+    "-1d4+10": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 4,
+          "sign": -1
+        }
+      ],
+      "mod": 10
+    },
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx": {
+      "error": "Fórmula vacía o demasiado larga"
+    },
+    "d12 +  d10 - 3": {
+      "terms": [
+        {
+          "n": 1,
+          "sides": 12,
+          "sign": 1
+        },
+        {
+          "n": 1,
+          "sides": 10,
+          "sign": 1
+        }
+      ],
+      "mod": -3
+    }
+  },
+  "bodies": [
+    {
+      "formula": "1d20+5",
+      "dice": [
+        {
+          "n": 1,
+          "sides": 20,
+          "sign": 1,
+          "rolls": [
+            14
+          ]
+        }
+      ],
+      "mod": 5,
+      "total": 19
+    },
+    {
+      "formula": "2d6+1d4-1",
+      "dice": [
+        {
+          "n": 2,
+          "sides": 6,
+          "sign": 1,
+          "rolls": [
+            2,
+            1
+          ]
+        },
+        {
+          "n": 1,
+          "sides": 4,
+          "sign": 1,
+          "rolls": [
+            3
+          ]
+        }
+      ],
+      "mod": -1,
+      "total": 5,
+      "label": "Espada larga"
+    },
+    {
+      "formula": "1d100",
+      "dice": [
+        {
+          "n": 1,
+          "sides": 100,
+          "sign": 1,
+          "rolls": [
+            54
+          ]
+        }
+      ],
+      "mod": 0,
+      "total": 54
+    }
+  ]
+}

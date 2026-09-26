@@ -1,0 +1,175 @@
+{
+  "fuente": "Generado una vez desde Just Another VTT (rama release, commit d68f41f): HP_VISIBILITY, BOARD_KEYS, DEFAULT_BOARD y DEFAULT_SCENE de server/rules.js; cleanInitiative de un valor vacío; los textos de las casillas y del selector de vida de las secciones «Reglas para jugadores» y «Chat, dados y fichas» de la pestaña Mesa y de las de escena (animar, cuadrícula, ajuste, niebla) de public/index.html. Los tests no lo regeneran.",
+  "commit": "d68f41f",
+  "HP_VISIBILITY": [
+    "all",
+    "gm",
+    "bar_only"
+  ],
+  "BOARD_KEYS": [
+    "sharedVision",
+    "playersDoors",
+    "chatEnabled",
+    "diceEnabled",
+    "initiativeShown",
+    "initiative",
+    "hpVisibility",
+    "hpEnabled",
+    "conditionsEnabled",
+    "acEnabled"
+  ],
+  "DEFAULT_BOARD": {
+    "sharedVision": true,
+    "playersDoors": true,
+    "chatEnabled": true,
+    "diceEnabled": true,
+    "initiativeShown": false,
+    "hpVisibility": "all",
+    "hpEnabled": true,
+    "conditionsEnabled": true,
+    "acEnabled": true,
+    "initiative": {
+      "entries": [],
+      "turn": 0,
+      "round": 1
+    }
+  },
+  "DEFAULT_SCENE": {
+    "env": "interior",
+    "ambient": 0,
+    "darkColor": "#0B0E11",
+    "fog": true,
+    "grid": true,
+    "snap": true,
+    "animate": true,
+    "plansReleased": false
+  },
+  "emptyInitiative": {
+    "entries": [],
+    "turn": 0,
+    "round": 1
+  },
+  "labels": {
+    "sharedVision": "Visión compartida: cada jugador ve lo que ve el grupo",
+    "playersDoors": "Pueden abrir y cerrar puertas",
+    "initiativeShown": "Mostrar la iniciativa a los jugadores",
+    "chatEnabled": "Chat de texto",
+    "diceEnabled": "Dados",
+    "hpEnabled": "Vida de las fichas",
+    "conditionsEnabled": "Condiciones y altura",
+    "acEnabled": "Clase de armadura (CA)",
+    "animToggle": "Animar llamas y pulsos",
+    "gridToggle": "Mostrar cuadrícula",
+    "snapToggle": "Ajustar a la cuadrícula (Alt lo ignora al vuelo)",
+    "fogToggle": "Recordar lo ya explorado"
+  },
+  "hpVisibilityOptions": [
+    {
+      "value": "all",
+      "text": "La ven todos (barra y números)"
+    },
+    {
+      "value": "gm",
+      "text": "Sólo el director (cada jugador ve la suya)"
+    },
+    {
+      "value": "bar_only",
+      "text": "Los jugadores ven sólo la barra"
+    }
+  ],
+  "folds": {
+    "reglas": "Reglas para jugadores",
+    "mesa": "Chat, dados y fichas"
+  },
+  "note": "Lo que apagues desaparece para todo el mundo, tú incluido. Si apagas chat y dados, la pestaña Chat se quita. Vida y condiciones se ocultan pero no se borran.",
+  "initiativeSamples": [
+    {
+      "input": {
+        "entries": [
+          {
+            "id": 1,
+            "name": "Goblin",
+            "value": 14.567,
+            "tokenId": 7,
+            "hidden": true
+          },
+          {
+            "id": 2,
+            "name": "  ",
+            "value": "x"
+          },
+          {
+            "id": 3.4,
+            "name": "Aria",
+            "value": 1200,
+            "tokenId": 8
+          }
+        ],
+        "turn": 5,
+        "round": 0
+      },
+      "output": {
+        "entries": [
+          {
+            "id": 1,
+            "name": "Goblin",
+            "value": 14.57,
+            "tokenId": 7,
+            "hidden": true
+          },
+          {
+            "id": 2,
+            "name": "Sin nombre",
+            "value": 0
+          },
+          {
+            "id": 3,
+            "name": "Aria",
+            "value": 999,
+            "tokenId": 8
+          }
+        ],
+        "turn": 2,
+        "round": 1
+      }
+    },
+    {
+      "input": {
+        "entries": "no",
+        "turn": -3,
+        "round": 20000
+      },
+      "output": {
+        "entries": [],
+        "turn": 0,
+        "round": 9999
+      }
+    },
+    {
+      "input": null,
+      "output": {
+        "entries": [],
+        "turn": 0,
+        "round": 1
+      }
+    }
+  ],
+  "initiativeForSample": {
+    "initiativeShown": true,
+    "hiddenTokenIds": [
+      8
+    ],
+    "player": {
+      "entries": [
+        {
+          "id": 2,
+          "name": "Sin nombre",
+          "value": 0
+        }
+      ],
+      "turn": 2,
+      "round": 1
+    },
+    "hiddenOrder": null
+  }
+}
