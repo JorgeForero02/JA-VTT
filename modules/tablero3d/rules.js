@@ -149,7 +149,8 @@ function cleanProp(p, w, d, board) {
   // Arreglo 1 (ronda 1): el `def` restaurado tiene que resolver una definición real (la del catálogo si es ajeno o no
   // existe con el tablero a mano) o una barrera/puerta con un `def: 'p:zzzz'` pasaría validada sin serlo.
   const finalDef = Catalogo.defOf(keep, board);
-  if (!finalDef) return null;
+  // Tarea 7, ronda 1 (menor 2): un terreno (f:g, f:w… o una p: de clase terrain) vive en M.t, no es una pieza colocable
+  if (!finalDef || finalDef.class === 'terrain') return null;
   // Arreglo 2 (ronda 1): sólo se guardan los campos propios de lo que es esta pieza, según su definición final.
   const isDoorProp = Catalogo.isDoor(keep, board);
   const own = base.type === 'light' ? ['preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'name']

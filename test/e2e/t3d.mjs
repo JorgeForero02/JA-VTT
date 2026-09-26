@@ -181,7 +181,8 @@ try {
   await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/eq1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [eqBoard, eqScene]);
   await gm.reload();
   await gm.waitForFunction(() => /Catálogo/.test(document.getElementById('t3d-mapName')?.textContent || ''), null, { timeout: 20000 });
-  await gm.waitForTimeout(3000);
+  // por condición: las 22 piezas en el tablero y la niebla ya calculada alrededor del caballero
+  await gm.waitForFunction(() => (t3dView.probe('props') || []).length === 22 && t3dView.probe('fog', 11, 6) === 2 && t3dView.probe('fog', 12, 5) === 2, null, { timeout: 20000 });
   const ROUTES = { '6,3': 5, '6,10': 6, '8,6': 4, '11,5': 1, '11,8': 2, '2,6': null, '7,1': null, '6,1': null, '13,7': 2, '14,7': null, '12,3': 3, '11,10': 4, '7,12': null, '14,14': null, '10,1': null, '6,8': null, '3,14': null, '1,14': 16, '11,14': null, '9,5': 2, '9,2': null };
   const LIGHT = { '6,9': 1.056, '7,8': 1.222, '12,11': 1.333, '13,12': 1.333, '2,11': 1.111, '3,11': 1.056, '14,13': 1.278, '15,0': 0.667 };
   const eq = await gm.evaluate(([routes, light]) => {
@@ -193,6 +194,101 @@ try {
     return bad;
   }, [ROUTES, LIGHT]);
   step('motor por catálogo: caminos, puertas, tarimas, maleza y luz fija como antes', eq.length === 0, eq.slice(0, 4).join(' | '));
+
+  // Arreglo §6 (Tarea 7, ronda 1): un dibujo que sustituye a un objeto manda sobre su luz. Un farol dibujado sin luz y el
+  // portal mágico dibujado sin luz se apagan; el árbol (variante 0) dibujado con luz alumbra.
+  const flat16 = (n, c) => c.repeat(n);
+  const lightScene = { v: 1, name: 'Luz', w: 16, d: 16, h: flat16(256, '2'), t: flat16(256, 'g'), wsrc: flat16(256, '0'), roofs: [], start: [0, 0], env: 'night', fog: false, animate: false, seen: '',
+    props: [{ type: 'lamp', x: 3, z: 3, v: 0 }, { type: 'tree', x: 12, z: 12, v: 0 }, { type: 'portal', x: 12, z: 3, v: 0, id: 1, look: 'magic', target: null }],
+    minis: [{ kind: 'knight', x: 0, z: 15, fx: 0, fz: 1, id: 'k1' }] };
+  const openLight = async () => {
+    await gm.reload();
+    await gm.waitForFunction(() => /^Luz/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 3, null, { timeout: 20000 });
+  };
+  const cells = () => gm.evaluate(() => { const L = (x, z) => t3dView.probe('light', x, z); return { lamp: L(4, 3), tree: L(11, 12), portal: L(11, 3), dark: L(3, 12) }; });
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/luz1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [eqBoard, lightScene]);
+  await openLight();
+  const lit0 = await cells();
+  const drawn3 = await gm.evaluate(async (id) => {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 16; const x = c.getContext('2d');
+    for (let f = 0; f < 4; f++) { x.fillStyle = ['#5a3a1a', '#6b4a22', '#2f6b2f', '#3f8f3f'][f]; x.fillRect(f * 16 + 5, 5, 6, 6); }
+    const sheet = c.toDataURL('image/png');
+    const rec = (key, light) => ({ key, kind: 'obj', target: key, name: key, res: 16, w: 16, h: 16, count: 4, cols: 4, frameNames: [], light,
+      lightSpec: light ? { px: 8, py: 8, s: 3, r: 8, c: '#ffffff', f: 0 } : null, layers: [{ name: 'Capa 1', vis: true, op: 100, sheet }], updated: Date.now() });
+    const put = (r) => fetch(`/api/t3d/boards/${id}/drawings/${r.key}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) }).then((q) => q.status);
+    return [await put(rec('lamp', false)), await put(rec('tree0', true)), await put(rec('portal_magic', false))];
+  }, eqBoard);
+  await openLight();
+  // los dibujos llegan después de la escena: se espera a que el árbol alumbre (o a que venza el plazo)
+  await gm.waitForFunction((t0) => t3dView.probe('light', 11, 12) > t0 + 0.1, lit0.tree, { timeout: 15000 }).catch(() => {});
+  const lit1 = await cells();
+  const near = (a, b) => Math.abs(a - b) <= 0.02;
+  step('arreglo §6: un dibujo sin luz apaga el farol y el portal mágico; el árbol dibujado con luz alumbra',
+    drawn3.every((s) => s === 200) && lit0.lamp > lit0.dark + 0.1 && lit0.portal > lit0.dark + 0.1 && near(lit1.lamp, lit1.dark) && near(lit1.portal, lit1.dark) && lit1.tree > lit0.tree + 0.1,
+    JSON.stringify({ drawn3, antes: lit0, despues: lit1 }));
+
+  // Escena vieja (v1, como F.escenaVieja() del servidor) importada en el cliente, guardada y releída: v:2, las mismas
+  // piezas, puertas con su espejo, portales con destino y nombre, la luz con sus campos; y un segundo guardado no cambia uid.
+  const oldScene = { v: 1, name: 'Escena vieja', w: 8, d: 8, h: flat16(64, '2'), t: flat16(64, 'g'), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false,
+    minis: [{ kind: 'knight', x: 0, z: 0, fx: 0, fz: 1, id: 'k1' }],
+    props: [
+      { type: 'door', x: 1, z: 2, v: 1, open: false, locked: true },
+      { type: 'gate', x: 2, z: 2, v: 0, open: true },
+      { type: 'portal', x: 3, z: 3, v: 0, id: 7, look: 'cave', target: { scene: 'bOtra', portal: 2 }, name: 'Cueva' },
+      { type: 'stairs', x: 4, z: 4, to: 'cabajo', tx: 1, tz: 1 },
+      { type: 'obj:o_abcd1234', x: 5, z: 5, v: 2 },
+      { type: 'light', x: 6, z: 6, preset: 'torch', r: 8, h: 1.25, color: '#ffa652', intensity: 1, anim: 'flicker', on: true },
+      { type: 'barrier', x: 0, z: 7, v: 0 },
+      { type: 'bridge2', x: 2, z: 6, v: 1 },
+      { type: 'nave_espacial', x: 1, z: 1 },
+    ] };
+  const importJson = async (obj, name) => {
+    await gm.setInputFiles('#t3d-file', { name: 'escena.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(obj)) });
+    await gm.waitForFunction((n) => (document.getElementById('t3d-mapName')?.textContent || '').startsWith(n), name, { timeout: 15000 });
+  };
+  // espera por condición: la escena con ese nombre aparece en el servidor (se pregunta cada 300 ms, hasta 15 s)
+  const sceneByName = (n) => gm.evaluate(async ([id, name]) => { const l = (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes; const s = l.find((x) => x.name === name); if (!s) return null;
+    return (await (await fetch(`/api/t3d/boards/${id}/scenes/${s.id}`)).json()).scene; }, [eqBoard, n]);
+  const waitScene = async (n) => { for (let k = 0; k < 50; k++) { const s = await sceneByName(n).catch(() => null); if (s) return s; await gm.waitForTimeout(300); } return null; };
+  await importJson(oldScene, 'Escena vieja');
+  await gm.evaluate(() => document.getElementById('t3d-save').click());
+  const s1 = await waitScene('Escena vieja');
+  const chk = [];
+  if (!s1) chk.push('no se guardó: ' + await gm.evaluate(() => [document.getElementById('t3d-autosave')?.textContent, document.getElementById('t3d-mapName')?.textContent].join(' · ')));
+  else {
+    const by = (f) => s1.props.find(f);
+    if (s1.v !== 2) chk.push('v ' + s1.v);
+    if (s1.props.length !== 8) chk.push('piezas ' + s1.props.length);
+    const door = by((p) => p.type === 'door'), gate = by((p) => p.type === 'gate'), cave = by((p) => p.look === 'cave'), st = by((p) => p.look === 'stairs'), lt = by((p) => p.type === 'light');
+    if (!(door && door.locked === true && door.open === false && door.state && door.state.locked === true && door.state.open === false)) chk.push('puerta ' + JSON.stringify(door));
+    if (!(gate && gate.open === true && gate.state && gate.state.open === true)) chk.push('gate ' + JSON.stringify(gate));
+    if (!(cave && cave.id === 7 && cave.name === 'Cueva' && cave.target && cave.target.scene === 'bOtra' && cave.target.portal === 2)) chk.push('portal ' + JSON.stringify(cave));
+    if (!(st && st.target && st.target.scene === 'cabajo')) chk.push('escalera ' + JSON.stringify(st));
+    if (!(lt && lt.preset === 'torch' && lt.r === 8 && lt.h === 1.25 && lt.color === '#ffa652' && lt.anim === 'flicker')) chk.push('luz ' + JSON.stringify(lt));
+    if (!by((p) => p.type === 'barrier') || !by((p) => p.type === 'obj:o_abcd1234') || !by((p) => p.type === 'bridge2')) chk.push('faltan barrera, dibujo o puente');
+    if (!s1.props.every((p) => /^u[a-z0-9]{8}$/.test(p.uid) && p.def)) chk.push('uid/def');
+    await gm.fill('#t3d-bname', 'Escena vieja 2');
+    const s2 = await waitScene('Escena vieja 2');
+    const uids = (s) => s.props.map((p) => p.type + '@' + p.x + ',' + p.z + '=' + p.uid).sort().join();
+    if (!s2 || uids(s2) !== uids(s1)) chk.push('los uid cambian al volver a guardar: ' + uids(s1) + ' → ' + (s2 ? uids(s2) : 'sin segundo guardado'));
+  }
+  step('escena vieja (v1) importada, guardada y releída: v2 sin perder nada; los uid no cambian al volver a guardar', chk.length === 0, chk.join(' | '));
+
+  // Pieza de una definición del tablero que aquí no se conoce (p: borrada): se conserva opaca — se dibuja, ocupa su
+  // casilla — y al exportar sale tal cual.
+  const ghost = { type: 'o_fantasma', def: 'p:fantasma', uid: 'ufantasm1', x: 2, z: 0, v: 1, extra: { algo: 1 } };
+  await importJson({ v: 2, name: 'Fantasma', w: 8, d: 8, h: flat16(64, '2'), t: flat16(64, 'g'), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false,
+    minis: [{ kind: 'knight', x: 0, z: 0, fx: 0, fz: 1, id: 'k1' }], props: [ghost] }, 'Fantasma');
+  const gp = await gm.evaluate(() => ({ props: t3dView.probe('props'), route: t3dView.probe('route', 'k1', 2, 0), beside: t3dView.probe('route', 'k1', 3, 0) }));
+  // «Exportar» (downloads de mesa.js): se recoge el archivo del enlace de descarga sin descargarlo (una descarga real deja
+  // al navegador sin cerrar limpio en esta prueba)
+  const exported = JSON.parse(await gm.evaluate(() => new Promise((resolve) => { const orig = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { if (!this.download) return orig.call(this); HTMLAnchorElement.prototype.click = orig; fetch(this.href).then((r) => r.text()).then(resolve); };
+    document.getElementById('t3d-export').click(); })));
+  const gOut = (exported.props || []).find((p) => p.def === 'p:fantasma');
+  step('pieza p: sin definición: se conserva opaca (se dibuja, ocupa su casilla) y se exporta tal cual',
+    gp.props.length === 1 && gp.props[0].shown && gp.route === null && gp.beside !== null && JSON.stringify(gOut) === JSON.stringify(ghost),
+    JSON.stringify({ gp, gOut }));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

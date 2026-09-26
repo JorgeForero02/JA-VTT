@@ -598,7 +598,7 @@ test('muros: el cliente (Muros.normProp) y el servidor (cleanWallProp) leen igua
   assert.match(engine, /const wp=Muros\.normProp\(p\); if\(wp\) Object\.assign\(q,wp/);
   assert.match(engine, /Muros\.fixPortalIds\(props\);/);
   assert.match(engine, /\.\.\.\(Muros\.kindOf\(p\)\?Muros\.normProp\(p\):\{\}\)/);
-  assert.match(engine, /addBill\(propKind\(p\),p\.x,p\.z,p\)/);
+  assert.match(engine, /addBill\(op\?'obj:':propKind\(p\),p\.x,p\.z,p\)/, 'la pieza p: sin definición (opaca) se pinta con el marcador «sin arte»');
 });
 
 test('muros: cada tipo tiene su objeto por capas (en «Todo el arte»), cada aspecto de portal también, y el servidor sabe qué se pisa', () => {
@@ -794,7 +794,7 @@ test('ventanas: una ventana que da fuera deja entrar el ambiente hacia dentro (c
   const dm = Ambiente.interiorMask(9, 5, [{ x: 1, z: 1, w: 7, d: 4 }], '');
   assert.ok(Ambiente.windowLight(D.g, dm, D.openings, D.reach)[2 * 9 + 4] > 0.7);
   // el motor: la luz de las ventanas y las puertas abiertas, sobre la rejilla sin techos abiertos, llega al sombreador y a la niebla
-  assert.match(engine, /const openings=\(\)=>M\.props\.filter\(p=>p\.type==='window'\|\|\(isDoorType\(p\.type\)&&p\.open\)\);/);
+  assert.match(engine, /const openings=\(\)=>M\.props\.filter\(p=>p\.type==='window'\|\|\(Catalogo\.isDoor\(p,PIECES\)&&p\.open\)\);/);
   assert.match(engine, /if\(!ambientLit\(i\)&&d2>\(dark\+0\.5\)\*\*2&&d2>2\)/, 'la niebla aplica la regla de oscuridad en las zonas interiores');
   assert.match(engine, /mix\(uDark, uAmbient, a\)\*shadeTint\(s\)/, 'el sombreador');
 });

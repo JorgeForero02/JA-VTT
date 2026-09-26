@@ -1169,8 +1169,16 @@ const hpOn=()=>SETTINGS.hpEnabled!==false, acOn=()=>SETTINGS.acEnabled!==false, 
 // lo que el servidor no le manda al jugador de una ficha ajena (sheet.withheld: 'ac', 'hp'; con 'bar_only', sólo hpBar)
 const withheld=(b,k)=>!!(b&&b.sheet&&Array.isArray(b.sheet.withheld)&&b.sheet.withheld.includes(k));
 // definiciones de piezas del tablero (p:…, Tablero3D.Catalogo las lee junto a las de fábrica); vacías hasta la fase 1.
-// Van aquí arriba (y no junto a CAMP) porque propSpan/isDoorType las usan desde el primer mapa. Las llena loadPieces.
-let PIECES=new Map();
+// Van aquí arriba (y no junto a CAMP) porque propSpan y compañía las usan desde el primer mapa. Las llena loadPieces;
+// hasta que termina bien (PIECES_OK) no se guarda nada, y lo que lee escenas del servidor espera a PIECES_READY.
+let PIECES=new Map(), PIECES_OK=false, piecesDone=null;
+const PIECES_READY=new Promise(r=>{ piecesDone=r; });
+// ¿se puede guardar ya? Si no, se avisa y no se guarda: sin las definiciones se perderían piezas
+const piecesGate=()=>{ if(PIECES_OK) return true; showHint('Aún se están cargando las piezas del tablero; inténtalo en un momento.',2200); return false; };
+// pieza de una definición del tablero (p:) que aquí no se conoce (borrada o sin cargar): se conserva tal cual, se dibuja
+// con el marcador «sin arte», ocupa su casilla y no hace nada más; al guardar se escribe igual que llegó
+const opaque=p=>typeof p.def==='string'&&p.def.startsWith('p:')&&Catalogo.defIdOf(p)===p.def&&!Catalogo.defOf(p,PIECES);
+const UID_OK=/^u[a-z0-9]{8}$/;
 // objeto por capas con el que se pinta un objeto del mapa: el portal, el de su aspecto
 const propKind=p=>p.type==='portal'?(Muros.PORTAL_LOOKS[p.look]||Muros.PORTAL_LOOKS.door).prop:p.type;
 // clave del dibujo que sustituye a un objeto: los árboles guardan el suyo como tree0–tree2 (así pueden tener luz propia, arreglo §6);
@@ -1192,7 +1200,6 @@ function footY(x,z,n){ if(n===1) return standY(x,z); let m=-Infinity; for(let j=
 function propSpan(p){ return Catalogo.span(p,PIECES); }
 function propCells(p){ const [w,d]=propSpan(p), out=[]; for(let j=0;j<d;j++) for(let i=0;i<w;i++) out.push([p.x+i,p.z+j]); return out; }
 const propCovers=(p,x,z)=>{ const [w,d]=propSpan(p); return x>=p.x&&z>=p.z&&x<p.x+w&&z<p.z+d; };
-const isDoorType=t=>Catalogo.isDoor({type:t},PIECES);
 // puentes: DECK guarda por casilla la altura (en pasos) de la tarima que se pisa, o 0
 let DECK=null;
 const standY=(x,z)=>{ const i=idx(x,z); return DECK&&DECK[i]?DECK[i]*STEP:topY(x,z); };
@@ -1807,12 +1814,13 @@ function refreshEntities(){
   clearBills(); blocked=new Set(); M.lights=[];
   doorShut=new Set(); lockedDoors=new Set(); WALLAT=new Map(); HAS_COVER=false;
   DECK=null; const decks=M.props.filter(p=>Catalogo.surface(p,PIECES)); if(decks.length) computeDecks(decks);
-  for(const p of M.props){ const b=addBill(propKind(p),p.x,p.z,p); const i=idx(p.x,p.z);
-    if(isDoorType(p.type)){ if(!p.open){ blocked.add(i); doorShut.add(i); } if(p.locked) lockedDoors.add(i); if(b) doorPose(b); }
-    else if(Catalogo.blocksMove(p,PIECES)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
+  for(const p of M.props){ if(!UID_OK.test(p.uid||'')) p.uid=Catalogo.newUid();   // uid fijo desde que la pieza existe (antes de deshacer)
+    const op=opaque(p), D=op?null:Catalogo.defOf(p,PIECES), b=addBill(op?'obj:':propKind(p),p.x,p.z,p); const i=idx(p.x,p.z);
+    if(D&&D.components.door){ if(!p.open){ blocked.add(i); doorShut.add(i); } if(p.locked) lockedDoors.add(i); if(b) doorPose(b); }
+    else if(op||Catalogo.blocksMove(p,PIECES)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
     const wk=Muros.kindOf(p); if(wk&&wk!=='door'){ WALLAT.set(i,p); if(wk==='cover') HAS_COVER=true; }
     if(b&&Catalogo.gmOnly(p,PIECES)) b.gmOnly=true;
-    const l=propLight(p,b); if(l){ M.lights.push(l); b.emissive=p.type!=='light'; b.light=l; } }
+    const l=op?null:propLight(p,b); if(l){ M.lights.push(l); b.emissive=p.type!=='light'; b.light=l; } }
   let lava=0; for(let i=0;i<M.t.length&&lava<48;i++) if(M.t[i]==='l'){ const lx=i%M.w, lz=(i/M.w)|0; M.lights.push({x:lx+.5,z:lz+.5,y:0,r:3,c:'#ff5a2a',k:0.8,f:1,lava:true,baseY:()=>topY(lx,lz)+0.3}); lava++; }
   for(const m of M.minis) addBill(m.kind,m.x,m.z,m);
   if(EH){ for(const b of bills) b.gy=billY(b); for(const l of M.lights) l.y=l.baseY(); }
@@ -2025,7 +2033,7 @@ let INTERIOR=null, AMBF=null, ambTex=null;
 // rejilla sin los muros recortados al abrir un techo (así la luz de las ventanas no cambia al asomarse)
 const AGRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>(DECK&&DECK[i]?DECK[i]:M.h[i])*STEP, wall:i=>M.t[i]==='w', door:i=>doorShut.has(i),
   bk:(i,flag)=>{ const p=WALLAT.get(i); return !!p&&Muros.blocks(p,flag); } };
-const openings=()=>M.props.filter(p=>p.type==='window'||(isDoorType(p.type)&&p.open));
+const openings=()=>M.props.filter(p=>p.type==='window'||(Catalogo.isDoor(p,PIECES)&&p.open));
 function computeAmbient(){
   const n=M.w*M.d; INTERIOR=Ambiente.interiorMask(M.w,M.d,M.roofs,M.zoneCells);
   const win=Ambiente.windowLight(AGRID,INTERIOR,openings(),(lx,ly,lz,tx,tz,ty)=>Vision.lightReaches(AGRID,lx,ly,lz,tx,tz,ty));
@@ -2184,7 +2192,7 @@ function onTap(cx,cy){
   const minis=bills.filter(b=>b.mini&&b.mesh.visible);
   const hm=ray.intersectObjects(minis.map(b=>b.mesh),false);
   if(hm.length){ selected=minis.find(b=>b.mesh===hm[0].object); return; }
-  const doors=bills.filter(b=>isDoorType(b.kind)&&b.mesh.visible), hd=ray.intersectObjects(doors.map(b=>b.mesh),false);
+  const doors=bills.filter(b=>!b.mini&&b.prop&&Catalogo.isDoor(b.prop,PIECES)&&b.mesh.visible), hd=ray.intersectObjects(doors.map(b=>b.mesh),false);
   if(hd.length){ const db=doors.find(b=>b.mesh===hd[0].object); if(db&&db.prop) toggleDoor(db.prop); return; }
   const pts=bills.filter(b=>b.prop&&b.prop.type==='portal'&&b.mesh.visible), hp=ray.intersectObjects(pts.map(b=>b.mesh),false);
   if(hp.length){ const pb=pts.find(b=>b.mesh===hp[0].object); if(pb) portalClick(pb.prop); return; }
@@ -2303,7 +2311,7 @@ on(window,'keydown',e=>{
   const key=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&key==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if((e.ctrlKey||e.metaKey)&&key==='y'){ e.preventDefault(); redo(); return; }
-  if((e.ctrlKey||e.metaKey)&&key==='s'){ e.preventDefault(); if(!LIVE.on||LIVE.dm) autoSave(true); return; }
+  if((e.ctrlKey||e.metaKey)&&key==='s'){ e.preventDefault(); if((!LIVE.on||LIVE.dm)&&piecesGate()) autoSave(true); return; }
   if(e.ctrlKey||e.metaKey||e.altKey) return;
   keysDown.add(key==='shift'?'shift':key);
   if(key==='q') rotate(1); else if(key==='e') rotate(-1);
@@ -2574,7 +2582,7 @@ function fillFrom(x,z){
 const miniCells=m=>Fichas.cellsOf(m.sheet||defaultSheet(m.kind));
 // forMini: un personaje puede estar sobre lo que se pisa (velo, maleza, escalones). «Se pisa» es lo de su definición, no lo de
 // su estado: una puerta abierta sigue ocupando su casilla al colocar (como antes; Muros.gridOf mira igual)
-const walkable=p=>!Catalogo.blocksMove(p,PIECES)&&!Catalogo.isDoor(p,PIECES);
+const walkable=p=>!opaque(p)&&!Catalogo.blocksMove(p,PIECES)&&!Catalogo.isDoor(p,PIECES);
 function occupied(x,z,forMini){ return M.props.some(p=>p.type!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
 function applyTool(x,z,first){
   const t=state.tool, r=(state.brush-1)>>1, cells=[];
@@ -2956,18 +2964,19 @@ async function crossPortal(p,list){
     return; }
   if(!gmView()){ showHint('Fuera de la mesa en vivo sólo el director cruza portales.',2000); return; }
   if(!M.boardId) M.boardId=newSceneId();
-  try{ const r=await BOARD.travelSaved({from:M.boardId,map:serialize(),portal:p.id,tokens:ids||[],all:!list}); arriveScene(r,ids); }
+  if(!piecesGate()) return;
+  try{ const r=await BOARD.travelSaved({from:M.boardId,map:serialize(),portal:p.id,tokens:ids||[],all:!list}); await arriveScene(r,ids); }
   catch(e){ showHint(e&&e.message?e.message:'No se pudo cruzar.',2600); }
 }
-function arriveScene(r,ids){ const m=deserialize(r.scene); m.boardId=r.scene.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities();
+async function arriveScene(r,ids){ await PIECES_READY; const m=deserialize(r.scene); m.boardId=r.scene.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities();
   const s2=ids&&ids.length?bills.find(b=>b.id===ids[0]):bills.find(b=>r.moved.includes(b.id)); if(s2){ selected=s2; focusSelected(); }
   refreshScenes(); showHint('Ahora en «'+m.name+'»'+(r.left&&r.left.length?'; '+r.left.length+' ficha(s) no cupieron y se quedaron':'')+'.',2200); }
 // «Reunir al grupo» (gather de JA-VTT): todas las fichas del grupo (bando Jugador) van a esa escena, junto a su punto de entrada
 async function gatherTo(id){
   if(!BOARD||!gmView()) return; syncMinis();
   try{ if(LIVE.on){ await BOARD.gather({scene:id}); showHint('El grupo se reúne en la escena elegida.',1800); return; }
-    if(!M.boardId) M.boardId=newSceneId();
-    arriveScene(await BOARD.travelSaved({from:M.boardId,map:serialize(),to:id,all:true}),null); }
+    if(!M.boardId) M.boardId=newSceneId(); if(!piecesGate()) return;
+    await arriveScene(await BOARD.travelSaved({from:M.boardId,map:serialize(),to:id,all:true}),null); }
   catch(e){ showHint(e&&e.message?e.message:'No se pudo reunir al grupo.',2600); }
 }
 // ajustes de escena de JA-VTT: animate (Iluminación) y grid (Cuadrícula); viajan con la escena
@@ -3009,7 +3018,10 @@ function serialize(){
   syncMinis();
   return { v:2, name:M.name, w:M.w, d:M.d, h:Array.from(M.h,n=>n.toString(36)).join(''), t:M.t.join(''), wsrc:Array.from(M.src).join(''),
     // formato v2: la forma de siempre + def, uid y state (Catalogo.complete); la pieza que no tenía uid se queda con el suyo
-    props:M.props.map(p=>{ const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(p.state?{state:p.state}:{}),
+    // la puerta escribe su `state` desde la raíz (open/locked, lo que tocan toggleDoor, lockDoor y la mesa en vivo); la opaca, tal cual
+    props:M.props.map(p=>{ if(opaque(p)) return JSON.parse(JSON.stringify(p));
+      const door=Catalogo.isDoor(p,PIECES), st=door?Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}):p.state;
+      const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(st?{state:st}:{}),
       ...(p.type==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})},PIECES); if(!p.uid) p.uid=q.uid; return q; }), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
     minis:M.minis.map(m=>({kind:m.kind,x:m.x,z:m.z,fx:m.fx,fz:m.fz,id:m.id,sheet:m.sheet,...(m.owner?{owner:m.owner}:{})})), ...ENV, ...(M.zoneCells?{zoneCells:M.zoneCells}:{}), fog:!!state.fog, seen:M.seen?Array.from(M.seen).join(''):'',
     ...sceneExtras(M) };
@@ -3023,15 +3035,17 @@ function deserialize(o){
   const t=o.t.split(''); if(t.some(c=>!TERR[c])) throw new Error('bad');
   const ok=(x,z)=>Number.isInteger(x)&&Number.isInteger(z)&&x>=0&&z>=0&&x<w&&z<d;
   // escenas v1 y v2: cada pieza se lee contra su definición (catálogo; las p: del tablero en PIECES) y se completa (def, uid, state).
-  // Una pieza sin definición se descarta, como en el servidor; un terreno (f:g…) no es una pieza que se coloque.
+  // Una pieza sin definición se descarta, como en el servidor; un terreno (f:g…) no es una pieza que se coloque. Una p: que
+  // no se conoce aquí se conserva opaca (ronda 1 de la Tarea 7).
   const isPiece=p=>{ const D=Catalogo.defOf(p,PIECES); return !!D&&D.class!=='terrain'; };
-  const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&isPiece(p)&&ok(p.x,p.z))
-    .map(p=>{ const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:isDoorType(p.type)&&!!(p.state&&'open' in p.state?p.state.open:p.open)};
+  const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&(isPiece(p)||opaque(p))&&ok(p.x,p.z))
+    .map(p=>{ if(opaque(p)) return Catalogo.complete(JSON.parse(JSON.stringify(p)),PIECES);   // tal cual (con uid)
+      const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:Catalogo.isDoor(p,PIECES)&&!!(p.state&&'open' in p.state?p.state.open:p.open)};
       if(typeof p.uid==='string') q.uid=p.uid; if(typeof p.def==='string') q.def=p.def;
       if(p.state&&typeof p.state==='object') q.state=Object.assign({},p.state);
       if(p.type==='light') Object.assign(q,normLight(p));
       // muros de JA-VTT: puertas con llave, portales; las escaleras de campaña de antes pasan a portales (Muros.normProp, como el servidor)
-      const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:isDoorType(wp.type)&&!!q.open});
+      const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:Catalogo.isDoor(wp,PIECES)&&!!q.open});
       if(p.state&&p.state.locked) q.locked=true;
       return Catalogo.complete(q,PIECES); }).slice(0,5000);
   Muros.fixPortalIds(props);
@@ -3059,13 +3073,19 @@ let DB=null, DL=null, BOARD=null;
     try{ DL=await c.use('downloads'); }catch(e){ DL=null; }
     try{ BOARD=await c.use('board'); }catch(e){ BOARD=null; }
     if(BOARD){ BOARD.onSettings(applySettings); BOARD.settings().then(applySettings,()=>{}); }
-    setTimeout(()=>liveInit(c),0);
+    setTimeout(()=>{ PIECES_READY.then(()=>liveInit(c)); },0);   // la mesa en vivo, con las piezas ya cargadas
   }
   $('export').hidden=!DL; $('artExp').hidden=!DL; layout();
-  setTimeout(loadAllAssets,0); setTimeout(()=>loadPieces().then(openLatestScene),0);   // la escena, cuando ya están sus piezas
+  setTimeout(loadAllAssets,0); setTimeout(loadPieces,0); PIECES_READY.then(openLatestScene);   // la escena, cuando ya están sus piezas
 })();
 // definiciones de piezas del tablero (p:…); vacías hasta la fase 1. Se cargan antes que las escenas para poder leerlas
-async function loadPieces(){ if(!DB) return; try{ const q=await DB.collection('pieces').get(); PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); }catch(e){} }
+// Si falla, se reintenta con espera creciente (1 s, 2 s… hasta 30 s) y se avisa una vez; sin DB (local) no hay nada que cargar.
+async function loadPieces(){ let wait=1000, warned=false;
+  for(;;){
+    try{ if(DB){ const q=await DB.collection('pieces').get(); PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); }
+      PIECES_OK=true; piecesDone(); if(M&&PIECES.size) refreshEntities(); return; }
+    catch(e){ if(stopped) return; if(!warned){ warned=true; showHint('No se pudieron cargar las piezas del tablero; se reintenta. Mientras tanto no se guarda nada.',4000); }
+      await new Promise(r=>setTimeout(r,wait)); wait=Math.min(wait*2,30000); if(stopped) return; } } }
 const LS='tablero:boards';
 function lsAll(){ try{ return JSON.parse(localStorage.getItem(LS)||'{}')||{}; }catch(e){ return {}; } }
 function lsPut(all){ try{ localStorage.setItem(LS,JSON.stringify(all)); return true; }catch(e){ return false; } }
@@ -3084,6 +3104,7 @@ async function storeDelete(id){
 const saveErr=e=>e&&e.code==='quota_exceeded'?'Se llenó el almacén del tablero. Borra alguna escena desde el menú de escenas.':e&&e.message?'No se pudo guardar: '+e.message:'No se pudo guardar: el almacenamiento no está disponible aquí.';
 /* «Guardar como nueva»: una copia aparte de la escena abierta, que pasa a ser la que se edita (y se guarda sola) */
 $('save').onclick=async()=>{
+  if(!piecesGate()) return;
   if(CAMP){ autoSave(true); return; }
   M.boardId=newSceneId(); AUTO.last=null;
   await autoSave(true);
@@ -3093,7 +3114,7 @@ $('save').onclick=async()=>{
    y, si cambió, se guarda sola. Sólo el director (fuera de la mesa en vivo, o siendo su DM); abrir una escena no la guarda. ---- */
 const AUTO_MS=2000, AUTO={last:null,busy:false,at:0,err:null,failed:null};
 const autoKey=()=>{ const s=JSON.stringify(serialize()); return CAMP?s+'|'+CAMP.id+'|'+CAMP.cur+'|'+JSON.stringify(CAMP.notes)+'|'+CAMP.name:s; };
-const canAutoSave=()=>!!M&&gmView()&&!ROOT.classList.contains('t3d-player');
+const canAutoSave=()=>PIECES_OK&&!!M&&gmView()&&!ROOT.classList.contains('t3d-player');
 function autoBaseline(){ try{ AUTO.last=autoKey(); }catch(e){ AUTO.last=null; } AUTO.err=null; AUTO.failed=null; renderAutoState(); }
 function renderAutoState(){ const el=$('autosave'); if(!el) return;
   el.textContent=AUTO.busy?'Guardando…':AUTO.err?AUTO.err:AUTO.at?'Guardado en el tablero a las '+new Date(AUTO.at).toLocaleTimeString('es')+'.':''; }
@@ -3121,7 +3142,7 @@ async function renderList(){
     const o=document.createElement('button'); o.className='t3d-open';
     const nm=document.createElement('span'); nm.textContent=it.name||'Tablero'; o.appendChild(nm);
     const sm=document.createElement('small'); sm.textContent=(it.w||'?')+'×'+(it.d||'?')+(it.updated?', '+new Date(it.updated).toLocaleString('es'):''); o.appendChild(sm);
-    o.onclick=()=>{ try{ const m=deserialize(it); m.boardId=it.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); $('sheet').hidden=true; showHint('"'+m.name+'" abierto.'); }catch(e){ showHint('Ese tablero está dañado y no se puede abrir.'); } };
+    o.onclick=async()=>{ await PIECES_READY; try{ const m=deserialize(it); m.boardId=it.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); $('sheet').hidden=true; showHint('"'+m.name+'" abierto.'); }catch(e){ showHint('Ese tablero está dañado y no se puede abrir.'); } };
     const del=document.createElement('button'); del.textContent='Borrar';
     del.onclick=async()=>{ if(del.dataset.armed!=='1'){ del.dataset.armed='1'; del.textContent='¿Seguro?'; return; } await storeDelete(it.id); if(M.boardId===it.id) M.boardId=null; renderList(); };
     row.append(o,del);
@@ -3141,7 +3162,7 @@ $('import').onclick=()=>$('file').click();
 $('file').onchange=()=>{
   const f=$('file').files&&$('file').files[0]; if(!f) return;
   const rd=new FileReader();
-  rd.onload=()=>{ try{ const m=deserialize(JSON.parse(rd.result)); loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); showHint('"'+m.name+'" importado.'); }
+  rd.onload=async()=>{ await PIECES_READY; try{ const m=deserialize(JSON.parse(rd.result)); loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); showHint('"'+m.name+'" importado.'); }
     catch(e){ showHint('Ese archivo no es una escena válida.'); } $('file').value=''; };
   rd.readAsText(f);
 };
@@ -4484,7 +4505,7 @@ function roofTick(){
   // al editar se ocultan, salvo con la herramienta Techos, que los enseña para ver material y forma
   if(mode==='hide'||(state.mode==='edit'&&state.tool!=='roof')) M.roofs.forEach((r,i)=>open.add(i));
   else if(mode==='auto'){
-    const doors=M.props.filter(p=>isDoorType(p.type));
+    const doors=M.props.filter(p=>Catalogo.isDoor(p,PIECES));
     for(const b of [selected,curMini()]) if(b&&b.mini){
       const n=nOf(b); for(const [fx,fz] of Fichas.footprint(b.x,b.z,n)){ const i=roofOf(fx,fz); if(i>=0) open.add(i); }
       // en el umbral: a una casilla de una puerta (afuera o adentro) también se abre esa casa
@@ -4509,7 +4530,7 @@ function toggleDoor(p,remote){
   if(!remote&&!canOpenDoor(p)){ showHint(p.locked?'Esa puerta está cerrada con llave.':'El director no deja a los jugadores abrir puertas.',1800); return false; }
   p.open=!p.open; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}); const i=idx(p.x,p.z);
   if(p.open){ blocked.delete(i); doorShut.delete(i); } else { blocked.add(i); doorShut.add(i); }
-  const b=bills.find(q=>isDoorType(q.kind)&&q.x===p.x&&q.z===p.z); if(b) doorPose(b);
+  const b=bills.find(q=>q.prop===p); if(b) doorPose(b);
   fogDirty=true; rangeKey=''; computeAmbient();   // por una puerta abierta entra la luz de fuera
   if(!remote&&LIVE.on) DB.doc('live/doors').update({d:{[p.x+'_'+p.z]:p.open?1:0}}).catch(e=>{ liveErr(e); if(!LIVE.dm) toggleDoor(p,true); });
   return true;
@@ -4517,7 +4538,7 @@ function toggleDoor(p,remote){
 // el director echa o quita la llave (cerrar con llave también cierra), con deshacer; en la mesa en vivo se reparte con la escena
 function lockDoor(p,on){ beginStroke(); if(on&&p.open) toggleDoor(p); p.locked=!!on; if(!on) delete p.locked; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}); stroke.ents=true; stroke.changed=true; flushEdit(); endStroke();
   if(LIVE.on&&LIVE.dm) liveBoardNow(); showHint(on?'Puerta cerrada con llave: los jugadores no la abren.':'Puerta sin llave.',1600); }
-function doorAt(x,z){ return M.props.find(p=>isDoorType(p.type)&&p.x===x&&p.z===z); }
+function doorAt(x,z){ return M.props.find(p=>p.x===x&&p.z===z&&Catalogo.isDoor(p,PIECES)); }
 // --- el pueblo de ejemplo: muralla al norte con puerta y torres, atalaya con techo cónico, plaza de mercado con puestos,
 // capilla con campanario, molino en una loma, puente sobre el arroyo y tejados de cada material ---
 function townMap(){
@@ -4711,7 +4732,7 @@ function noteEditor(x,z,existing){
 }
 // --- guardar, abrir, exportar ---
 const LSC='tablero:campaigns';
-async function campSave(){ if(!CAMP) return; campStore(); CAMP.updated=Date.now(); const rec=JSON.parse(JSON.stringify(CAMP));
+async function campSave(){ if(!CAMP||!piecesGate()) return; campStore(); CAMP.updated=Date.now(); const rec=JSON.parse(JSON.stringify(CAMP));
   try{ if(DB){ await DB.collection('campaigns').doc(CAMP.id).set(rec); } else { const all=lsGet(LSC); all[CAMP.id]=rec; if(!lsSet(LSC,all)) throw 0; }
     showHint('Campaña guardada.',1400); }catch(e){ showHint('No se pudo guardar la campaña: puede ser demasiado grande.',2600); } }
 async function campList(){ if(DB){ try{ const q=await DB.collection('campaigns').orderBy('updated','desc').limit(30).get(); return q.docs.map(d=>d.data()); }catch(e){} } return Object.values(lsGet(LSC)); }
@@ -4720,7 +4741,7 @@ function campValid(o){ if(!o||typeof o!=='object'||!CAMP_ID.test(o.id||'')||!o.b
   const ids=Object.keys(boards); if(!ids.length) return null;
   const notes={}; for(const k of ids){ const arr=o.notes&&Array.isArray(o.notes[k])?o.notes[k]:[]; notes[k]=arr.filter(n=>n&&Number.isInteger(n.x)&&Number.isInteger(n.z)&&typeof n.text==='string').slice(0,300).map(n=>({x:n.x,z:n.z,text:n.text.slice(0,500)})); }
   return {id:o.id,name:String(o.name||'Campaña').slice(0,40),boards,notes,cur:boards[o.cur]?o.cur:ids[0],updated:o.updated|0}; }
-function campOpen(o){ const c=campValid(o); if(!c){ showHint('Esa campaña está dañada.'); return; } CAMP=null; CAMP=c; const id=c.cur; const m=deserialize(c.boards[id].data); loadMap(m); drawNotes(); renderGame(); showHint('Campaña "'+c.name+'" abierta.',1600); }
+async function campOpen(o){ await PIECES_READY; const c=campValid(o); if(!c){ showHint('Esa campaña está dañada.'); return; } CAMP=null; CAMP=c; const id=c.cur; const m=deserialize(c.boards[id].data); loadMap(m); drawNotes(); renderGame(); showHint('Campaña "'+c.name+'" abierta.',1600); }
 function campNew(){ syncMinis(); const id=newCid(); CAMP={id:'c'+Math.random().toString(36).slice(2,9),name:'Campaña nueva',boards:{[id]:{name:M.name,data:JSON.parse(JSON.stringify(serialize()))}},notes:{[id]:[]},cur:id}; drawNotes(); renderGame(); }
 function campAddBoard(m){ if(!CAMP) return; campStore(); const id=newCid(); CAMP.boards[id]={name:m.name,data:JSON.parse(JSON.stringify((()=>{ const keep=M; M=m; const o=serializeOf(m); M=keep; return o; })()))}; CAMP.notes[id]=[]; renderGame(); return id; }
 // serializar un mapa que no es el actual (para añadirlo a la campaña)
@@ -4737,7 +4758,7 @@ function campExample(){
   showHint('Campaña de Brezo: lleva a un héroe junto a la bajada que hay al lado del pozo (el portal con escalones) para descender.',4000);
 }
 $('campFile').onchange=()=>{ const f=$('campFile').files&&$('campFile').files[0]; if(!f) return; const rd=new FileReader();
-  rd.onload=()=>{ try{ campOpen(JSON.parse(rd.result)); }catch(e){ showHint('Ese archivo no es una campaña válida.'); } $('campFile').value=''; }; rd.readAsText(f); };
+  rd.onload=()=>{ try{ campOpen(JSON.parse(rd.result)).catch(()=>showHint('Esa campaña está dañada.')); }catch(e){ showHint('Ese archivo no es una campaña válida.'); } $('campFile').value=''; }; rd.readAsText(f); };
 function renderCamp(){
   const p=$('gCamp'); if(!p) return; p.textContent='';
   if(LIVE.on&&!LIVE.dm){ p.append(el('div','t3d-ginfo','La campaña la lleva el DM; cuando cambie de tablero lo verás aquí automáticamente.')); return; }
@@ -4802,7 +4823,7 @@ function liveTok(b){ if(!LIVE.on||!b||!b.id) return; DB.doc('live/tokens').updat
 // pidiéndoselo al servidor, que es quien sabe el orden completo)
 function liveCombat(){ if(!LIVE.on) return; if(LIVE.dm) DB.doc('live/combat').set(combatState()).catch(liveErr); else DB.doc('live/combat').update({left:GM.left,dashed:GM.dashed}).catch(liveErr); }
 function liveBoardNow(){
-  if(!LIVE.on||!LIVE.dm) return; syncMinis(); const o=serialize(); delete o.minis; LIVE.rev=Date.now();
+  if(!LIVE.on||!LIVE.dm||!PIECES_OK) return Promise.resolve(); syncMinis(); const o=serialize(); delete o.minis; LIVE.rev=Date.now();
   const tokens={}; for(const b of bills) if(b.mini) tokens[b.id]=tokData(b);
   return Promise.all([DB.doc('live/board').set({open:true,rev:LIVE.rev,board:o,...(!CAMP&&M.boardId?{scene:M.boardId}:{})}),DB.doc('live/tokens').set({tokens})]).catch(liveErr);
 }

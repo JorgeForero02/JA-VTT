@@ -90,9 +90,18 @@
     return FACTORY['f:' + p.type] ? 'f:' + p.type : null;
   }
   // dibujo de objeto antiguo (`obj:o_…`): lo que hacía antes — sólido, 1×1, giro al azar, bajo (la maleza lo oculta)
-  const drawingDef = (id) => ({ schema: SCHEMA, id, name: id.slice(2), class: 'object', art: { base: id.slice(2) },
-    shape: { w: 1, d: 1, height: 1, orient: false, random: true, layer: 'object', low: true },
-    components: { move: { block: true }, sight: 'none', light: 'none' }, interactions: [], reactions: [] });
+  // se calcula una vez por dibujo y se guarda congelada (defOf se llama muchas veces por pieza en cada refreshEntities)
+  const DRAWN = new Map();
+  const drawingDef = (id) => {
+    let d = DRAWN.get(id);
+    if (!d) {
+      d = deepFreeze({ schema: SCHEMA, id, name: id.slice(2), class: 'object', art: { base: id.slice(2) },
+        shape: { w: 1, d: 1, height: 1, orient: false, random: true, layer: 'object', low: true },
+        components: { move: { block: true }, sight: 'none', light: 'none' }, interactions: [], reactions: [] });
+      DRAWN.set(id, d);
+    }
+    return d;
+  };
   function defOf(p, board) {
     const id = defIdOf(p);
     if (!id) return null;

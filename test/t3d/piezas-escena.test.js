@@ -154,3 +154,17 @@ test('R3b: gridOf(m, board) bloquea la casilla de una pieza p: (el cofre del tab
   const g = R.gridOf(m, board);
   assert.equal(g.open(1 * 8 + 2), false, 'p:cofre01 bloquea su casilla igual que uno de fábrica');
 });
+
+// Tarea 7, ronda de arreglos 1 (menor 2): una definición de terreno (f:g, f:w… o una p: de clase terrain) no es una pieza
+// que se coloque en `props`: el terreno vive en las letras de M.t. Antes `cleanProp` la aceptaba porque defOf la resolvía.
+test('cleanProp: una pieza cuyo tipo es un terreno (f:g, f:w o p: de clase terrain) se descarta', () => {
+  const board = new Map([['p:suelo01', Catalogo.validateDef({
+    id: 'p:suelo01', schema: 1, class: 'terrain', art: { base: 'suelo01' },
+    shape: { w: 1, d: 1, height: 1, orient: false, random: false, layer: 'ground', low: false },
+    components: { move: { block: false }, sight: 'none', light: 'none' },
+  })]]);
+  const m = R.cleanMap(F.map(8, { props: [
+    { type: 'g', x: 1, z: 1 }, { type: 'w', x: 2, z: 1 }, { type: 'suelo01', def: 'p:suelo01', x: 3, z: 1 }, { type: 'chest', x: 4, z: 1 },
+  ] }), board);
+  assert.deepEqual(m.props.map((p) => p.type), ['chest'], 'sólo queda el cofre');
+});
