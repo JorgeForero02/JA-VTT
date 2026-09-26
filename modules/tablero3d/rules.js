@@ -151,10 +151,15 @@ function cleanProp(p, w, d, board) {
   const finalDef = Catalogo.defOf(keep, board);
   if (!finalDef) return null;
   // Arreglo 2 (ronda 1): sólo se guardan los campos propios de lo que es esta pieza, según su definición final.
+  const isDoorProp = Catalogo.isDoor(keep, board);
   const own = base.type === 'light' ? ['preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'name']
-    : Catalogo.isDoor(keep, board) ? ['open', 'locked']
+    : isDoorProp ? ['open', 'locked']
     : Catalogo.wallKind(keep, board) === 'portal' ? ['id', 'look', 'target', 'name'] : [];
   for (const k of own) if (k in base) keep[k] = base[k];
+  // R12(a): una puerta `p:` (sin pasar por cleanWallProp, que sólo conoce los tipos de fábrica) llega aquí con `open`/
+  // `locked` en crudo (cleanProp los copia de `base` tal cual); se coacciona igual que hace cleanWallProp para que
+  // `locked: 'no'` (verdadero en JS) no acabe cerrando la puerta.
+  if (isDoorProp) { keep.open = !!keep.open; if (keep.locked !== true) delete keep.locked; }
   if (intIn(p.level, 0, 15)) keep.level = p.level;
   if (typeof p.side === 'string' && ['N', 'E', 'S', 'W'].includes(p.side)) keep.side = p.side;
   // `state` sólo si la definición final tiene estados (si no, Catalogo.complete podría copiarlo tal cual sin validar)
@@ -792,12 +797,15 @@ function liveChange(member, key, op, data, current, ctx) {
   return { error: 'Sólo el director puede cambiar la mesa' };
 }
 
+/* Definición de pieza del tablero (p:…), como la valida el cliente: Catalogo.validateDef */
+const cleanPiece = (o) => Catalogo.validateDef(o);
+
 module.exports = {
   ENVS, ENV_IDS, cleanEnv, cleanZoneCells,
   WALL_KINDS, DOOR_PROPS, WALL_PROPS, PORTAL_LOOKS, PASSABLE_PROPS, PROP_SPANS, stairsId, cleanWallProp, fixPortalIds, gridOf, arrival, portalIn, nearPortal,
   travelPlan, clearPortalsTo, tokensToMinis, minisToTokens, HP_VISIBILITY, BOARD_KEYS, DEFAULT_SETTINGS, cleanSettings, HOST_SETTINGS, settingsParts,
   SCENE_MAX_BYTES, CAMPAIGN_MAX_BYTES, LAYER_MAX_BYTES, MAX_LAYERS, BODY_LIMITS, docBytes: bytes,
   SCENE_FLAGS, cleanSceneFlags, PLAN_SHAPES, MAX_PLAYER_PLANS, cleanPlan, cleanNote, cleanInitiative, cleanCombat, playerCombat,
-  sheetFor, tokenFor, tokensFor, sceneFor, combatFor, liveDocFor, campaignFor, playerDoors,
+  sheetFor, tokenFor, tokensFor, sceneFor, combatFor, liveDocFor, campaignFor, playerDoors, cleanPiece,
   LIVE_KEYS, MAP_MAX, CHAR_SIZES, ROOF_MATS, ROOF_SHAPES, cleanRoof, LIGHT_PRESETS, ANIMS, TOKEN_LIGHTS, TOKEN_LIGHT_DEFS, CONDITION_IDS, cleanSheet, cleanLightProp, str, docId, cleanMap, cleanCampaign, cleanDrawing, drawingRecord, cleanLiveDoc, cleanTokens, liveChange, merge,
 };

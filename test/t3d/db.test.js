@@ -15,7 +15,7 @@ test('migrate es idempotente: segunda pasada no aplica nada, ni en el núcleo ni
   assert.deepEqual(await db.migrate(), []);
   assert.deepEqual(await t3dDb.migrate(), []);
   const mod = await db.pool.query('SELECT version, name FROM t3d.schema_migrations ORDER BY version');
-  assert.deepEqual(mod.rows.map((r) => r.name), ['001-esquema.sql', '002-tableros-3d.sql', '003-arte-por-tamano.sql', '004-ajustes-del-tablero.sql', '005-planos-en-vivo.sql', '006-tamano-guardado.sql']);
+  assert.deepEqual(mod.rows.map((r) => r.name), ['001-esquema.sql', '002-tableros-3d.sql', '003-arte-por-tamano.sql', '004-ajustes-del-tablero.sql', '005-planos-en-vivo.sql', '006-tamano-guardado.sql', '007-piezas.sql']);
 });
 
 test('módulo: luz de los objetos y opacidad y bloqueo de las capas', async () => {
@@ -27,7 +27,7 @@ test('módulo: su migración se puede repetir sin error (IF NOT EXISTS)', async 
   const sql = fs.readFileSync(path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'migrations', '001-esquema.sql'), 'utf8');
   await db.pool.query(sql);
   await db.pool.query(sql);
-  assert.deepEqual(await tables('t3d'), ['boards', 'campaigns', 'drawing_layers', 'drawings', 'live_docs', 'scenes', 'schema_migrations']);
+  assert.deepEqual(await tables('t3d'), ['boards', 'campaigns', 'drawing_layers', 'drawings', 'live_docs', 'pieces', 'scenes', 'schema_migrations']);
 });
 
 test('dibujos: se guardan con sus capas en bytes y se reemplazan al volver a guardar', async () => {
@@ -105,10 +105,10 @@ test('base con el núcleo de JA-VTT (su propia public.scenes): la 003 no la toca
     INSERT INTO scenes (id, board_id, name, created_at) VALUES ('s1', 'bjav', 'Escena 1', 0);`);
   // JA-VTT: no se aplica aquí ninguna migración del núcleo (su propia 003, «003-sin-muestras.sql», no tiene relación con esto);
   // el punto de la prueba es que la migración del módulo por sí sola no toca public.scenes
-  assert.deepEqual(await t3dDb.migrate(), ['t3d/001-esquema.sql', 't3d/002-tableros-3d.sql', 't3d/003-arte-por-tamano.sql', 't3d/004-ajustes-del-tablero.sql', 't3d/005-planos-en-vivo.sql', 't3d/006-tamano-guardado.sql']);
+  assert.deepEqual(await t3dDb.migrate(), ['t3d/001-esquema.sql', 't3d/002-tableros-3d.sql', 't3d/003-arte-por-tamano.sql', 't3d/004-ajustes-del-tablero.sql', 't3d/005-planos-en-vivo.sql', 't3d/006-tamano-guardado.sql', 't3d/007-piezas.sql']);
   assert.deepEqual(await tables('public'), ['board_members', 'boards', 'scenes', 'users']);
   assert.equal(await t3dDb.q.is3d('bjav'), false, 'en JA-VTT sus tableros siguen siendo 2D');
-  assert.deepEqual(await tables('t3d'), ['boards', 'campaigns', 'drawing_layers', 'drawings', 'live_docs', 'scenes', 'schema_migrations']);
+  assert.deepEqual(await tables('t3d'), ['boards', 'campaigns', 'drawing_layers', 'drawings', 'live_docs', 'pieces', 'scenes', 'schema_migrations']);
   assert.equal((await db.pool.query('SELECT name FROM public.scenes')).rows[0].name, 'Escena 1');
   const cols = await db.pool.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 't3d' AND column_name IN ('light_spec', 'char_size', 'opacity', 'locked') ORDER BY 1, 2");
   assert.deepEqual(cols.rows.map((r) => `${r.table_name}.${r.column_name}`), ['drawing_layers.locked', 'drawing_layers.opacity', 'drawings.char_size', 'drawings.light_spec']);

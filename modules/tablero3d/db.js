@@ -47,6 +47,13 @@ function makeQueries(exec) {
       ON CONFLICT (board_id, id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data, size = EXCLUDED.size, updated_at = EXCLUDED.updated_at`, [boardId, id, name, ...jsonOf(data), now()]),
     deleteCampaign: (boardId, id) => run('DELETE FROM t3d.campaigns WHERE board_id = $1 AND id = $2', [boardId, id]),
 
+    // definiciones de piezas del tablero (p:…); cuentan en la cuota con su `size`
+    pieces: (boardId) => all('SELECT id, name, data, updated_at FROM t3d.pieces WHERE board_id = $1 ORDER BY id', [boardId]),
+    countPieces: async (boardId) => (await one('SELECT COUNT(*)::int AS n FROM t3d.pieces WHERE board_id = $1', [boardId])).n,
+    upsertPiece: (boardId, id, name, data) => run(`INSERT INTO t3d.pieces (board_id, id, name, data, size, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)
+      ON CONFLICT (board_id, id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data, size = EXCLUDED.size, updated_at = EXCLUDED.updated_at`, [boardId, id, name, ...jsonOf(data), now()]),
+    deletePiece: (boardId, id) => run('DELETE FROM t3d.pieces WHERE board_id = $1 AND id = $2', [boardId, id]),
+
     drawings: (boardId, limit) => all(`SELECT ${DRAWING_COLS} FROM t3d.drawings WHERE board_id = $1 ORDER BY updated_at DESC LIMIT $2`, [boardId, limit]),
     drawingLayers: (boardId, ids) => all('SELECT drawing_id, idx, name, visible, opacity, locked, mime, data FROM t3d.drawing_layers WHERE board_id = $1 AND drawing_id = ANY($2) ORDER BY drawing_id, idx', [boardId, ids]),
     upsertDrawing: (boardId, d) => run(`INSERT INTO t3d.drawings (board_id, id, owner_id, key, kind, target, name, res, width, height, light, frames, cols, frame_names, size, created_at, updated_at, light_spec, char_size)
@@ -64,7 +71,8 @@ function makeQueries(exec) {
        sin contar ese documento, el que se va a sustituir */
     boardUsage: (boardId, except) => one(`SELECT (SELECT COALESCE(SUM(size), 0) FROM t3d.drawings WHERE board_id = $1 AND NOT ($2 = 'drawings' AND id = $3))::bigint
       + (SELECT COALESCE(SUM(size), 0) FROM t3d.scenes WHERE board_id = $1 AND NOT ($2 = 'scenes' AND id = $3))::bigint
-      + (SELECT COALESCE(SUM(size), 0) FROM t3d.campaigns WHERE board_id = $1 AND NOT ($2 = 'campaigns' AND id = $3))::bigint AS bytes`,
+      + (SELECT COALESCE(SUM(size), 0) FROM t3d.campaigns WHERE board_id = $1 AND NOT ($2 = 'campaigns' AND id = $3))::bigint
+      + (SELECT COALESCE(SUM(size), 0) FROM t3d.pieces WHERE board_id = $1 AND NOT ($2 = 'pieces' AND id = $3))::bigint AS bytes`,
     [boardId, except ? except.kind : '', except ? except.id : '']),
     // escenas y campañas guardadas antes de la migración 006, sin medir
     unsized: (table) => all(`SELECT board_id, id, data FROM t3d.${table === 'scenes' ? 'scenes' : 'campaigns'} WHERE size IS NULL`),

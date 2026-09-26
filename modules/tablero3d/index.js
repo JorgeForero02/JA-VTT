@@ -178,14 +178,50 @@ function createTablero3D(host) {
     return (await q.boardUsage(boardId, { kind, id: docId })).bytes + size > BOARD_QUOTA;
   }
 
+  /* Definiciones de piezas del tablero (fase 0 del arte propio): las leen los miembros (el jugador, sin las gmOnly) y las
+     cambia el director. El id de la ruta es el de la definición sin «p:». `boardPieces` es lo que reciben cleanMap,
+     cleanCampaign, sceneFor, campaignFor… (Ruling R3b) para que una pieza `p:` valide y se filtre igual que una de fábrica. */
+  const MAX_PIECES = 300;
+  async function boardPieces(id) { return new Map((await q.pieces(id)).map((r) => [r.id, r.data])); }
+  async function piecesRoutes(req, res, id, role, pid) {
+    const M = req.method;
+    if (!pid) {
+      if (M !== 'GET') return fail(res, 404, 'Ruta no encontrada');
+      const defs = (await q.pieces(id)).map((r) => r.data).filter((d) => role === 'gm' || !(d.components && d.components.gmOnly));
+      return json(res, 200, { pieces: defs });
+    }
+    if (role !== 'gm') return fail(res, 403, 'Solo el director cambia las piezas del tablero');
+    if (!/^[a-z0-9]{2,40}$/.test(pid)) return fail(res, 400, 'Identificador no válido');
+    if (M === 'DELETE') {
+      await q.deletePiece(id, 'p:' + pid);
+      await touch(id);
+      await refreshLivePieces(id);
+      return json(res, 200, { ok: true });
+    }
+    if (M !== 'PUT') return fail(res, 404, 'Ruta no encontrada');
+    const body = await readJson(req, R.BODY_LIMITS.small);
+    const def = R.cleanPiece(body);
+    if (!def || def.id !== 'p:' + pid) return fail(res, 400, 'La pieza no es válida');
+    const exists = (await q.pieces(id)).some((r) => r.id === def.id);
+    if (!exists && (await q.countPieces(id)) >= MAX_PIECES) return fail(res, 413, `Un tablero admite hasta ${MAX_PIECES} piezas`);
+    if (await overQuota(id, 'pieces', def.id, R.docBytes(def))) return fail(res, 413, 'El almacén del tablero está lleno');
+    await q.upsertPiece(id, def.id, def.name, def);
+    await touch(id);
+    await refreshLivePieces(id);
+    return json(res, 200, { ok: true });
+  }
+
   /* Escenas, campañas y dibujos: los leen todos los miembros (el jugador, filtrados como en la mesa: sin fichas ocultas, CA
-     ni vida ajenas, anotaciones del director ni planos sin publicar); los cambia el director */
+     ni vida ajenas, anotaciones del director ni planos sin publicar); los cambia el director. `board` (Ruling R3b): las
+     definiciones `p:` del tablero, para que cleanMap/cleanCampaign/sceneFor/campaignFor validen y filtren igual que una
+     pieza de fábrica. Sólo hace falta para escenas y campañas (los dibujos no tienen piezas). */
   async function contentRoutes(req, res, user, id, gm, kind, itemId) {
     const M = req.method;
     const member = { role: gm ? 'gm' : 'player', user_id: user.id };
     const settings = gm || kind === 'drawings' ? null : await readSettings(id);
-    const sceneView = (r) => (gm ? sceneOut(r) : Object.assign(R.sceneFor(r.data, member, settings), { id: r.id, name: r.name, updated: r.updated_at }));
-    const campaignView = (r) => (gm ? campaignOut(r) : R.campaignFor(campaignOut(r), member, settings));
+    const board = kind === 'scenes' || kind === 'campaigns' ? await boardPieces(id) : null;
+    const sceneView = (r) => (gm ? sceneOut(r) : Object.assign(R.sceneFor(r.data, member, settings, board), { id: r.id, name: r.name, updated: r.updated_at }));
+    const campaignView = (r) => (gm ? campaignOut(r) : R.campaignFor(campaignOut(r), member, settings, board));
     if (!itemId) {
       if (M !== 'GET') return fail(res, 404, 'Ruta no encontrada');
       if (kind === 'scenes') return json(res, 200, { scenes: (await q.scenes(id, LIST_LIMIT.scenes)).map(sceneView) });
@@ -210,12 +246,12 @@ function createTablero3D(host) {
     const body = await readJson(req, R.BODY_LIMITS[kind]);
     const full = 'El almacén del tablero está lleno';
     if (kind === 'scenes') {
-      const map = R.cleanMap(body);
+      const map = R.cleanMap(body, board);
       if (!map) return fail(res, 400, 'La escena no es válida o es demasiado grande');
       if (await overQuota(id, kind, docId, R.docBytes(map))) return fail(res, 413, full);
       await q.upsertScene(id, docId, map.name, map.w, map.d, map);
     } else if (kind === 'campaigns') {
-      const camp = R.cleanCampaign(Object.assign({}, body, { id: docId }));
+      const camp = R.cleanCampaign(Object.assign({}, body, { id: docId }), board);
       if (!camp) return fail(res, 400, 'La campaña no es válida o es demasiado grande');
       if (await overQuota(id, kind, docId, R.docBytes(camp))) return fail(res, 413, full);
       await q.upsertCampaign(id, docId, camp.name, camp);
@@ -232,8 +268,9 @@ function createTablero3D(host) {
   /* ---------------- portales (como los de JA-VTT, entre escenas 3D del tablero) ---------------- */
   // al borrar una escena, los portales que llevaban allí se quedan sin destino: en las escenas guardadas y en la mesa abierta
   async function clearPortalsTo(boardId, sceneId) {
+    const board = await boardPieces(boardId);
     for (const r of await q.allScenes(boardId)) {
-      const map = R.cleanMap(r.data);
+      const map = R.cleanMap(r.data, board);
       if (map && R.clearPortalsTo(map, sceneId)) await q.setSceneData(boardId, r.id, map);
     }
     const L = live.get(boardId), bd = L && L.docs.get('board');
@@ -245,13 +282,15 @@ function createTablero3D(host) {
   const newTokenId = () => 'm' + crypto.randomBytes(4).toString('hex');
   const httpError = (status, message) => Object.assign(new Error(message), { status });
   /* Lleva fichas de la escena `fromId` (su mapa `src`, con los personajes) a `targetId`, junto a su portal `portalId` (o al
-     punto de entrada), y guarda las dos escenas. pick = { ids } o { players: true } (todo el grupo, «Reunir al grupo»). */
-  async function moveScenes(boardId, fromId, src, targetId, portalId, pick) {
+     punto de entrada), y guarda las dos escenas. pick = { ids } o { players: true } (todo el grupo, «Reunir al grupo»).
+     `board` (Ruling R3b): las definiciones `p:` del tablero, para R.cleanMap y R.travelPlan (una pieza del tablero bloquea
+     igual que una de fábrica al buscar sitio de llegada). */
+  async function moveScenes(boardId, fromId, src, targetId, portalId, pick, board) {
     const same = targetId === fromId;
     const row = same ? null : await q.scene(boardId, targetId);
-    const dst = same ? src : row && R.cleanMap(row.data);
+    const dst = same ? src : row && R.cleanMap(row.data, board);
     if (!dst) throw httpError(404, 'Esa escena ya no existe');
-    const plan = R.travelPlan(src, dst, Object.assign({ portal: portalId }, pick));
+    const plan = R.travelPlan(src, dst, Object.assign({ portal: portalId }, pick), board);
     await tx(async (t) => {
       if (!same) await t.upsertScene(boardId, fromId, plan.src.name, plan.src.w, plan.src.d, plan.src);
       await t.upsertScene(boardId, targetId, plan.dst.name, plan.dst.w, plan.dst.d, plan.dst);
@@ -274,15 +313,16 @@ function createTablero3D(host) {
   /* Fuera de la mesa en vivo, el director cruza (o reúne al grupo) con la escena que tiene abierta: la manda con sus personajes */
   async function travelRoute(req, res, id) {
     const body = await readJson(req, R.BODY_LIMITS.travel);
-    const fromId = R.docId(body.from), map = R.cleanMap(body.map);
+    const board = await boardPieces(id);
+    const fromId = R.docId(body.from), map = R.cleanMap(body.map, board);
     if (!fromId || !map) return fail(res, 400, 'La escena de origen no es válida');
     const { targetId, portalId } = destination(map, { portal: body.portal, scene: body.to });
-    const plan = await moveScenes(id, fromId, map, targetId, portalId, pickOf(body));
+    const plan = await moveScenes(id, fromId, map, targetId, portalId, pickOf(body), board);
     return json(res, 200, { scene: Object.assign({}, plan.dst, { id: targetId }), moved: plan.moved, left: plan.left });
   }
   async function portalsRoute(res, id, sceneId) {
     const row = sceneId && await q.scene(id, sceneId);
-    const map = row && R.cleanMap(row.data);
+    const map = row && R.cleanMap(row.data, await boardPieces(id));
     if (!map) return fail(res, 404, 'Escena no encontrada');
     const portals = map.props.filter((p) => p.type === 'portal').map((p) => ({ id: p.id, name: p.name || '', look: p.look, target: p.target }));
     return json(res, 200, { scene: { id: row.id, name: row.name }, portals });
@@ -347,6 +387,7 @@ function createTablero3D(host) {
       return travelRoute(req, res, id);
     }
     if (kind === 'scenes' && parts[5] === 'portals' && req.method === 'GET') return portalsRoute(res, id, R.docId(itemId));
+    if (kind === 'pieces') return piecesRoutes(req, res, id, role, itemId);
     if (['scenes', 'campaigns', 'drawings'].includes(kind)) return contentRoutes(req, res, user, id, role === 'gm', kind, itemId);
     return fail(res, 404, 'Ruta no encontrada');
   }
@@ -377,10 +418,17 @@ function createTablero3D(host) {
     const cb = docs.get('combat');
     if (cb && !cb.initiative) docs.set('combat', R.cleanLiveDoc('combat', cb, (docs.get('tokens') || {}).tokens));
     const settings = await readSettings(id);
+    const pieces = await boardPieces(id); // Ruling R3b: las definiciones `p:` del tablero, para toda la mesa en vivo
     if (live.has(id)) return live.get(id);
-    const L = { id, docs, settings, dirty: new Set(), removed: new Set(), clients: new Map(), flushing: false };
+    const L = { id, docs, settings, pieces, dirty: new Set(), removed: new Set(), clients: new Map(), flushing: false };
     live.set(id, L);
     return L;
+  }
+  /* Tras un PUT/DELETE de una pieza del tablero (Ruling R3b): si la mesa está cargada, refresca sus definiciones para que
+     la próxima lectura (viewFor, liveChange, handleTravel) las vea al día sin esperar a que la mesa se descargue. */
+  async function refreshLivePieces(id) {
+    const L = live.get(id);
+    if (L) L.pieces = await boardPieces(id);
   }
 
   async function flush(L) {
@@ -425,7 +473,7 @@ function createTablero3D(host) {
   }
   /* Un documento de la mesa a cada conexión, filtrado para su rol (R.liveDocFor); `only(conn)` limita a quién va */
   const docsOf = (L) => Object.fromEntries(L.docs);
-  const viewFor = (L, c, key) => R.liveDocFor(key, L.docs.has(key) ? L.docs.get(key) : null, { role: c.role, user_id: c.user.id }, L.settings, docsOf(L));
+  const viewFor = (L, c, key) => R.liveDocFor(key, L.docs.has(key) ? L.docs.get(key) : null, { role: c.role, user_id: c.user.id }, L.settings, docsOf(L), L.pieces);
   function broadcastDoc(L, key, only) {
     const cache = new Map(); // mismo rol y usuario, misma vista
     for (const c of L.clients.keys()) {
@@ -460,7 +508,7 @@ function createTablero3D(host) {
     const key = String(d.key || '');
     const member = { role: c.role, user_id: c.user.id };
     const tokens = (L.docs.get('tokens') || { tokens: {} }).tokens;
-    const result = R.liveChange(member, key, d.op, d.data, L.docs.get(key) || null, { board: L.docs.get('board'), settings: L.settings, tokens });
+    const result = R.liveChange(member, key, d.op, d.data, L.docs.get(key) || null, { board: L.docs.get('board'), settings: L.settings, tokens, pieces: L.pieces });
     const ack = (ok, error) => { if (d.req != null) c.ws.send({ t: 'ack', req: d.req, ok, error }); };
     if (result.error) return ack(false, result.error);
     if (result.doc === null) { L.docs.delete(key); L.dirty.delete(key); L.removed.add(key); }
@@ -494,7 +542,7 @@ function createTablero3D(host) {
       }
       if (!bd.scene) return ack(false, 'Guarda la escena en el tablero antes de cruzar');
       const src = Object.assign({}, bd.board, { minis: R.tokensToMinis(tokens) });
-      const plan = await moveScenes(L.id, bd.scene, src, dest.targetId, dest.portalId, pick);
+      const plan = await moveScenes(L.id, bd.scene, src, dest.targetId, dest.portalId, pick, L.pieces);
       const docs = { board: { open: true, rev: Date.now(), scene: dest.targetId, board: Object.assign({}, plan.dst, { minis: [] }) }, tokens: { tokens: R.minisToTokens(plan.dst.minis, newTokenId) } };
       for (const [k, v] of Object.entries(docs)) { L.docs.set(k, v); L.dirty.add(k); L.removed.delete(k); }
       for (const k of Object.keys(docs)) broadcastDoc(L, k);
