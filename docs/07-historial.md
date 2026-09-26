@@ -2,6 +2,42 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — P-48: puertas `p:` por toda su huella y `WALLAT` con varias piezas por casilla (rama `p48-piezas`, sin desplegar)
+
+- **Qué** (sólo en `modules/tablero3d/public/tablero3d.js`; sólo alcanzable con piezas `p:`, las de fábrica son 1×1):
+  - **(a)** una puerta de varias casillas bloquea (`blocked`/`doorShut`/`lockedDoors`) **todas** las de su huella
+    (`propCells`), como `gridOf`/`gmOnlyBlockCells` del servidor: en `refreshEntities`, `toggleDoor` (abrir/cerrar;
+    `lockDoor` pasa por los dos), `doorAt` (la puerta con esquina en la casilla primero; si no, la que la cubre: menú
+    contextual y apertura al pasar desde cualquier casilla; la mesa en vivo sigue con la clave `x_z` de la esquina),
+    `doorRelight` (cada casilla cuenta para las luces cercanas) y `openings` (la luz de fuera entra por cada casilla).
+  - **(b)** `WALLAT` pasa a casilla → **lista** de piezas (`wallAdd`); `GRID.bk` y `AGRID.bk` usan `wallBlocks`: tapa si
+    alguna tapa. Antes una `p:` que tapa puesta sobre una ventana de fábrica la pisaba o quedaba pisada según el orden.
+  - `probe('cell', x, z)` (sólo lectura, para las pruebas): `{blocked, shut, locked}` de una casilla.
+- **Por qué:** menores de la revisión final de la fase 0 (P-48); el cliente dejaba cruzar la segunda casilla de una
+  puerta `p:` cerrada que el servidor sí bloquea, y la vista a través de una ventana dependía del orden de las piezas.
+- **Test primero:** dos pasos nuevos en `test/e2e/t3d.mjs` — puerta `p:` 2×1 en un hueco de muro, tocada en su casilla
+  que no es la esquina (cerrada: las dos bloqueadas; abierta: ninguna; con llave `probe('route')` = null; sin llave el
+  director la cruza) y `p:` con `sight:'block'` sobre una ventana (antes y después en la lista: tapa; importada la escena
+  sin ella, se ve). **Sin el arreglo fallaban los dos** (35/37: la casilla (4,4) libre y sin menú de puerta; la ventana
+  pisaba la `p:`). Roto a propósito después: `toggleDoor` sólo sobre la esquina → falla el paso (a). Contrato en
+  `test/t3d/frontend.test.js` (+1 test, 2 aserciones puestas al día).
+- **Verificado:** `node --test --test-concurrency=1 test/t3d/*.test.js` → 221/221 · `npx eslint modules/tablero3d test/t3d
+  test/e2e/t3d.mjs` limpio · `npm run test:t3d` → **37/37** tres veces seguidas (el paso de equivalencia de fábrica
+  sigue idéntico).
+- **Rendimiento de `refreshEntities`** (escena 160×160 con 5000 objetos: 26 tipos de fábrica —puertas, ventanas, velos,
+  maleza, barreras, luces, puentes, puestos…— y un 15 % de `p:` de 2×1/1×1 —velo, puerta, farol, mesa—; `probe` temporal
+  que lo llama 30 veces tras 5 de calentamiento; `main` @ b77950b en un worktree temporal contra esta rama, alternando,
+  tres tandas cada una; Edge headless con SwiftShader; ni el guion ni el `probe` quedan en el repo):
+
+  | | tanda 1 | tanda 2 | tanda 3 | mediana | media |
+  |---|---|---|---|---|---|
+  | `main` (mediana por tanda, ms) | 460 | 434 | 439 | 439 | 453 |
+  | `p48-piezas` (ms) | 482 | 424 | 445 | 445 | 446 |
+
+  → **×1,01** (mediana; ×0,99 en media), dentro del ×1,15. Los números absolutos no se comparan con los 128/140 ms de
+  la fase 0: otra escena (con puertas y `p:`) y otra forma de llamar; lo que vale es el cociente en la misma máquina.
+- **Revertir:** `git revert` del commit del arreglo (`1abf164`); sin migraciones ni datos.
+
 ## 2026-09-26 — Despliegue de main @ d69bd08 (fase 0 del arte propio + arreglo de caída del upgrade)
 
 - **Antes:** ensayo de sólo lectura con los datos reales (`cleanMap`/`cleanCampaign` nuevos sobre la escena y la campaña de

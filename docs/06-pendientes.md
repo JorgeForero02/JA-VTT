@@ -15,7 +15,6 @@ Actualizado: 2026-09-26. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 | P-40 | P1 | Tablero 3D: medir con GPU real y en un portátil (todo lo medido hasta ahora fue con SwiftShader y a tamaño de escritorio). Junto con P-35 (móvil) | Tabla de fps/CPU en portátil real en [07](07-historial.md) |
 | P-42 | P2 | Licencia: el módulo vive ahora en este repositorio público con `LICENSE` MIT; `3d-tablero` no tenía licencia. Confirmar que el módulo queda bajo MIT (decisión legal del usuario) | Decisión anotada en [07](07-historial.md) |
 | P-47 | P2 | `npm run test:ui` (2D) falló una vez en 8 ejecuciones el 2026-09-26 (53/54, primera tras arrancar el servidor; el paso no quedó registrado) y pasó 7 seguidas después. Vigilar: si vuelve, registrar el paso que falla | Diez `test:ui` seguidos en verde, o el paso identificado y arreglado |
-| P-48 | P1 | Fase 1, primeras tareas (menores de la revisión final de la fase 0, sólo alcanzables con piezas `p:`): (a) una puerta `p:` de varias casillas cerrada bloquea en el cliente sólo su casilla de origen (`blocked`/`doorShut` en `refreshEntities` y `toggleDoor`) mientras el servidor bloquea todas; (b) `WALLAT` guarda una pieza por casilla: una `p:` que tapa sobre un muro de fábrica lo pisa; (c) volver a medir `refreshEntities` tras `senseOf` (el ×1,09 es de antes de la ola final) | Tests de (a) y (b) y medida anotada en [07](07-historial.md) |
 | P-04 | P2 | Subir el pipeline a **N3**: mutación automatizada (N2 —cobertura con umbral— cerrado el 2026-09-19) | Comando en [04](04-convenciones.md) Parte C |
 | P-06 | P2 | Renombrar la carpeta local `mini-vtt` → `just-another-vtt` (no se hizo para no romper la sesión) | `git status` limpio tras mover |
 | P-07 | P2 | El pulso de luz aún se percibe «un poco» a saltos (usuario, 2026-09-16, con 60 Hz, 0,2 ms/frame y dithering ±1). Siguiente vuelta: dithering ±2 niveles o ruido temporal; medir con capturas consecutivas | El usuario lo da por fluido |
@@ -39,7 +38,10 @@ Cerrados: P-01, P-02, P-03 (2026-09-16); **P-05** el 2026-09-19 (ya existía `#p
 `rules`, `frontend`, `realtime`, `db`… de `test/t3d/` — corren contra el servidor de JA-VTT en `npm test`);
 **P-28** el 2026-09-26 (causa real hallada y arreglada: `sock.on('error', () => {})` en
 `server.on('upgrade', ...)` de `server/app.js`, ver [07](07-historial.md); `test/realtime.test.js` 5/5
-seguidas en verde tras el arreglo).
+seguidas en verde tras el arreglo);
+**P-48** el 2026-09-26 (rama `p48-piezas`: puertas `p:` por toda su huella y `WALLAT` con varias piezas por casilla;
+dos pasos nuevos en `test:t3d` que fallaban antes del arreglo, 37/37 tras él; `refreshEntities` ×1,01 respecto de `main`,
+tabla en [07](07-historial.md)).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
 
