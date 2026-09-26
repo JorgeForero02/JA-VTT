@@ -906,6 +906,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.on('upgrade', async (req, sock) => {
+  sock.on('error', () => {}); // un cliente que corta (ECONNRESET) antes de que ws.js ponga su escucha no debe tumbar el proceso
   const url = new URL(req.url, 'http://local');
   if (url.pathname !== '/ws' && url.pathname !== '/t3d/ws') return sock.destroy(); // t3d
   try {

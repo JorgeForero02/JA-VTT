@@ -2,6 +2,25 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — El servidor sobrevive a un RST antes de que ws.js escuche 'error' (excepción puntual al anfitrión 2D, rama `fase0-piezas`)
+
+- **Qué:** primera línea de `server.on('upgrade', ...)` en `server/app.js`: `sock.on('error', () => {})`.
+- **Por qué:** entre que llega la petición de upgrade y que `server/ws.js` (`new Socket(sock)`) pone su
+  propia escucha de `'error'`, el socket crudo no tiene ninguna; un cliente que corta con RST durante
+  `userFrom`, la respuesta 401, el 400 de `acceptUpgrade` o el `sock.destroy()` del `catch` hace que
+  `sock.end()`/`sock.write()` falle **de forma asíncrona**, ya fuera de ese `try/catch` — `uncaughtException`
+  sin escucha, y cae el proceso entero (2D y 3D). Medido en producción: 4–6 de cada 300 conexiones sin sesión.
+- **Test primero** (`test/ws-reset.test.js`, nuevo): 500 conexiones TCP crudas piden `/ws?board=x` sin
+  cookie y cortan con `resetAndDestroy()` en cuanto llega el primer byte de respuesta (justo la ventana
+  donde el servidor ya está contestando); se instala un `process.on('uncaughtException')` durante toda
+  la vida del test. **Sin la línea, el test falla 5/5** (el `ECONNRESET` async tumba el proceso, node
+  lo reporta como actividad asíncrona tras terminar el hook `before`). **Con la línea, pasa 5/5** y
+  `GET /api/health` sigue en 200.
+- **Verificado:** `node --test test/ws-reset.test.js` → 5/5 con el arreglo · `npm run check` completo
+  (lint + todos los tests, 2D y 3D) → verde, tres veces seguidas · `test/realtime.test.js` (el flake de
+  P-28) → 5/5 seguidas, limpio; **P-28 cerrado**.
+- **Revertir:** quitar esa línea de `server/app.js` (commit único, sin migraciones).
+
 ## 2026-09-26 — Fase 0: ola final de arreglos tras la revisión de toda la rama (rama `fase0-piezas`, sin desplegar)
 
 - **Qué** (decisiones en `.superpowers/sdd/2026-09-26-fase0-cimientos-piezas/final-fix.md`, Rulings R19–R21):

@@ -22,7 +22,6 @@ Actualizado: 2026-09-26. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 | P-08 | P2 | Cuentas de prueba que deja `npm run test:ui` contra producción (`dir-*`, `jug-*`, `pulse-*`…) si algún día se ejecuta contra `tablero.supportive.pro`: borrar a mano | `SELECT name FROM users` sin cuentas de prueba |
 | P-24 | P2 | Audio ambiental por escena y SFX (dados, puertas). Spec §6 · plan C | Prueba en navegador con sonido |
 | P-25 | P2 | Girar una luz (campo «Dirección (°)») en el editor no cambia su preset a «Personalizada», a diferencia de radio/color/apertura; evaluar si la dirección debe independizarse del preset o marcarlo como personalizado | Comportamiento acordado y test de editor |
-| P-28 | P2 | `npm run check` falla a veces en `realtime.test.js` (`ECONNRESET` en el hook `before`, 1–3 tests) y al repetir pasa 95/95. Visto el 2026-09-21 tras ejecutar `test:ui`; el servidor de test escucha en puerto aleatorio, así que no es choque con el de 3999 Visto otra vez el 2026-09-26 tras `test:ui` (también «iniciativa: sólo el director la cambia…»); tres `check` seguidos después, 100/100 | Diez `check` seguidos en verde |
 | P-29 | P2 | La barra de iniciativa sobre el mapa tiene dos reglas `.initBar`/`.initEntry` distintas en `app.css`: una con colores fijos («siempre oscura sobre el mapa») y otra con variables del tema, que es la que manda. Decidir cuál es la buena y borrar la otra | Una sola copia y captura de la barra en tema claro y oscuro |
 | P-26 | P2 | Pastilla de elevación pisa el primer badge en fichas de tamaño 1 (captura 08-fichas-estado.png); moverla o bajar la fila de badges | Captura de test:ui sin solape |
 | P-43 | P2 | Tablero 3D, fase 0: las puertas escriben su estado en `state` **y** en `open`/`locked` de la raíz (vuelta atrás mientras convive con la versión anterior, spec §3.2). Quitar el espejo cuando ya no haga falta | Espejo quitado y test actualizado, anotado en [07](07-historial.md) |
@@ -37,7 +36,10 @@ Cerrados: P-01, P-02, P-03 (2026-09-16); **P-05** el 2026-09-19 (ya existía `#p
 **P-22, P-23** el 2026-09-19 (plan B; evidencia: tests en rules/realtime/frontend, pasos regla/notas en test:ui y capturas 10/11);
 **P-27** el 2026-09-19 (decidido: tapada por visión; test en ui.mjs y noteVisibleToPlayers en core.js);
 **P-41** el 2026-09-26 (los tests del módulo — `catalogo`, `piezas-escena`, `piezas-api`, `piezas-wiring`,
-`rules`, `frontend`, `realtime`, `db`… de `test/t3d/` — corren contra el servidor de JA-VTT en `npm test`).
+`rules`, `frontend`, `realtime`, `db`… de `test/t3d/` — corren contra el servidor de JA-VTT en `npm test`);
+**P-28** el 2026-09-26 (causa real hallada y arreglada: `sock.on('error', () => {})` en
+`server.on('upgrade', ...)` de `server/app.js`, ver [07](07-historial.md); `test/realtime.test.js` 5/5
+seguidas en verde tras el arreglo).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
 
