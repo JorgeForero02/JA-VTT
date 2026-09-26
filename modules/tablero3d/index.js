@@ -509,9 +509,13 @@ function createTablero3D(host) {
 
   async function join(conn) {
     if (!await q.is3d(conn.board.id)) return {}; // tablero 2D: el módulo no lo atiende (ws devolverá false)
-    const L = await openLive(conn.board.id);
-    if (!live.has(L.id)) live.set(L.id, L); // pudo descargarse mientras se abría
-    await syncSettings(L);
+    const opened = await openLive(conn.board.id);
+    await syncSettings(opened);
+    /* Mientras se abría y se releían los ajustes, la mesa aún no tenía a este cliente: flushAll pudo descargarla (y otro,
+       volver a abrirla). Se toma la que esté en memoria AHORA, sin ningún await hasta meter al cliente, o éste quedaría
+       colgado de una mesa huérfana: sin `state` y con sus mensajes ignorados (handleMsg la busca en `live`). */
+    if (!live.has(opened.id)) live.set(opened.id, opened);
+    const L = live.get(opened.id);
     const p = { peer: 'p' + crypto.randomBytes(5).toString('hex'), presence: {}, updatedAt: Date.now() };
     L.clients.set(conn, p);
     sendPeers(L, conn); // quien entra recibe lo mismo dentro de su `state`

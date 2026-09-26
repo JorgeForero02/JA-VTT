@@ -43,6 +43,8 @@ function makeHost(opts = {}) {
     }
   });
   srv.on('upgrade', async (req, sock) => {
+    // tras 'upgrade', Node ya no escucha los errores del socket: un cliente que corta (ECONNRESET) tumbaría el proceso
+    sock.on('error', () => {});
     const url = new URL(req.url, 'http://local');
     if (url.pathname !== '/t3d/ws') return sock.destroy();
     const user = await userFrom(req);
@@ -325,6 +327,29 @@ test('integrado: la mesa 3D sigue los ajustes del anfitrión — cada tirada los
   assert.equal((await a.next((m) => m.t === 'ack' && m.req === 2)).ok, true);
   await a.close(); await b.close();
   await H.mod.close(); await new Promise((r) => H.srv.close(r));
+});
+
+/* La mesa se descarga sola (flushAll cada FLUSH_MS) cuando no le queda nadie. Si esa descarga cae mientras alguien
+   entra —join ya la abrió pero todavía no le ha metido entre sus clientes—, quien entra no puede quedarse colgado de una
+   mesa que ya no está en memoria: sin `state` o, peor, con sus mensajes ignorados. Aquí la descarga se fuerza justo en
+   el hueco (la relectura de ajustes del anfitrión que hace join). */
+test('integrado: una descarga de la mesa mientras alguien entra no le deja en una mesa huérfana', async (t) => {
+  const { board, cookie, gm } = await people('Huerfana');
+  let unloadOnRead = false;
+  const H = makeHost({
+    boardSettings: async () => { if (unloadOnRead) await H.mod.flushAll(); return null; },
+    setBoardSettings: async () => {},
+  });
+  const url = await listen(H.srv);
+  t.after(async () => { await H.mod.close(); await new Promise((r) => H.srv.close(r)); }); // también si falla: si no, la tanda se cuelga
+  unloadOnRead = true;
+  const a = connect(url, board.id, cookie(gm), '/t3d/ws');
+  assert.equal((await a.next((m) => m.t === 'state', 2000)).role, 'gm', 'quien entra recibe su estado');
+  unloadOnRead = false;
+  assert.equal(H.mod.isLoaded(board.id), true, 'la mesa sigue en memoria con su conexión dentro');
+  a.send({ t: 'live', req: 1, key: 'doors', op: 'set', data: { d: {} } });
+  assert.equal((await a.next((m) => m.t === 'ack' && m.req === 1, 2000)).ok, true, 'y atiende sus mensajes');
+  await a.close();
 });
 
 /* ---- límites de cuerpo por ruta y cuota con una sola medida (T8) ---- */
