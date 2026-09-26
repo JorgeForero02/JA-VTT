@@ -102,6 +102,10 @@ Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz 
   como `roll`) y los **ajustes del tablero** (`boards.settings`, única fuente: el 3D los lee y
   cambia con `boardSettings`/`setBoardSettings`).
 - **Con la mesa 3D abierta** el bucle 2D no dibuja y el clima 2D se desmonta (`render.js`, `weather.js`).
+- **Guardado automático** (cliente del módulo): cada 2 s compara la escena serializada (o la campaña) con
+  lo último guardado y, si cambió, la guarda por la API de siempre (`PUT …/scenes/:id`, `…/campaigns/:id`).
+- **Conexión**: `Tablero3D.mount` expone `status()` y `ping()`; `main.js` los junta con los del `Net` en
+  Mesa → Conexión (`net.js` deja medir su `pong` con `Net.onPong`, línea `// t3d`).
 - **Interruptor**: `T3D=off` apaga el módulo (sin migrar, rutas 404, `/t3d/t3d.js` vacío).
 - Trampa de tests: `resetSchema()` borra `public` en cascada y deja `t3d` sin sus claves
   ajenas; `test/t3d.test.js` borra también `t3d` antes de empezar.

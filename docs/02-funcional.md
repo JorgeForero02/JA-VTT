@@ -40,6 +40,13 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 - Una mesa 3D abre directamente la vista 3D: pestañas Escena · Fichas · Partida · Campaña (del
   módulo) + Mesa · Chat (de JA-VTT). Lo que hace dentro está en
   [modules/tablero3d/README.md](../modules/tablero3d/README.md).
+- **Guardado automático** (2026-09-26), como el 2D: la escena que edita el director se guarda sola en el
+  tablero unos 2 s después de cada cambio (en una campaña, la campaña). Abrir una escena no la guarda; el
+  estado sale en Escena → «Esta escena» y Ctrl+S guarda al momento. «Guardar como nueva» crea una copia
+  aparte, que pasa a ser la que se edita. Los jugadores no guardan.
+- **Mesa → Conexión** en una mesa 3D: el estado cuenta las dos conexiones (chat de JA-VTT y tablero 3D) y el
+  render 3D (fps, ms de CPU por fotograma, llamadas, triángulos); «Probar conexión» mide las dos. «Vista» y
+  «Atajos de teclado» del 2D no se muestran (el 3D tiene su ayuda con «?»).
 - Las tiradas de su mesa en vivo aparecen en el Chat como tiradas; sus ajustes («Dados», «Chat de
   texto», vida, puertas…) son los mismos del tablero.
 - Límites vigentes en [06](06-pendientes.md) (P-32 a P-36).

@@ -35,7 +35,7 @@ docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # 
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
 npm run test:ui          # 14 pasos: registro, perfil, chat, dados, iniciativa, recuperación; capturas en test/e2e/capturas
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
-npm run test:t3d         # tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): mesa 3D, jugador, mesa en vivo, tirada, ajustes, mesa 2D, consola
+npm run test:t3d         # 26 pasos del tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): guardado automático, conexión, mesa en vivo, tirada, ajustes, mesa 2D, consola
 ```
 
 No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.

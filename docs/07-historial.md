@@ -2,6 +2,21 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Tablero 3D: documentación traída, guardado automático y Mesa → Conexión
+
+- **Qué:** (1) `docs/` y README de `3d-tablero@403d6a5` en `modules/tablero3d/docs/` con índice propio; el módulo
+  se mantiene aquí desde hoy (regla en [04](04-convenciones.md) B.1b; pendientes abiertos del 3D en 06, P-37 a P-42);
+  su prueba de humo pasa a `npm run test:t3d`. (2) Guardado automático de la escena 3D (o de la campaña) del director,
+  cada 2 s si cambió; «Guardar en el tablero» pasa a «Guardar como nueva»; Ctrl+S guarda al momento. (3) Mesa →
+  Conexión en una mesa 3D: estado de las dos conexiones y del render 3D, «Probar conexión» mide las dos
+  (`mount().status()/ping()`, `Net.onPong`); «Vista» y «Atajos» del 2D ocultos.
+- **Por qué:** petición del usuario: el 3D no guardaba solo como el 2D y «Probar conexión» medía sólo la del chat.
+- **Verificado:** `test:t3d` 26/26 (5 pasos nuevos, en rojo antes de implementar; mutaciones: sin guardado automático
+  caen 2, sin `pong` del 3D cae 1; el paso del chat, que a veces leía la casilla antes de tiempo, ahora espera) ·
+  campaña: se guarda la campaña y no se crean escenas sueltas · `test:ui` 54/54 · `check` 100/100 (una pasada tras
+  `test:ui` dio los fallos intermitentes de P-28; tres seguidas después, verdes).
+- **Revertir:** `git revert` de los commits; sin migración ni cambios de servidor.
+
 ## 2026-09-26 — Despliegue de main @ f3e5f68 (tablero 3D, módulo activo)
 
 - **Qué:** copia `pg_dump` de la base en `vps1new:/root/backups/ja-vtt-predeploy/jav-2026-09-26-1527-pre-t3d.sql.gz`
