@@ -30,13 +30,14 @@ correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RE
 
 | Fichero | Para qué |
 |---|---|
-| `Dockerfile` | `node:22-alpine`, `npm ci --omit=dev`, usuario `node`, `HEALTHCHECK` sobre `/api/health` |
+| `Dockerfile` | `node:22-alpine`, `npm ci --omit=dev`, usuario `node`, `HEALTHCHECK` sobre `/api/health`; copia `modules/` (tablero 3D). **Codificación ISO-8859-1**: no guardarlo en UTF-8 |
 | `docker-compose.yml` | Pila `db` (postgres:16-alpine, volumen `pgdata`) + `app`. **Sin `ports`**: en producción entra Traefik |
 | `docker-compose.override.yml` | Sólo local: publica `APP_PORT` (3000) y pasa `NPM_STRICT_SSL`. Coolify no lo lee |
 | `.env.example` | Variables; copiar a `.env` en local. `.env` está en `.gitignore` |
 
 Variables: `POSTGRES_USER` (jav) · `POSTGRES_PASSWORD` (**obligatoria**) · `POSTGRES_DB` (jav) ·
-`APP_PORT` (local) · `NPM_STRICT_SSL` (local; ver gotcha abajo). `DATABASE_URL` y `PORT` los
+`APP_PORT` (local) · `NPM_STRICT_SSL` (local; ver gotcha abajo) · `T3D` (opcional: `off` apaga
+el módulo del tablero 3D; sin ella está activo y al arrancar crea el esquema `t3d`). `DATABASE_URL` y `PORT` los
 compone el compose; la app sólo lee esos dos.
 
 ## Local (este PC)

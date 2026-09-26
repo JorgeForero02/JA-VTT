@@ -21,6 +21,7 @@ server/rules.js    Dominio: saneado de objetos, permisos de jugador, visibilidad
 server/auth.js     Dominio: contraseñas (scrypt)
 server/db.js       Infraestructura: pool pg, migraciones, TODAS las consultas SQL
 server/ws.js       Infraestructura: protocolo WebSocket
+modules/tablero3d/ Módulo del tablero 3D (esquema t3d, API /api/t3d, cliente /t3d/, WebSocket /t3d/ws)
 ```
 
 Regla: **nadie fuera de `db.js` escribe SQL**. `app.js` llama a `q.<consulta>()` o a
@@ -80,6 +81,30 @@ Registro abierto (`POST /api/register`) con nombre (2–24 caracteres) y contras
 Hash `scrypt$N$sal$hash` con `crypto.scrypt` nativo. Login devuelve el mismo 401 para
 usuario inexistente y contraseña mala. Sin rate-limit, sin recuperación de contraseña:
 decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
+
+## Módulo del tablero 3D (`modules/tablero3d`, desde 2026-09-26)
+
+Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz en
+[modules/tablero3d/README.md](../modules/tablero3d/README.md) y guía de montaje en
+`3d-tablero/docs/08-integracion-ja-vtt.md`. Lo que JA-VTT le añade son 78 líneas marcadas
+`// t3d` (o `t3d:` en HTML/CSS) en `Dockerfile`, `server/app.js`, `public/index.html` y
+`public/js/{main,editor,render,weather}.js`: `grep -n t3d` las encuentra todas.
+
+- **Tipo de mesa**: al crear un tablero se elige Mesa 2D o Mesa 3D y no cambia. Un tablero es 3D
+  si tiene fila en `t3d.boards`; el resto del núcleo no cambia de esquema.
+- **Datos**: esquema PostgreSQL `t3d` (`boards`, `scenes`, `campaigns`, `drawings`,
+  `drawing_layers`, `live_docs`, `schema_migrations`), con claves ajenas a `public.boards` y
+  `public.users` en cascada. Migraciones propias (`modules/tablero3d/migrations`, cerrojo
+  7318206) que corren **después** de las del núcleo en `prepare()`. Todo su SQL en su `db.js`.
+- **Tiempo real**: conexión propia `/t3d/ws` (el `Net` de JA-VTT no reparte a módulos). En una
+  mesa 3D el `Net` de JA-VTT se conecta igual: da chat, miembros y la pestaña Mesa.
+- **Compartido**: cuentas, cookie, miembros y roles, `chat_messages` (las tiradas del 3D llegan
+  como `roll`) y los **ajustes del tablero** (`boards.settings`, única fuente: el 3D los lee y
+  cambia con `boardSettings`/`setBoardSettings`).
+- **Con la mesa 3D abierta** el bucle 2D no dibuja y el clima 2D se desmonta (`render.js`, `weather.js`).
+- **Interruptor**: `T3D=off` apaga el módulo (sin migrar, rutas 404, `/t3d/t3d.js` vacío).
+- Trampa de tests: `resetSchema()` borra `public` en cascada y deja `t3d` sin sus claves
+  ajenas; `test/t3d.test.js` borra también `t3d` antes de empezar.
 
 ## Decisiones y trampas
 

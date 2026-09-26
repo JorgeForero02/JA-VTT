@@ -33,6 +33,17 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 - El director puede regenerar el código, renombrar, expulsar miembros y borrar el tablero
   (borra escenas, objetos, imágenes y niebla). Un jugador puede salir.
 
+## Mesa 3D (módulo `modules/tablero3d`, 2026-09-26)
+
+- En «Nuevo tablero» se elige **Mesa 2D** (JA-VTT de siempre) o **Mesa 3D**; el tipo no cambia
+  después. Las tarjetas del panel llevan la etiqueta «2D» o «3D».
+- Una mesa 3D abre directamente la vista 3D: pestañas Escena · Fichas · Partida · Campaña (del
+  módulo) + Mesa · Chat (de JA-VTT). Lo que hace dentro está en
+  [modules/tablero3d/README.md](../modules/tablero3d/README.md).
+- Las tiradas de su mesa en vivo aparecen en el Chat como tiradas; sus ajustes («Dados», «Chat de
+  texto», vida, puertas…) son los mismos del tablero.
+- Límites vigentes en [06](06-pendientes.md) (P-32 a P-36).
+
 ## Escenas, portales, fichas, imágenes, niebla
 
 Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede hacer cada rol».
@@ -71,6 +82,9 @@ intenta algo que no puede.
 | `POST /api/boards/:id/invite` | gm | nuevo código |
 | `GET /api/boards/:id/scenes/:sid/portals` | miembro | portales de una escena |
 | `GET/POST /api/boards/:id/images` · `GET/PATCH/DELETE /api/images/:id[/thumb]` | miembro / gm | imágenes |
+| `GET/POST/DELETE /api/t3d/boards/:id` | miembro / gm | tipo de mesa (POST: marcar 3D en los 10 min tras crear; DELETE siempre 409) |
+| `/api/t3d/boards/:id/{scenes,campaigns,drawings,usage,settings,travel}` · `…/scenes/:sid/portals` | miembro / gm | contenido de una mesa 3D (404 en una 2D); detalle en el README del módulo |
+| `GET /t3d/…` · `GET /t3d/ws?board=<id>` | — / miembro | cliente del módulo · su tiempo real |
 | `GET /ws?board=<id>` | miembro | tiempo real: `ops`, `scene`, `travel`, `fog`, `cursor`, `rename`, `chat`, `roll`, `initiative` |
 
 Errores siempre como `{ "error": "texto en castellano" }` con el código HTTP que toca.

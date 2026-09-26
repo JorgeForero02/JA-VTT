@@ -2,6 +2,30 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Integración del tablero 3D (rama `integracion-tablero-3d`, sin desplegar)
+
+- **Qué:** `modules/tablero3d` copiado tal cual de `3d-tablero@403d6a5` y montado con su guía
+  (`docs/08-integracion-ja-vtt.md` de ese repo, versión T8): 78 líneas añadidas y 7 sustituidas en 7
+  archivos (`Dockerfile` en ISO-8859-1, `server/app.js`, `public/index.html`,
+  `public/js/{main,editor,render,weather}.js`), todas marcadas `// t3d` o `t3d:`. Test nuevo
+  `test/t3d.test.js` (escenas de una mesa 3D, rutas 404 en una 2D, ajustes guardados en
+  `boards.settings`). La guía estaba validada contra `d68f41f`; `main` sólo añadía docs, así que
+  ningún anclaje cambió y los datos de contrato del módulo siguen valiendo.
+- **Por qué:** decisión del usuario: el 3D entra como segundo tipo de mesa, sin fusionar los proyectos.
+- **Verificado:** `check` 100/100 (98 + 2), funciones 83,33 % (umbral 82; sin el test nuevo bajaba a
+  82,05 %); el test se rompió a propósito (sin `setBoardSettings` y sin `tagBoards`: los dos en
+  rojo) · `test:ui` 54/54 (igual que antes) · `test:ja-vtt` del módulo 20/20 contra el servidor
+  local y 20/20 contra `docker compose` · compose: `t3d/001…006` tras las del núcleo sobre la
+  base local existente, sus 4 tableros siguen 2D, `test:e2e` 11/11 · `T3D=off` en base nueva: sin
+  esquema `t3d`, `/t3d/t3d.js` vacío 200, resto 404, sin selector ni etiquetas y sin errores de
+  consola · expulsar a un jugador cierra su `/t3d/ws` (4403) y borrar el tablero deja `t3d` sin filas.
+- **Revertir:** quitar las líneas `t3d` (`grep -n t3d Dockerfile server/app.js public/index.html
+  public/js/*.js`; las sustituidas vuelven a su forma: `Net.connect(id);`, `boards: await
+  q.boardsForUser(user.id)`, `await db.migrate()`, la comprobación `/ws` y la llamada a
+  `onSocket`, `sendInitiative(b)` al final de `handleOps` y el `return` de `Weather`), borrar
+  `modules/tablero3d` y `test/t3d.test.js`, y en la base `DROP SCHEMA t3d CASCADE`. Sin borrar
+  datos basta `T3D=off`.
+
 ## 2026-09-25 — `main` pasa a ser la rama única; se retira el trabajo experimental
 
 - **Qué:** borradas las ramas `clima-2d`, `modo-25d-fase-a` y `ui-panel` (local y GitHub; todo su trabajo 2D ya estaba en `release`) y el material experimental suelto de la carpeta. Después `main` se reescribió con `release` (`git push --force origin release:main`, lanzado por el usuario), Coolify pasó a `git_branch=main` por API (sin redeploy: mismo código) y `release` se borró en local y GitHub.

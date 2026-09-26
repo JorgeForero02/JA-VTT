@@ -25,6 +25,9 @@ portales · luz dinámica (6 tipos de muro, maleza, visión en la oscuridad abso
 jugador · chat con dados 3D (bandeja, tiradas privadas del director) · iniciativa con
 interruptor del director · condiciones, vida y altura en fichas (visibilidad de la vida configurable) · regla multitramo · anotaciones con «sólo director» · render adaptativo con lectura de rendimiento en Mesa → Conexión.
 
+Módulo del tablero 3D (`modules/tablero3d`, esquema `t3d`, variable `T3D`) integrado el
+2026-09-26 en la rama `integracion-tablero-3d`, sin desplegar: ver [01](01-arquitectura.md#módulo-del-tablero-3d-modulestablero3d-desde-2026-09-26).
+
 Trabajo en curso: nada bloqueante — ver [06-pendientes.md](06-pendientes.md).
 
 ## Mapa de la documentación
