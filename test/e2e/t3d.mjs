@@ -387,12 +387,16 @@ try {
   await gm.reload();
   const opened = await gm.waitForFunction(() => /^Piezas 2/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 20000 }).then(() => true, () => false);
   const failing = opened ? await pzLook() : null;
+  // abrir no guarda: tampoco cuando las definiciones llegan en un reintento (antes se volvía a guardar sola al curarse).
+  // upd0 se lee con /pieces aún caído (nada se puede guardar todavía); upd1, tras curarse y esperar
+  const upd = () => gm.evaluate(async (id) => (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes.map((x) => x.name + '@' + x.updated).join(), pzBoard);
+  const upd0 = await upd();
   await gm.unroute('**/api/t3d/boards/*/pieces');
   const healed = await gm.waitForFunction(() => t3dView.probe('los', 5, 1, 5, 6, 'sight') === false && t3dView.probe('light', 10, 2) > t3dView.probe('light', 2, 10) + 0.1, null, { timeout: 20000 }).then(() => true, () => false);
   const after = await pzLook();
-  // abrir no guarda: tampoco cuando las definiciones llegan en un reintento (la escena no cambió; antes se volvía a guardar)
-  const upd = () => gm.evaluate(async (id) => (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes.map((x) => x.name + '@' + x.updated).join(), pzBoard);
-  const upd0 = await upd(); await gm.waitForTimeout(5000); const upd1 = await upd();
+  // espera deliberada: se prueba que algo NO ocurre, así que se deja pasar más de dos ciclos del autoguardado (AUTO_MS = 2 s)
+  await gm.waitForTimeout(5000);
+  const upd1 = await upd();
   errors.splice(errs0, errors.length - errs0, ...errors.slice(errs0).filter((e) => !/ERR_FAILED|Failed to load resource|Failed to fetch/.test(e)));
   step('M4/M5: con /pieces caído la escena se abre (p: opacas); al cargar en un reintento, vista y luz se recalculan solas y no se vuelve a guardar',
     upd0 === upd1 && opened && failing && failing.velo.every((v) => v === true) && failing.farol <= failing.dark + 0.02 && healed && after.velo.every((v) => v === false) && after.farol > after.dark + 0.1,
@@ -403,21 +407,27 @@ try {
   // casilla la tapa (antes la ventana la pisaba); quitando la p:, se vuelve a ver a través de la ventana.
   const pzPut2 = await gm.evaluate(async ([id, defs]) => { const out = [];
     for (const d of defs) out.push((await fetch(`/api/t3d/boards/${id}/pieces/${d.id.slice(2)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })).status);
-    return out; }, [pzBoard, [pdef('puerta02', { door: {}, move: { block: true }, sight: 'block', light: 'block' }), pdef('tapa01', { move: { block: false }, sight: 'block', light: 'none' }, { w: 1 })]]);
-  const dT = []; for (let z = 0; z < 8; z++) for (let x = 0; x < 8; x++) dT.push(z === 4 && x !== 3 && x !== 4 ? 'w' : 'g');
+    return out; }, [pzBoard, [pdef('puerta02', { door: {}, move: { block: true }, sight: 'block', light: 'block' }), pdef('tapa01', { move: { block: false }, sight: 'block', light: 'none' }, { w: 1 }),
+    pdef('reja02', { door: {}, move: { block: true }, sight: 'none', light: 'none' }), pdef('puerta08', { door: {}, move: { block: true }, sight: 'block', light: 'block' }, { w: 8 })]]);
+  const dT = []; for (let z = 0; z < 8; z++) for (let x = 0; x < 8; x++) dT.push(z === 4 && x !== 3 && x !== 4 && x !== 6 && x !== 7 ? 'w' : 'g');
   const tapa = { type: 'obj:o_tapa01', def: 'p:tapa01', x: 5, z: 1, v: 0 };
   const puertaScene = { v: 2, name: 'Puerta p', w: 8, d: 8, h: flat16(64, '2'), t: dT.join(''), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false, animate: false, seen: '',
-    props: [{ type: 'obj:o_puerta02', def: 'p:puerta02', x: 3, z: 4, v: 0, open: false }, tapa, { type: 'window', x: 5, z: 1, v: 0 }, { type: 'window', x: 1, z: 1, v: 0 }, Object.assign({}, tapa, { x: 1 })],
+    props: [{ type: 'obj:o_puerta02', def: 'p:puerta02', x: 3, z: 4, v: 0, open: false }, tapa, { type: 'window', x: 5, z: 1, v: 0 }, { type: 'window', x: 1, z: 1, v: 0 }, Object.assign({}, tapa, { x: 1 }),
+      { type: 'obj:o_reja02', def: 'p:reja02', x: 6, z: 4, v: 0, open: false, locked: true }],
     minis: [{ kind: 'knight', x: 0, z: 0, fx: 0, fz: 1, id: 'k1' }] };
   // el motor abre la última escena guardada: como abrir no guarda (tampoco al llegar /pieces, ver el paso M4/M5), pz3 es la última
   await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/pz3`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [pzBoard, puertaScene]);
   await gm.reload();
-  const pzOpen = await gm.waitForFunction(() => /^Puerta p/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 20000 }).then(() => true, () => false);
+  const pzOpen = await gm.waitForFunction(() => /^Puerta p/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 6, null, { timeout: 20000 }).then(() => true, () => false);
   const doorNow = () => gm.evaluate(() => ({ cells: [t3dView.probe('cell', 3, 4), t3dView.probe('cell', 4, 4)], route: t3dView.probe('route', 'k1', 0, 7),
     open: !!(t3dView.probe('props').find((p) => p.type === 'obj:o_puerta02') || {}).open }));
-  const menu = async (label) => { const at2 = await gm.evaluate(() => t3dView.probe('screen', 4, 4)); await gm.mouse.click(at2.x, at2.y, { button: 'right' });
+  const menu = async (label, x = 4, z = 4) => { const at2 = await gm.evaluate(([cx, cz]) => t3dView.probe('screen', cx, cz), [x, z]); await gm.mouse.click(at2.x, at2.y, { button: 'right' });
     return gm.click(`#t3d-ctxMenu button:has-text("${label}")`, { timeout: 3000 }).then(() => true, () => gm.keyboard.press('Escape').then(() => false)); };
   const dShut = await doorNow();
+  // (3) reja p: (door con sight/light 'none') cerrada con llave en el hueco (6,4)–(7,4): se ve a través y no se pasa; la puerta
+  // p: con sight 'block' cerrada sí tapa. Las de fábrica siguen tapando por doorSeal (paso de equivalencia).
+  const reja = await gm.evaluate(() => ({ los: [t3dView.probe('los', 6, 2, 6, 6, 'sight'), t3dView.probe('los', 7, 2, 7, 6, 'sight')], door: t3dView.probe('los', 3, 2, 3, 6, 'sight'),
+    cells: [t3dView.probe('cell', 6, 4), t3dView.probe('cell', 7, 4)], route: t3dView.probe('route', 'k1', 6, 6) }));
   const dOpened = await menu('Abrir la puerta'); const dOpen = await doorNow();
   const dLocked = await menu('Cerrar con llave'); const dLock = await doorNow();
   const dUnlocked = await menu('Quitar la llave'); const dClosed = await doorNow();
@@ -426,12 +436,35 @@ try {
     pzOpen && pzPut2.every((x) => x === 200) && shut(dShut, false) && dShut.route !== null && dOpened && dOpen.open && dOpen.cells.every((c) => c && !c.blocked && !c.shut) && dOpen.route !== null &&
     dLocked && shut(dLock, true) && dLock.route === null && dUnlocked && shut(dClosed, false) && dClosed.route !== null,
     JSON.stringify({ pzOpen, pzPut2, dShut, dOpened, dOpen, dLocked, dLock, dUnlocked, dClosed }));
+  step('P-48 (3): una reja p: cerrada deja ver (sight:none) en toda su huella pero no pasar; una puerta p: que tapa, tapa',
+    reja.los.every((v) => v === true) && reja.door === false && reja.cells.every((c) => c && c.blocked && c.shut && !c.seal && c.locked) && reja.route !== null,
+    JSON.stringify(reja));
   const winLos = () => gm.evaluate(() => [t3dView.probe('los', 5, 0, 5, 3, 'sight'), t3dView.probe('los', 1, 0, 1, 3, 'sight')]);
   const tapada = await winLos();
   await importJson(Object.assign({}, puertaScene, { name: 'Puerta q', props: puertaScene.props.filter((p) => p.def !== 'p:tapa01') }), 'Puerta q');
   const sinTapa = await winLos();
   step('P-48 (b): una p: que tapa sobre una ventana de fábrica tapa la vista (esté antes o después en la lista); sin ella, se ve por la ventana',
     tapada.every((v) => v === false) && sinTapa.every((v) => v === true), JSON.stringify({ tapada, sinTapa }));
+  // (4) un cofre y una puerta p: 2×1 comparten la casilla (4,4) (sólo con JSON importado): al abrir la puerta, (4,4) sigue
+  // bloqueada por el cofre y (3,4) queda libre; al cerrarla, las dos bloqueadas
+  await importJson(Object.assign({}, puertaScene, { name: 'Cofre y puerta', props: [{ type: 'obj:o_puerta02', def: 'p:puerta02', x: 3, z: 4, v: 0, open: false }, { type: 'chest', x: 4, z: 4, v: 0 }] }), 'Cofre y puerta');
+  const cp = () => gm.evaluate(() => [t3dView.probe('cell', 3, 4), t3dView.probe('cell', 4, 4)].map((c) => c && c.blocked));
+  const cp0 = await cp(); const cpO = await menu('Abrir la puerta', 3, 4); const cp1 = await cp(); const cpC = await menu('Cerrar la puerta', 3, 4); const cp2 = await cp();
+  step('P-48 (4): al abrir una puerta p: no se libera la casilla que un cofre sigue bloqueando',
+    cpO && cpC && cp0.join() === 'true,true' && cp1.join() === 'false,true' && cp2.join() === 'true,true', JSON.stringify({ cp0, cpO, cp1, cpC, cp2 }));
+  // (2) doorRelight con una puerta p: 1×8 (x=6, z=4..11) en una columna de muro: antorcha detrás en (4,10), junto a la casilla
+  // (6,10) y lejos de la esquina (6,4). Al abrirla (tocando en (6,10)), la luz de delante, (7,10), sube al momento.
+  const lw = [], lt = []; for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) { lw.push('2'); lt.push(x === 6 && (z < 4 || z > 11) ? 'w' : 'g'); }
+  await importJson({ v: 2, name: 'Luz p', w: 16, d: 16, h: lw.join(''), t: lt.join(''), wsrc: flat16(256, '0'), roofs: [], start: [7, 8], env: 'night', fog: false, animate: false, seen: '',
+    props: [{ type: 'obj:o_puerta08', def: 'p:puerta08', x: 6, z: 4, v: 1, open: false }, { type: 'light', x: 4, z: 10, v: 0, preset: 'torch', r: 4, h: 1.2, color: '#ffffff', intensity: 1, anim: 'none', angle: 360, rot: 0 }],
+    minis: [{ kind: 'knight', x: 12, z: 13, fx: 0, fz: 1, id: 'k1' }] }, 'Luz p');
+  const lp = () => gm.evaluate(() => ({ front: t3dView.probe('light', 7, 10), behind: t3dView.probe('light', 4, 10), dark: t3dView.probe('light', 12, 2) }));
+  await gm.waitForFunction(() => t3dView.probe('light', 4, 10) > t3dView.probe('light', 12, 2) + 0.1, null, { timeout: 10000 }).catch(() => {});
+  const lp0 = await lp(); const lpO = await menu('Abrir la puerta', 6, 10);
+  await gm.waitForFunction((t0) => t3dView.probe('light', 7, 10) > t0 + 0.05, lp0.front, { timeout: 3000 }).catch(() => {});
+  const lp1 = await lp();
+  step('P-48 (2): al abrir una puerta p: 1×8 por una casilla que no es su esquina, la antorcha de detrás alumbra al momento',
+    lpO && lp0.behind > lp0.dark + 0.1 && Math.abs(lp0.front - lp0.dark) <= 0.02 && lp1.front > lp0.front + 0.05, JSON.stringify({ lp0, lpO, lp1 }));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

@@ -1159,9 +1159,13 @@ const state={ sizeMul:1, cssPx:3, zooms:[0.5,1,2,3,4], zi:1, yaw:Math.PI/4, yawF
 /* ============ mapa ============ */
 let WS=null, waterMesh=null;
 let doorShut=new Set();
+// casillas de puertas de fábrica cerradas (tapan vista y luz como un muro: GRID.door). Una puerta p: tapa por sus componentes
+// y su estado, desde WALLAT (Catalogo.blocks): una reja (sight:'none') cerrada deja ver aunque no deje pasar (P-48)
+let doorSeal=new Set();
 /* muros de JA-VTT por casilla (T6b, muros.js): WALLAT = casilla → lista de piezas que pueden tapar (ventana, velo, maleza,
    barrera, portal, piezas p: que tapan); tapa si alguna tapa (P-48: una p: sobre una ventana ya no la pisa ni al revés).
-   Las puertas van en doorShut (cerradas) y lockedDoors (con llave), en todas sus casillas. HAS_COVER: hay maleza. */
+   Las puertas van en doorShut (cerradas; doorSeal si son de fábrica) y lockedDoors (con llave), en todas sus casillas.
+   HAS_COVER: hay maleza. */
 let lockedDoors=new Set(), WALLAT=new Map(), HAS_COVER=false;
 // ajustes del tablero (t3d.boards.settings): los de JA-VTT, ver ajustes.js. hpEnabled, acEnabled y conditionsEnabled apagados
 // esconden vida, CA y estados (con la altura) a todo el mundo, director incluido; la privacidad por jugador la pone el servidor.
@@ -1267,7 +1271,7 @@ function lightRGB(hex){ const c=hexRGB(/^#[0-9a-f]{6}$/i.test(hex||'')?hex:WARM)
 // ¿tapa la casilla i para flag alguna de sus piezas de WALLAT? (P-48 b)
 function wallBlocks(i,flag){ const ps=WALLAT.get(i); if(!ps) return false; for(const p of ps) if(Muros.blocks(p,flag,PIECES)) return true; return false; }
 function wallAdd(i,p){ const ps=WALLAT.get(i); if(ps) ps.push(p); else WALLAT.set(i,[p]); }
-const GRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>EH[i]*STEP, wall:i=>M.t[i]==='w', door:i=>doorShut.has(i), bk:wallBlocks };
+const GRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>EH[i]*STEP, wall:i=>M.t[i]==='w', door:i=>doorSeal.has(i), bk:wallBlocks };
 const lightReaches=(lx,ly,lz,tx,tz,ty)=>Vision.lightReaches(GRID,lx,ly,lz,tx,tz,ty);
 // cono (linterna sorda, ventana): fuera del ángulo no llega luz; el borde se funde en CONE_SOFT grados
 const CONE_SOFT=12;
@@ -1836,12 +1840,12 @@ function senseOf(D){ let any=false, hide=false; const look=c=>{ if(!c) return; i
   look(D.components); for(const va of D.variants||[]) look(va.set); return any?{hide}:null; }
 function refreshEntities(){
   clearBills(); blocked=new Set(); M.lights=[];
-  doorShut=new Set(); lockedDoors=new Set(); WALLAT=new Map(); HAS_COVER=false;
+  doorShut=new Set(); doorSeal=new Set(); lockedDoors=new Set(); WALLAT=new Map(); HAS_COVER=false;
   DECK=null; const decks=M.props.filter(p=>Catalogo.surface(p,PIECES)); if(decks.length) computeDecks(decks);
   for(const p of M.props){ if(!UID_OK.test(p.uid||'')) p.uid=Catalogo.newUid();   // uid fijo desde que la pieza existe (antes de deshacer)
     const op=opaque(p), D=op?null:Catalogo.defOf(p,PIECES), b=addBill(op?'obj:':propKind(p),p.x,p.z,p); const i=idx(p.x,p.z);
     // P-48 (a): una puerta bloquea todas sus casillas (como gridOf del servidor); las de fábrica son de 1×1
-    if(D&&D.components.door){ const cs=doorCells(p); if(!p.open) for(const k of cs){ blocked.add(k); doorShut.add(k); } if(p.locked) for(const k of cs) lockedDoors.add(k); if(b) doorPose(b); }
+    if(D&&D.components.door){ const cs=doorCells(p), seal=Muros.kindOf(p)==='door'; if(!p.open) for(const k of cs){ blocked.add(k); doorShut.add(k); if(seal) doorSeal.add(k); } if(p.locked) for(const k of cs) lockedDoors.add(k); if(b) doorPose(b); }
     else if(op||Catalogo.blocksMove(p,PIECES)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
     const wk=Muros.kindOf(p); if(wk&&wk!=='door'){ wallAdd(i,p); if(wk==='cover') HAS_COVER=true; }
     // I2 (ola final): una pieza sin wallKind que pueda tapar vista, luz o maleza (en su forma o en alguna variante) entra en
@@ -2064,7 +2068,7 @@ for(const [id,k,val] of [['ambient','ambient',()=>+$('ambient').value/100],['dar
 /* ---- zonas interiores y luz que entra por las ventanas: AMBF[i] = cuánto ambiente llega a la casilla (1 fuera) ---- */
 let INTERIOR=null, AMBF=null, ambTex=null;
 // rejilla sin los muros recortados al abrir un techo (así la luz de las ventanas no cambia al asomarse)
-const AGRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>(DECK&&DECK[i]?DECK[i]:M.h[i])*STEP, wall:i=>M.t[i]==='w', door:i=>doorShut.has(i), bk:wallBlocks };
+const AGRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>(DECK&&DECK[i]?DECK[i]:M.h[i])*STEP, wall:i=>M.t[i]==='w', door:i=>doorSeal.has(i), bk:wallBlocks };
 // ventanas y puertas abiertas; una puerta de varias casillas deja entrar luz por cada una (P-48 a)
 const openings=()=>M.props.filter(p=>FT(p)==='window'||(Catalogo.isDoor(p,PIECES)&&p.open)).flatMap(p=>{ const cs=propCells(p); return cs.length===1?[p]:cs.map(([x,z])=>({x,z})); });
 function computeAmbient(){
@@ -4573,7 +4577,7 @@ function doorPose(b){ const base=((b.prop&&b.prop.v)|0)*HALF_PI, open=!!(b.prop&
 function toggleDoor(p,remote,batch){
   if(!remote&&!canOpenDoor(p)){ showHint(p.locked?'Esa puerta está cerrada con llave.':'El director no deja a los jugadores abrir puertas.',1800); return false; }
   p.open=!p.open; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked});
-  for(const i of doorCells(p)){ if(p.open){ blocked.delete(i); doorShut.delete(i); } else { blocked.add(i); doorShut.add(i); } }
+  for(const i of doorCells(p)) recalcCell(i);   // P-48: al abrir no se libera lo que otra pieza de la casilla sigue bloqueando
   const b=bills.find(q=>q.prop===p); if(b) doorPose(b);
   fogDirty=true; rangeKey=''; computeAmbient();   // por una puerta abierta entra la luz de fuera
   if(batch) batch.push(p); else doorRelight(p);   // y la de las fuentes de detrás de la puerta (§6); en un lote, una vez al final (M6)
@@ -4587,6 +4591,11 @@ function lockDoor(p,on){ beginStroke(); if(on&&p.open) toggleDoor(p); p.locked=!
 function doorAt(x,z){ let hit=null;
   for(const p of M.props){ if(p.x>x||p.z>z||!Catalogo.isDoor(p,PIECES)) continue; if(p.x===x&&p.z===z) return p; if(!hit&&propCovers(p,x,z)) hit=p; }
   return hit; }
+// rehace blocked/doorShut/doorSeal de una casilla con todas las piezas que la cubren (lo mismo que refreshEntities para ella)
+function recalcCell(i){ const x=i%M.w, z=(i/M.w)|0; let bl=false, sh=false, se=false;
+  for(const q of M.props){ if(q.x>x||q.z>z||!propCovers(q,x,z)) continue; const op=opaque(q), D=op?null:Catalogo.defOf(q,PIECES);
+    if(D&&D.components.door){ if(!q.open){ bl=sh=true; if(Muros.kindOf(q)==='door') se=true; } } else if(op||Catalogo.blocksMove(q,PIECES)) bl=true; }
+  const put=(S,v)=>{ if(v) S.add(i); else S.delete(i); }; put(blocked,bl); put(doorShut,sh); put(doorSeal,se); }
 // índices de las casillas (dentro del mapa) que ocupa una puerta
 function doorCells(p){ const out=[]; for(const [x,z] of propCells(p)) if(inb(x,z)) out.push(idx(x,z)); return out; }
 // --- el pueblo de ejemplo: muralla al norte con puerta y torres, atalaya con techo cónico, plaza de mercado con puestos,
@@ -5206,7 +5215,7 @@ function probe(q,...a){
   if(q==='los') return Vision.los(GRID,a[0],a[1],a[2],a[3],EH[idx(a[0],a[1])]*STEP+1.5,a[4]);
   if(q==='fog') return fogVis(idx(a[0],a[1]));
   // P-48: lo que el cliente sabe de una casilla para moverse (bloqueada, puerta cerrada, con llave)
-  if(q==='cell'){ if(!inb(a[0],a[1])) return null; const i=idx(a[0],a[1]); return {blocked:blocked.has(i),shut:doorShut.has(i),locked:lockedDoors.has(i)}; }
+  if(q==='cell'){ if(!inb(a[0],a[1])) return null; const i=idx(a[0],a[1]); return {blocked:blocked.has(i),shut:doorShut.has(i),seal:doorSeal.has(i),locked:lockedDoors.has(i)}; }
   if(q==='screen'){ const v=new THREE.Vector3(a[0]+.5,topY(a[0],a[1])+0.05,a[1]+.5).project(camera), r=canvas.getBoundingClientRect(); return {x:r.left+(v.x+1)/2*r.width,y:r.top+(1-v.y)/2*r.height}; }
   if(q==='scene') return {id:M.boardId||null,name:M.name,w:M.w,d:M.d,settings:{...SETTINGS},...Ajustes.sceneFlags(M),grid3d:!!(gridMesh&&gridMesh.visible),anim:animOn()};
   // T6d: combate (iniciativa de JA-VTT tal como la ve este cliente), planos y anotaciones que ve, y el registro de tiradas

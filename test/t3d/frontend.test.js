@@ -872,8 +872,9 @@ test('P-48: puertas por su huella y WALLAT con varias piezas por casilla', () =>
   assert.match(engine, /function wallAdd\(i,p\)\{ const ps=WALLAT\.get\(i\); if\(ps\) ps\.push\(p\); else WALLAT\.set\(i,\[p\]\); \}/);
   assert.match(engine, /function wallBlocks\(i,flag\)\{ const ps=WALLAT\.get\(i\); if\(!ps\) return false; for\(const p of ps\) if\(Muros\.blocks\(p,flag,PIECES\)\) return true; return false; \}/);
   assert.equal((engine.match(/bk:wallBlocks/g) || []).length, 2, 'GRID y AGRID preguntan a wallBlocks');
-  assert.match(engine, /const cs=doorCells\(p\); if\(!p\.open\) for\(const k of cs\)\{ blocked\.add\(k\); doorShut\.add\(k\); \} if\(p\.locked\) for\(const k of cs\) lockedDoors\.add\(k\);/);
-  assert.match(engine, /for\(const i of doorCells\(p\)\)\{ if\(p\.open\)\{ blocked\.delete\(i\); doorShut\.delete\(i\); \} else \{ blocked\.add\(i\); doorShut\.add\(i\); \} \}/);
+  assert.match(engine, /const cs=doorCells\(p\), seal=Muros\.kindOf\(p\)==='door'; if\(!p\.open\) for\(const k of cs\)\{ blocked\.add\(k\); doorShut\.add\(k\); if\(seal\) doorSeal\.add\(k\); \} if\(p\.locked\) for\(const k of cs\) lockedDoors\.add\(k\);/);
+  assert.match(engine, /for\(const i of doorCells\(p\)\) recalcCell\(i\);/, 'toggleDoor rehace cada casilla con todas las piezas que la cubren');
+  assert.equal((engine.match(/door:i=>doorSeal\.has\(i\), bk:wallBlocks \};/g) || []).length, 2, 'GRID y AGRID: sólo las puertas de fábrica tapan como muro; las p:, por componentes (WALLAT)');
   assert.match(engine, /if\(p\.x===x&&p\.z===z\) return p; if\(!hit&&propCovers\(p,x,z\)\) hit=p;/, 'doorAt: la esquina primero, luego la que cubre');
   assert.match(engine, /untouched=!!M&&AUTO\.last!==null&&autoKey\(\)===AUTO\.last;[^\n]*\n\s*PIECES=new Map\([^\n]*if\(untouched\) autoBaseline\(\);/, 'abrir no guarda al llegar las piezas en un reintento');
 });
