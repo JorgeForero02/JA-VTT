@@ -224,6 +224,12 @@ formato nuevo y la traducción. El arte sigue igual.
 | Un dibujo que sustituye a un farol o brasero no puede quitarle la luz; los árboles no pueden tener luz propia | `propLight` (orden de la cadena) | Luz por componente de la definición |
 | Al abrir una puerta no se recalcula la luz de las antorchas de detrás (visto en código; **se comprueba en el navegador antes de arreglar**) | `toggleDoor` | Recalcular la luz de la zona |
 | `gridOf` (servidor y `muros.js`) y el paso del cliente discrepan en agua y puentes | `gridOf` / `PATHG` | **No se cambia en esta fase** (sería cambio de comportamiento): se documenta y se decide en la fase 3 (terrenos) |
+| Sin la barrera, el jugador podía arrastrar su ficha a través de ella (el servidor nunca ha validado los caminos de la mesa en vivo) | `R.liveChange` / cliente | Ratificado (**Ruling R18**): `blockCells` — la casilla llega bloqueada sin tipo ni arte; el cliente la trata como impasable y no la dibuja. Es la base de las puertas secretas de la fase 2; validar caminos en el servidor queda como mejora futura (P-45) |
+
+**Ratificado (Ruling R16):** el aspecto de un portal (`propArtKey`) manda su luz por `propKind(p)` (el dibujo
+que de verdad se pinta: `portal_stairs`, `portal_cave`, `portal_magic`…), no por `p.type` genérico
+(`'portal'`). Con `p.type` un dibujo de aspecto puerta sin luz apagaría también el cristal de un portal
+mágico, que no lleva ese dibujo — cada aspecto tiene el suyo y decide su propia luz.
 
 ## 7. Riesgos
 
@@ -237,3 +243,17 @@ formato nuevo y la traducción. El arte sigue igual.
 
 Jugadores creando piezas (2), grados de vista y luz en el motor (3), alcance de las reacciones (4), tope de
 terrenos por escena (6), Universal VTT (7): se deciden en su fase. Esta fase sólo reserva sitio en el esquema.
+
+## Resultado
+
+Código completo y verificado en la rama `fase0-piezas` (commits `9a4c834..f935ff5` sobre `main @ 2e353c3`),
+pendiente de despliegue (aprobación del usuario, paso 5 de la Tarea 9). Las tres piezas del diseño (catálogo
+único, esquema de pieza validado en el servidor, motor y servidor preguntando por componentes) están hechas;
+los seis fallos de §6 arreglados, cada uno con su test; equivalencia confirmada en el navegador (misma
+escena, antes y después del motor por catálogo); rendimiento dentro del margen (×1,15) en una escena
+160×160 con 5000 objetos. Detalle de números y verificación en
+[docs/07-historial.md](../../07-historial.md) («Fase 0 del arte propio: cimientos de las piezas») y en los
+informes de cada tarea (`.superpowers/sdd/2026-09-26-fase0-cimientos-piezas/task-*-report.md`). Sin cambio
+visible salvo los de §6, aceptados por el usuario. Pendientes que quedan para las fases siguientes: P-43
+(quitar el espejo `open`/`locked` en la fase 2), P-44 (puertas secretas con `blockCells`), P-45 (validar
+movimientos en el servidor, mejora futura) — todos en [docs/06-pendientes.md](../../06-pendientes.md).

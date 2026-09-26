@@ -110,6 +110,45 @@ Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz 
 - Trampa de tests: `resetSchema()` borra `public` en cascada y deja `t3d` sin sus claves
   ajenas; `test/t3d.test.js` borra también `t3d` antes de empezar.
 
+### Piezas con comportamiento (fase 0, 2026-09-26)
+
+Cimientos para que las fases siguientes añadan piezas propias sin reescribir el motor cada vez. Todo en
+`modules/tablero3d/public/catalogo.js` (cliente y servidor, `require()` desde `rules.js`); detalle completo en
+[docs/superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md](superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md) §3.2.
+
+- **Catálogo único** (`Tablero3D.Catalogo` en el navegador, `module.exports` en Node): las 38 piezas de fábrica
+  (32 objetos, árbol, brasero, luz, 7 tipos de muro de JA-VTT) más los 10 terrenos, generadas del código de
+  antes (`PROP3D`, `WALL_TYPES`, `TERR`), y las consultas por componente (`defOf`, `complete`, `blocksMove`,
+  `span`, `isDoor`, `gmOnly`, `wallKind`, `surface`, `isLow`, `emitLight`, `validateDef`) que sustituyen las
+  listas repetidas de antes (`DOOR_PROPS`, `PASSABLE_PROPS`, `PROP_SPANS`, en `rules.js` y `muros.js`).
+- **Definición** (`schema: 1`; prefijo del id: `f:` fábrica, `p:` pieza del tablero en `t3d.pieces`, `d:`
+  calculada de un dibujo de objeto antiguo): `class`, `art`, `shape` (`w`, `d`, `height`, `orient`, `random`,
+  `layer`, `low`), `components` (`move.block`, `sight`/`light` — `'none'|'limited'|'block'`, `emitLight`,
+  `surface`, `cost`, `hide`, `gmOnly`, `door.lift`, `portal.looks`, `terrain`), `states` (≤ 4, ≤ 4 valores
+  cada uno) y `variants` (la última que cumple gana). Campos reservados sin usar todavía: `level`/`side`
+  (pisos y muros finos, fase 4), `interactions`/`reactions` (fases 2 y 5). Nombres de estado reservados
+  (no puede llamarse igual que un campo de la pieza colocada): `type def uid x z v level side state id look
+  target name preset r h color intensity anim angle rot darkness on open locked`.
+- **Pieza colocada** (un elemento de `props[]` en la escena, formato v2): `type`, `def?` (si falta, sale de
+  `type`), `uid` (`'u'` + 8 caracteres `[a-z0-9]`, fijo desde que la pieza existe), `x`, `z`, `v`, `state?`
+  según la definición y los campos propios de siempre (puerta: `open`/`locked`; luz: `preset`, `r`, `h`…;
+  portal: `id`, `look`, `target`). **Vuelta atrás**: una puerta escribe su estado en `state` **y** en
+  `open`/`locked` de la raíz (lo que lee la versión anterior); la copia se quita en la fase 2.
+- **`t3d.pieces`** (migración `007-piezas.sql`): definiciones propias del tablero (`p:`), clave
+  `(board_id, id)`, en cascada con `public.boards`; cuentan en la cuota (500 MB) por su tamaño. Tope: 300 por
+  tablero, 64 KB por definición. API: `GET/PUT/DELETE /api/t3d/boards/:id/pieces[/:pid]` (ver
+  [02](02-funcional.md)).
+- **`blockCells`** (Ruling R18, campo derivado, nunca guardado): al jugador, `sceneFor`/`campaignFor`/
+  `liveDocFor` sustituyen las piezas `gmOnly` que bloquean el paso (barreras) por un conjunto de índices de
+  casilla (`z*w+x`), sin tipo ni arte. El cliente (`Muros.gridOf`, `PATHG.open`, `occupied`) las trata como
+  impasables y no las dibuja: restaura el comportamiento de antes de la fase 0 (el jugador no cruzaba la
+  barrera) sin revelarle la pieza. Es la base de las puertas secretas (fase 2).
+- **Reglas de durabilidad** (decisión del usuario: «será la base y será caro de cambiar»): claves de datos en
+  inglés siempre; una escena vieja (v1, sin `def`/`uid`/`state`) se completa al leerla, nunca se traduce con
+  pérdida; el servidor valida cada pieza contra su definición (`cleanProp`) y descarta lo que no resuelve
+  (fallar cerrado, incluida una definición `gmOnly` borrada mientras la pieza seguía colocada); borrar una
+  definición `p:` en uso responde 409.
+
 ## Decisiones y trampas
 
 - **Imágenes dentro de PostgreSQL** (bytea): un `pg_dump` respalda todo; a cambio, la base

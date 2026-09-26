@@ -51,6 +51,27 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
   texto», vida, puertas…) son los mismos del tablero.
 - Límites vigentes en [06](06-pendientes.md) (P-32 a P-36).
 
+### Piezas del tablero (fase 0, 2026-09-26)
+
+- **API**: `GET /api/t3d/boards/:id/pieces` (cualquier miembro; a un jugador se le omiten las definiciones con
+  `gmOnly` — nunca se le dibujan) · `PUT/DELETE /api/t3d/boards/:id/pieces/:pid` (sólo el director). Tope: 300
+  definiciones por tablero y 64 KB por definición (413 si se supera). `DELETE` de una definición todavía
+  colocada en alguna escena o campaña del tablero responde **409** («Esa pieza está colocada en el tablero»);
+  hay que quitarla de la escena antes de poder borrarla.
+- **Visible para el usuario** (arreglos de la investigación previa a esta fase, cada uno con su test):
+  - La luz de una antorcha o farol **se recalcula al abrir o cerrar una puerta** que está entre la fuente y la
+    casilla mirada (antes se quedaba con la luz de antes hasta el siguiente cambio que la tocara).
+  - Un dibujo que sustituye a un farol, una antorcha o un brasero **manda sobre su luz**: si el dibujo no
+    tiene luz propia, ese objeto se apaga (antes seguía alumbrando aunque se le hubiera quitado la luz al
+    dibujo); un árbol con un dibujo propio con luz, en cambio, **puede alumbrar** (antes no podía). El
+    aspecto de un portal sigue la misma regla (Ruling R16): un dibujo de aspecto puerta sin luz no apaga el
+    cristal de un portal mágico, porque cada aspecto tiene su propio dibujo.
+  - Una **barrera** (sólo la ve el director) ya no llega al jugador ni por la escena, ni por una campaña, ni
+    por la mesa en vivo — antes se le mandaba igual y sólo el cliente la escondía. Para que el jugador siga
+    sin poder cruzarla (como antes), su casilla llega como bloqueada sin decir qué la bloquea (`blockCells`,
+    ver [01](01-arquitectura.md)); a cambio, la hierba de esa casilla crece para el jugador donde antes se
+    veía la barrera del director (cambio visible aceptado: es más privado, no menos).
+
 ## Escenas, portales, fichas, imágenes, niebla
 
 Sin cambios respecto a Mini VTT: ver README §«Cómo se usa» y §«Qué puede hacer cada rol».
@@ -91,6 +112,7 @@ intenta algo que no puede.
 | `GET/POST /api/boards/:id/images` · `GET/PATCH/DELETE /api/images/:id[/thumb]` | miembro / gm | imágenes |
 | `GET/POST/DELETE /api/t3d/boards/:id` | miembro / gm | tipo de mesa (POST: marcar 3D en los 10 min tras crear; DELETE siempre 409) |
 | `/api/t3d/boards/:id/{scenes,campaigns,drawings,usage,settings,travel}` · `…/scenes/:sid/portals` | miembro / gm | contenido de una mesa 3D (404 en una 2D); detalle en el README del módulo |
+| `GET /api/t3d/boards/:id/pieces` · `PUT/DELETE …/pieces/:pid` | miembro / gm | definiciones propias de piezas del tablero (`t3d.pieces`); al jugador se le omiten las `gmOnly`; 409 si se borra una en uso |
 | `GET /t3d/…` · `GET /t3d/ws?board=<id>` | — / miembro | cliente del módulo · su tiempo real |
 | `GET /ws?board=<id>` | miembro | tiempo real: `ops`, `scene`, `travel`, `fog`, `cursor`, `rename`, `chat`, `roll`, `initiative` |
 

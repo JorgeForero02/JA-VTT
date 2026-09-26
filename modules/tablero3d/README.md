@@ -275,6 +275,7 @@ resolución del dibujo (a 16 px por casilla: 10×14, 12×18, 16×24, 32×48, 48�
 | `icons-t3d.js` | `Tablero3D.icons`: los 25 iconos Lucide que JA-VTT no trae; `t3d.js` los añade al `ICONS` del anfitrión sin pisar ninguno (si no hay `ICONS`, los pinta él) |
 | `mesa.js` | `Tablero3D.createMesa(net)`: el adaptador `mesa.use('db' \| 'room' \| 'user' \| 'downloads')` sobre el `Net` del anfitrión |
 | `vision.js` | `Tablero3D.Vision`: línea de visión y alcance de la luz sobre la rejilla (`los`, `lightReaches`) |
+| `catalogo.js` | `Tablero3D.Catalogo` en el navegador, `module.exports` en Node (`require()` desde `rules.js`): catálogo único de piezas (fase 0, 2026-09-26) — las definiciones de fábrica (`FACTORY`) generadas del resto del motor, y las consultas por componente que sustituyen las listas sueltas de antes: `defOf`/`defIdOf` (tipo o `def` → definición), `complete` (pieza + definición → pieza con todo completo, `def`/`uid`/`state`), `blocksMove`, `span`, `isDoor`, `isLow`, `gmOnly`, `wallKind`, `surface`, `emitLight`, `stateOf`, `blocks` (paso/vista/luz por componente), `validateDef` (saneado y validación de una definición `p:` del tablero) y `newUid`. Esquema completo en [docs/superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md](../../docs/superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md) §3.2 |
 | `muros.js` | `Tablero3D.Muros`: los tipos de muro de JA-VTT (`WALL_TYPES`: ids, nombres, iconos, colores, trazos, descripciones y banderas), qué tapa cada uno (`blocks`), el saneado de puertas, ventanas, velos, maleza, barreras y portales (`normProp`, que también pasa las escaleras de campaña de antes a portales), ids de portal (`fixPortalIds`) y la llegada junto al portal de destino (`gridOf`, `arrival`, `near`) |
 | `ambiente.js` | `Tablero3D.Ambiente`: los momentos de luz de JA-VTT (`ENVS`) y su aspecto 3D (`LOOK`, `look`, `mix`, `torchK`), la lectura de la escena (`norm`), las zonas interiores por casilla (`interiorMask`, `cleanCells`) y la luz de fuera que entra por ventanas y puertas abiertas (`windowLight`, `field`, `ambientLit`) |
 | `ajustes.js` | `Tablero3D.Ajustes`: los ajustes del tablero de JA-VTT (`DEFAULTS`, `HP_VISIBILITY`, `norm` = `cleanSettings`), los de escena (`sceneFlags`), los planos (`normPlan`, `measure`: las casillas de cada plantilla de Partida, `planOf`, `planCells`), las anotaciones (`normNote`) y la iniciativa (`normInitiative`, `readCombat`) |
@@ -305,7 +306,7 @@ ven); `'los', x0, z0, x1, z1, kind`; `'fog', x, z`; `'screen', x, z` (dónde cae
 pantalla); `'scene'` (id, nombre, medidas y ajustes); `'roofs'`; `'env'`, `'ambient', x, z`,
 `'interior', x, z`, `'light', x, z`; `'combat'`, `'plans'`, `'notes'` y `'log'` (registro de dados).
 
-- **Carga**: en paralelo `t3d.css` y `t3d.html` y en orden `vendor/three.min.js`, `vision.js`,
+- **Carga**: en paralelo `t3d.css` y `t3d.html` y en orden `vendor/three.min.js`, `vision.js`, `catalogo.js`,
   `fichas.js`, `muros.js`, `ambiente.js`, `ajustes.js`, `dados.js`, `personajes.js`, `mesa.js`,
   `icons-t3d.js` y `tablero3d.js`; mete cada plantilla en el hueco `data-t3d-slot="<nombre>"` del
   anfitrión (`display:contents`; si falta, al final de `root`) y arranca el motor. **Nada de esto se carga
@@ -556,7 +557,7 @@ pantalla); `'scene'` (id, nombre, medidas y ajustes); `'roofs'`; `'env'`, `'ambi
   faroles). Volúmenes hechos la primera vez que se usan (`pstack`) y miniaturas en caché (`PSLICES`).
   Extensiones: `span:[w,d]` (varias casillas desde la esquina `(x, z)`, girado con `v`: ocupa y
   bloquea todas; lo usan `propSpan`/`propCells`/`propCovers` en colocación, borrado, ocupación, luz y
-  minimapa), `door` (puerta: `isDoorType`), `lift` (la puerta sube en vez de girar) + `frame` (una
+  minimapa), `door` (puerta: `Catalogo.isDoor`), `lift` (la puerta sube en vez de girar) + `frame` (una
   segunda pieza fija, oculta en la paleta con `hidden`: el arco de `gate`), `deck` (puente:
   `computeDecks` da a cada casilla la altura de la orilla más alta a lo largo del paso en `DECK`;
   `PATHG` la pisa como suelo, `footY` pone ahí las fichas y el objeto se baja para que su tarima quede

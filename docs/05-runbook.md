@@ -35,10 +35,23 @@ docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # 
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
 npm run test:ui          # 14 pasos: registro, perfil, chat, dados, iniciativa, recuperación; capturas en test/e2e/capturas
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
-npm run test:t3d         # 26 pasos del tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): guardado automático, conexión, mesa en vivo, tirada, ajustes, mesa 2D, consola
+npm run test:t3d         # 32 pasos del tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): guardado automático, conexión, mesa en vivo, tirada, ajustes, mesa 2D, consola, catálogo de piezas (§6, escena vieja, pieza p: opaca, barrera R18)
 ```
 
 No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.
+
+## Tests del módulo tablero3d (`test/t3d/`)
+
+- **Sólo los del módulo, en serie, contra `jav-test-pg`**: `node --test --test-concurrency=1 test/t3d/*.test.js`
+  (no hace falta `docker compose`; usa el mismo Postgres de siempre). Entran también en `npm test`/`npm run
+  check` junto con los del núcleo.
+- `test/t3d/helpers/fixtures.js` trae `escenaVieja()` (una escena v1 completa: puertas con llave, portales con
+  destino, dibujos `obj:o_…`, escaleras de campaña de antes) para los tests de compatibilidad.
+- `test/t3d/tools/foto-fabrica.cjs` **no se vuelve a ejecutar**: fue una herramienta de un solo uso (Tarea 3,
+  fase 0) para fotografiar el comportamiento de las piezas de fábrica *antes* de que existiera el catálogo
+  (`test/t3d/fixtures/fabrica-antes.json`, referencia fija). Desde que `muros.js` y el resto leen
+  `Catalogo`/`PIECES`, volver a correrla no reproduce lo mismo (ya no hay `PROP3D` sin catálogo que fotografiar
+  de la misma forma) — el propio archivo lo avisa en su cabecera.
 
 ## Añadir una migración
 

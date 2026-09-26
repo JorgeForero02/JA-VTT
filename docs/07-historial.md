@@ -2,6 +2,64 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Fase 0 del arte propio: cimientos de las piezas (rama `fase0-piezas`, sin desplegar)
+
+- **Qué:** cimientos para que las fases 1–6 de la hoja de ruta del arte propio (P-38) añadan piezas con
+  comportamiento sin reescribir el motor cada vez. Catálogo único
+  (`modules/tablero3d/public/catalogo.js`, cliente y servidor) con las 38 piezas de fábrica y los 10 terrenos
+  como definiciones por componente (`move`, `sight`, `light`, `door`, `portal`, `emitLight`, `surface`, `hide`,
+  `gmOnly`, `terrain`), sustituyendo las listas repetidas de antes (`DOOR_PROPS`, `PASSABLE_PROPS`,
+  `PROP_SPANS` en `rules.js`, `muros.js` y `PROP3D`). Esquema de pieza colocada (`v: 2`, `def`/`uid`/`state`,
+  prefijos `f:`/`p:`/`d:`) validado en el servidor (`cleanProp`/`cleanMap`), con tabla nueva `t3d.pieces`
+  (migración `007-piezas.sql`) y su API (`GET/PUT/DELETE …/pieces[/:pid]`, tope 300 y 64 KB). Detalle completo
+  en [docs/superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md](superpowers/specs/2026-09-26-fase0-cimientos-piezas-design.md)
+  (§6 «Resultado»); estado técnico en [01](01-arquitectura.md) y [02](02-funcional.md).
+- **Por qué:** el «qué es cada tipo» estaba repetido en tres sitios sin test que los comparara, y una
+  investigación previa (hoja de ruta del arte propio, P-38) encontró fallos reales de privacidad y de
+  saneado que convenía cerrar antes de construir piezas propias encima.
+- **Fallos reales encontrados y arreglados** (cada uno con su test, roto una vez a propósito):
+  - **Privacidad — barreras al jugador:** las piezas `gmOnly` (barreras) llegaban al jugador por la escena,
+    por una campaña y por la mesa en vivo; sólo el cliente las escondía. Ahora `sceneFor`/`campaignFor`/
+    `liveDocFor` no las mandan. Efecto colateral (Ruling R18): sin la pieza, el jugador podía arrastrar su
+    ficha a través de la barrera porque el servidor nunca ha validado los caminos (`R.liveChange` sólo mira
+    dueño y rol) — se cerró mandando la casilla bloqueada sin tipo ni arte (`blockCells`, campo derivado, no
+    se guarda); el cliente la trata como impasable. Ampliado a una definición `gmOnly` **borrada** mientras la
+    pieza seguía colocada (fallar cerrado: sin definición que resolver, tampoco llega al jugador) y a un
+    `DELETE` de definición en uso (409, en vez de dejar piezas huérfanas).
+  - **Validación — campos sin sanear:** un objeto que no era luz ni muro se guardaba tal cual, sin comprobar
+    `x`/`z` ni tipo, y una pieza podía quedarse con campos ajenos (un cofre con `target`/`color` de un portal).
+    Ahora cada pieza se valida contra su definición y sólo guarda los campos propios de su categoría.
+  - **Luz tras una puerta:** al abrir o cerrar una puerta no se recalculaba la luz de las antorchas o faroles
+    de detrás (`lightDirty=true` no bastaba: `relight()` sale si ninguna ficha lleva luz encima). Arreglado con
+    `doorRelight`, que sí rehace los bloques de alrededor de la puerta cuando alguna fuente la alcanza.
+  - **`def` falso:** una pieza podía llevar un `def` que no le correspondía (una barrera con `def:'f:chest'`);
+    el catálogo ahora deriva siempre `f:`/`d:` de `type` y sólo un `p:` bien formado sustituye.
+  - **Mesa huérfana (Tarea 8b, hallado al medir el flake conocido):** quien entraba justo cuando el volcado
+    automático descargaba una mesa vacía se quedaba en una mesa sin clientes (`TypeError` en `state`, mensajes
+    ignorados en silencio). Arreglado en `join` (`index.js`).
+- **Cambios visibles aceptados** (no son regresiones, son la consecuencia correcta de cerrar la privacidad):
+  - Al jugador le **crece hierba** en la casilla donde antes veía (aunque no pudiera cruzarla) la barrera del
+    director: es más privado, no menos.
+  - Un dibujo que sustituye a un farol, una antorcha o un brasero **manda sobre su luz** (si no tiene luz
+    propia, ese objeto se apaga) y un árbol o un aspecto de portal con dibujo propio con luz **puede
+    alumbrar**, cosa que antes no podía. Ratificado (Ruling R16): el aspecto de un portal usa su propio dibujo
+    para decidir su luz, no el tipo genérico «portal».
+- **Verificado:** `node --test --test-concurrency=1 test/t3d/*.test.js` → 207/207 (el flake conocido de
+  «mesa en vivo» de `realtime.test.js`, causa 2 de la Tarea 8b, deja de reproducirse: 0/5 tandas completas
+  tras el arreglo) · `npx eslint modules/tablero3d test/t3d test/e2e/t3d.mjs` → limpio · `npm run test:t3d` →
+  **32/32** (antes de la fase, 26/26; nuevos: catálogo/§6, escena vieja de ida y vuelta, pieza `p:` opaca,
+  barrera R18) · equivalencia en navegador (Tarea 7: la misma escena de referencia con muros, puertas,
+  puentes, maleza, portal mágico… antes y después del motor por catálogo) → caminos, puertas, tarimas, luz y
+  niebla idénticos, hasta 0,000 de diferencia · rendimiento en una escena 160×160 con 5000 objetos (Tarea 9,
+  tabla completa en `task-9-report.md`): `refreshEntities` 128 ms → 140 ms (×1,09, dentro del ×1,15 de
+  margen), fps 46 → 46 (sin cambio), camino largo (310 casillas) 44 ms → 43 ms (sin cambio) — **DONE**, sin
+  necesidad de optimizar.
+- **Revertir:** `git revert` de los commits `9a4c834..f935ff5` sobre `main` (o del commit de fusión, si se
+  fusiona con `--no-ff`); la migración `t3d/007-piezas.sql` es aditiva (tabla nueva, sin tocar las demás) —
+  si hiciera falta deshacerla del todo, `DROP TABLE t3d.pieces` en la base (pierde las definiciones `p:` que
+  se hubieran creado; en esta fase no hay ninguna piezas propias creadas todavía, sólo el cimiento). Sin
+  desplegar: no hay nada que revertir en producción.
+
 ## 2026-09-26 — Tablero 3D: documentación traída, guardado automático y Mesa → Conexión
 
 - **Desplegado:** `main @ 0b12ed4` (deployment `td1pkzrluvctlpmbony9paay`): `finished`, app/db healthy, `/t3d/tablero3d.js` con `autoSave` y `main.js` con `t3dStatusText`; datos intactos (4 usuarios, 6 tableros, 1 mesa 3D).
