@@ -56,8 +56,13 @@ Qué hace el sistema al 2026-09-15. El manual detallado para jugadores está en
 - **API**: `GET /api/t3d/boards/:id/pieces` (cualquier miembro; a un jugador se le omiten las definiciones con
   `gmOnly` — nunca se le dibujan) · `PUT/DELETE /api/t3d/boards/:id/pieces/:pid` (sólo el director). Tope: 300
   definiciones por tablero y 64 KB por definición (413 si se supera). `DELETE` de una definición todavía
-  colocada en alguna escena o campaña del tablero responde **409** («Esa pieza está colocada en el tablero»);
-  hay que quitarla de la escena antes de poder borrarla.
+  colocada en alguna escena o campaña del tablero, o en la mesa en vivo (cargada o volcada), responde **409**
+  («Esa pieza está colocada en el tablero»); hay que quitarla de la escena antes de poder borrarla. `PUT` que
+  cambia la `class` de una definición colocada, también **409**; `PUT` de una definición de terreno
+  (`class: 'terrain'`) responde **400** (los terrenos propios son de la fase 3).
+- Una pieza colocada cuya definición del tablero ya no existe **no se pierde**: el servidor la guarda opaca y el
+  director la sigue viendo (marcador «sin arte») para poder quitarla; al jugador no le llega, pero su casilla le
+  sale bloqueada.
 - **Visible para el usuario** (arreglos de la investigación previa a esta fase, cada uno con su test):
   - La luz de una antorcha o farol **se recalcula al abrir o cerrar una puerta** que está entre la fuente y la
     casilla mirada (antes se quedaba con la luz de antes hasta el siguiente cambio que la tocara).
@@ -112,7 +117,7 @@ intenta algo que no puede.
 | `GET/POST /api/boards/:id/images` · `GET/PATCH/DELETE /api/images/:id[/thumb]` | miembro / gm | imágenes |
 | `GET/POST/DELETE /api/t3d/boards/:id` | miembro / gm | tipo de mesa (POST: marcar 3D en los 10 min tras crear; DELETE siempre 409) |
 | `/api/t3d/boards/:id/{scenes,campaigns,drawings,usage,settings,travel}` · `…/scenes/:sid/portals` | miembro / gm | contenido de una mesa 3D (404 en una 2D); detalle en el README del módulo |
-| `GET /api/t3d/boards/:id/pieces` · `PUT/DELETE …/pieces/:pid` | miembro / gm | definiciones propias de piezas del tablero (`t3d.pieces`); al jugador se le omiten las `gmOnly`; 409 si se borra una en uso |
+| `GET /api/t3d/boards/:id/pieces` · `PUT/DELETE …/pieces/:pid` | miembro / gm | definiciones propias de piezas del tablero (`t3d.pieces`); al jugador se le omiten las `gmOnly`; 409 si se borra una en uso o se le cambia la clase; 400 si es un terreno propio |
 | `GET /t3d/…` · `GET /t3d/ws?board=<id>` | — / miembro | cliente del módulo · su tiempo real |
 | `GET /ws?board=<id>` | miembro | tiempo real: `ops`, `scene`, `travel`, `fog`, `cursor`, `rename`, `chat`, `roll`, `initiative` |
 

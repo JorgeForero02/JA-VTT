@@ -35,8 +35,15 @@ docker exec jav-test-pg psql -U jav -d postgres -c "CREATE DATABASE jav_ui"   # 
 DATABASE_URL=postgres://jav:jav@localhost:55432/jav_ui PORT=3999 node server.js &
 npm run test:ui          # 14 pasos: registro, perfil, chat, dados, iniciativa, recuperación; capturas en test/e2e/capturas
 npm run test:dice        # tira un dado de cada tipo y captura dice-debug.png
-npm run test:t3d         # 32 pasos del tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): guardado automático, conexión, mesa en vivo, tirada, ajustes, mesa 2D, consola, catálogo de piezas (§6, escena vieja, pieza p: opaca, barrera R18)
+npm run test:t3d         # 35 pasos del tablero 3D dentro de JA-VTT (BASE_URL=http://localhost:3999): guardado automático, conexión, mesa en vivo, tirada, ajustes, mesa 2D, consola, catálogo de piezas (§6, escena vieja, pieza p: opaca, barrera R18, piezas p: que tapan por componentes, level/side, /pieces caído)
 ```
+
+- **Límite de `probe('light', x, z)`** (lo usa `test:t3d`): lee la luz **calculada** (`computeLight`, el array
+  `L`), no lo que se ve pintado. Tras abrir una puerta, `doorRelight` rehace además los bloques de alrededor
+  (el repintado); la prueba confirma el cálculo, no que esos bloques se hayan vuelto a dibujar. Para ver el
+  repintado hace falta una captura.
+- `test:t3d` provoca a propósito que `/api/t3d/boards/*/pieces` falle (paso M4/M5); los errores de red de ese
+  tramo no cuentan como errores de consola.
 
 No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producción: `BASE_URL=https://tablero.supportive.pro`.
 

@@ -2,6 +2,34 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Fase 0: ola final de arreglos tras la revisión de toda la rama (rama `fase0-piezas`, sin desplegar)
+
+- **Qué** (decisiones en `.superpowers/sdd/2026-09-26-fase0-cimientos-piezas/final-fix.md`, Rulings R19–R21):
+  - **I1** el servidor conserva opacas las piezas `p:` sin definición (como el cliente, R15): `cleanProp` guarda
+    sólo `type`/`def`/`uid`/`x`/`z`/`v`/`level`/`side` y un `state` plano; al jugador no le llegan y su casilla sale
+    en `blockCells` (1×1); `pieceInUse` mira también `t3d.live_docs`; `PUT` de pieza: terreno → 400, cambio de
+    `class` en uso → 409.
+  - **I2** el motor tapa vista, luz y maleza por componentes: una pieza sin `wallKind` que pueda tapar entra en
+    `WALLAT` en todas sus casillas y `GRID.bk` pregunta con las definiciones del tablero.
+  - **I3** una puerta `p:` tiene estado: `validateDef` sintetiza `open`/`locked` y la variante abierta de fábrica
+    (spec §3.2).
+  - **I4** `Catalogo.factoryType`: lo que decide por tipo (portal, luz, puerta, ventana, escalera, árbol) sólo
+    vale para piezas de fábrica, en el servidor y en el cliente.
+  - **Menores**: uid repetidos deterministas en los dos lados (M1), `level`/`side` en el cliente (M2), árbol
+    `v:3` (M3, era un fallo real: la escena se quedaba a medias), abrir sin esperar a `/pieces` (M4) y luz/niebla
+    rehechas al cargarlas (M5), un solo `doorRelight` por lote de la mesa en vivo (M6), `piecesRev` olvidado al
+    borrar el tablero (M7), contrato de migración con tablas y filas de `t3d` (M8), documentación (M9),
+    cobertura de `catalogo.js` en `npm test` (M10) y `span` que sólo gira con `orient` (M11).
+- **Por qué:** la revisión de la rama encontró que el servidor aún descartaba piezas que el cliente conservaba,
+  que el motor sólo tapaba por `wallKind` y que el tipo decidía comportamiento en piezas que no eran de fábrica;
+  la fase 1 habría tenido que rehacerlo (cero pendientes, decisión del usuario).
+- **Cambio visible (sólo con piezas `p:`, que aún no existen en producción)**: un objeto `p:` cuyo tipo empieza
+  por `obj:` alumbra con su `emitLight` si no hay dibujo con ese nombre (antes, nunca).
+- **Verificado:** `node --test --test-concurrency=1 test/t3d/*.test.js` → 220/220 · eslint limpio ·
+  `npm run test:t3d` → **35/35** (3 pasos nuevos; el de equivalencia de fábrica sigue idéntico). Cada arreglo roto
+  a propósito; detalle en `final-fix-report.md` de esa carpeta.
+- **Revertir:** `git revert` de los commits de la ola (`b8e38ce..HEAD`); sin migraciones nuevas.
+
 ## 2026-09-26 — Fase 0 del arte propio: cimientos de las piezas (rama `fase0-piezas`, sin desplegar)
 
 - **Qué:** cimientos para que las fases 1–6 de la hoja de ruta del arte propio (P-38) añadan piezas con

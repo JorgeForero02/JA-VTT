@@ -119,7 +119,8 @@ Cimientos para que las fases siguientes añadan piezas propias sin reescribir el
 - **Catálogo único** (`Tablero3D.Catalogo` en el navegador, `module.exports` en Node): las 38 piezas de fábrica
   (32 objetos, árbol, brasero, luz, 7 tipos de muro de JA-VTT) más los 10 terrenos, generadas del código de
   antes (`PROP3D`, `WALL_TYPES`, `TERR`), y las consultas por componente (`defOf`, `complete`, `blocksMove`,
-  `span`, `isDoor`, `gmOnly`, `wallKind`, `surface`, `isLow`, `emitLight`, `validateDef`) que sustituyen las
+  `span`, `isDoor`, `gmOnly`, `wallKind`, `surface`, `isLow`, `emitLight`, `factoryType`, `dedupeUids`,
+  `validateDef`) que sustituyen las
   listas repetidas de antes (`DOOR_PROPS`, `PASSABLE_PROPS`, `PROP_SPANS`, en `rules.js` y `muros.js`).
 - **Definición** (`schema: 1`; prefijo del id: `f:` fábrica, `p:` pieza del tablero en `t3d.pieces`, `d:`
   calculada de un dibujo de objeto antiguo): `class`, `art`, `shape` (`w`, `d`, `height`, `orient`, `random`,
@@ -145,9 +146,17 @@ Cimientos para que las fases siguientes añadan piezas propias sin reescribir el
   barrera) sin revelarle la pieza. Es la base de las puertas secretas (fase 2).
 - **Reglas de durabilidad** (decisión del usuario: «será la base y será caro de cambiar»): claves de datos en
   inglés siempre; una escena vieja (v1, sin `def`/`uid`/`state`) se completa al leerla, nunca se traduce con
-  pérdida; el servidor valida cada pieza contra su definición (`cleanProp`) y descarta lo que no resuelve
-  (fallar cerrado, incluida una definición `gmOnly` borrada mientras la pieza seguía colocada); borrar una
-  definición `p:` en uso responde 409.
+  pérdida; el servidor valida cada pieza contra su definición (`cleanProp`) y descarta lo que no resuelve,
+  salvo una pieza `p:` cuya definición falta, que se conserva **opaca** (sólo `type`, `def`, `uid`, `x`, `z`,
+  `v`, `level`/`side` y un `state` plano), como en el cliente; al jugador no le llega y su casilla le sale en
+  `blockCells` (fallar cerrado). Borrar una definición `p:` en uso (escenas, campañas, mesa en vivo cargada o
+  volcada) o cambiarle la `class` responde 409; una definición de terreno propio, 400 (fase 3).
+- **Por componentes, no por tipo** (ola final): lo que decide por tipo (`'portal'`, `'light'`, `'window'`,
+  `'stairs'`, `'tree'`…) usa `Catalogo.factoryType` (sólo piezas `f:`), en el servidor y en el cliente. En el
+  motor, una pieza sin `wallKind` que pueda tapar vista, luz o maleza entra en `WALLAT` en todas sus casillas y
+  `GRID.bk` pregunta a `Catalogo.blocks` con las definiciones del tablero; una puerta `p:` tiene los estados
+  `open`/`locked` de la de fábrica (spec §3.2). Si `/pieces` falla, la escena y la mesa se abren igual (las `p:`
+  quedan opacas) y sólo el guardado espera; al llegar las definiciones se rehacen luz y niebla.
 
 ## Decisiones y trampas
 

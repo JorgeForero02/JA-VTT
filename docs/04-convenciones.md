@@ -55,6 +55,10 @@ renumerar documentos.
   lo resuelven otros, con fuentes—, (2) catálogo de lo que hay que cubrir, (3) enfoques con recomendación,
   (4) diseño por partes aprobado → spec en `superpowers/specs/` → plan en `superpowers/plans/`. Todo
   queda escrito; las decisiones del usuario, una a una y anotadas en la spec.
+- **Archivos de tests**: un archivo de tests que pasa de **~800 líneas** se parte por área (p. ej.
+  `frontend.test.js` → muros, luz, fichas…) en el siguiente cambio que lo toque. `test/t3d/frontend.test.js`
+  ya lo supera y se deja así por ahora (decisión de la ola final de la fase 0: partirlo sería sólo estilo);
+  la regla vale desde aquí.
 
 ## B.2 Ramas
 

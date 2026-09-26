@@ -93,8 +93,35 @@ usuario del 2026-09-26: «será la base y será caro de cambiar»). Reglas de du
   (`p:`) no puede llamarse igual que un campo de la pieza colocada, o `complete()`/`stateOf` no sabrían si leen
   el estado o el campo propio: `type def uid x z v level side state id look target name preset r h color
   intensity anim angle rot darkness on open locked`. Esto incluye `open`/`locked`: una pieza propia con una
-  tapa no puede llamar a su estado `open` (usa otro nombre, p. ej. `lid`); esos dos nombres quedan para el
-  espejo de las puertas de fábrica.
+  tapa no puede llamar a su estado `open` (usa otro nombre, p. ej. `lid`); esos dos nombres quedan para las
+  puertas (las de fábrica y las `p:` con componente `door`, ver abajo).
+- **Puerta del tablero** (ola final, Ruling R20): si una definición `p:` tiene `components.door`, `validateDef`
+  **sintetiza** sus estados `open` y `locked` (`values: [false, true]`, `initial: false`) igual que los de la puerta
+  de fábrica, y, si el autor no da ninguna variante con `when: { open: true }`, añade la de la puerta de fábrica
+  (`move: { block: false }, sight: 'none', light: 'none'`) la primera, para que las del autor manden sobre ella. El
+  autor sigue sin poder declarar `open`/`locked` a mano (sólo se admite la forma exacta sintetizada, para que validar
+  dos veces dé lo mismo), pero sí puede escribir variantes con `when: { open: true }` o `{ locked: true }`. El tope
+  de 4 estados cuenta los sintetizados: una puerta deja sitio a 2 estados propios. Así `blocksMove`, `blocks`,
+  `gmOnlyBlockCells`, `gridOf` y `stateOf` tratan igual una puerta `p:` que una de fábrica.
+- **`v`, giro o variante** (ola final, Ruling R21): en las piezas con `shape.orient`, `v` (0–3) es el giro y
+  `span()` intercambia ancho y fondo si `v` es impar; en las de `shape.random`, `v` es la variante del dibujo (el
+  árbol: `tree0`–`tree2`, `v % 3`) y **no** cambia las casillas que ocupa. Las piezas de fábrica de varias casillas
+  llevan todas `orient`, así que para ellas no cambia nada.
+- **El tipo sólo manda en las de fábrica** (ola final, I4): `Catalogo.factoryType(p)` es `p.type` si la definición
+  de la pieza es `f:…` y `null` si no. Todo lo que decide comportamiento o campos por tipo (`'portal'`, `'light'`,
+  `'door'`, `'window'`, `'stairs'`, `'tree'`) pregunta por él, en el servidor y en el cliente: una pieza `p:` con
+  `type: 'portal'` no es un portal de fábrica (sin `id`, `look` ni `target`, no se cruza) salvo lo que diga su
+  definición. El arte sigue usando `type` como clave.
+- **Pieza del tablero sin definición** (ola final, I1; el cliente ya lo hacía, R15): una pieza con un `def: 'p:…'`
+  bien formado cuya definición no está (borrada, o sin cargar) **no se descarta** en el servidor: se guarda opaca con
+  sólo `type` (≤ 40), `def`, `uid`, `x`, `z`, `v`, `level`/`side` y un `state` plano (≤ 8 claves de booleanos,
+  números finitos o cadenas ≤ 40; si no, se quita). Al jugador no le llega y su casilla le sale en `blockCells`
+  como bloqueo 1×1 (fallar cerrado). `PUT` de una definición con `class: 'terrain'` responde 400 (terrenos propios:
+  fase 3) y cambiar la `class` de una definición en uso, 409. «En uso» mira escenas, campañas, la mesa en vivo
+  cargada y la volcada (`t3d.live_docs`, clave `board`).
+- **uid repetidos** (ola final, M1): `Catalogo.dedupeUids` — el primero conserva su `uid`; los siguientes reciben uno
+  derivado estable (hash del uid, su posición y su casilla), el mismo en el cliente (`deserialize`) y en el
+  servidor (`cleanMap`).
 - **Respaldo a la raíz de un estado**: sólo para `open` y `locked` (formato de antes de las puertas); si el
   estado es booleano (`values: [false, true]`), se coacciona con `!!v` (los datos viejos ya eran booleanos, pero
   así un `open: 1` residual no deja la puerta a medio cerrar). Cualquier otro nombre de estado sólo se lee de
@@ -246,12 +273,14 @@ terrenos por escena (6), Universal VTT (7): se deciden en su fase. Esta fase só
 
 ## Resultado
 
-Código completo y verificado en la rama `fase0-piezas` (commits `9a4c834..f935ff5` sobre `main @ 2e353c3`),
-pendiente de despliegue (aprobación del usuario, paso 5 de la Tarea 9). Las tres piezas del diseño (catálogo
-único, esquema de pieza validado en el servidor, motor y servidor preguntando por componentes) están hechas;
-los seis fallos de §6 arreglados, cada uno con su test; equivalencia confirmada en el navegador (misma
-escena, antes y después del motor por catálogo); rendimiento dentro del margen (×1,15) en una escena
-160×160 con 5000 objetos. Detalle de números y verificación en
+Código completo y verificado en la rama `fase0-piezas` (commits `893d317..HEAD` sobre `main @ 2e353c3`, con la
+ola final de arreglos tras la revisión de toda la rama: I1–I4 y M1–M11, ver §3.2), pendiente de despliegue
+(aprobación del usuario, paso 5 de la Tarea 9). Las tres piezas del diseño (catálogo único, esquema de pieza
+validado en el servidor, motor y servidor preguntando por componentes) están hechas; los fallos de §6
+arreglados, cada uno con su test; equivalencia confirmada en el navegador (misma escena, antes y después del
+motor por catálogo; `test:t3d` 35/35); rendimiento en una escena 160×160 con 5000 objetos: `refreshEntities`
+×1,09 (128 → 140 ms, dentro del margen de ×1,15), fps y caminos sin cambio (tabla en
+[docs/07-historial.md](../../07-historial.md)). Detalle de números y verificación en
 [docs/07-historial.md](../../07-historial.md) («Fase 0 del arte propio: cimientos de las piezas») y en los
 informes de cada tarea (`.superpowers/sdd/2026-09-26-fase0-cimientos-piezas/task-*-report.md`). Sin cambio
 visible salvo los de §6, aceptados por el usuario. Pendientes que quedan para las fases siguientes: P-43
