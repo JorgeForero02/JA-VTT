@@ -89,14 +89,27 @@ usuario del 2026-09-26: «será la base y será caro de cambiar»). Reglas de du
   (`t3d.pieces`), `d:` definición **calculada** (no guardada) de un dibujo de objeto antiguo (`d:o_xxxx`).
 - **Campos reservados desde ya** para no cambiar el formato después: `level` (pisos, fase 4) y `side`
   (borde de la casilla, muros finos, fase 4), `interactions` y `reactions` (fases 2 y 5).
+- **Nombres de estado reservados** (ronda de arreglos 1 de la tarea 3): un estado de una definición del tablero
+  (`p:`) no puede llamarse igual que un campo de la pieza colocada, o `complete()`/`stateOf` no sabrían si leen
+  el estado o el campo propio: `type def uid x z v level side state id look target name preset r h color
+  intensity anim angle rot darkness on open locked`. Esto incluye `open`/`locked`: una pieza propia con una
+  tapa no puede llamar a su estado `open` (usa otro nombre, p. ej. `lid`); esos dos nombres quedan para el
+  espejo de las puertas de fábrica.
+- **Respaldo a la raíz de un estado**: sólo para `open` y `locked` (formato de antes de las puertas); si el
+  estado es booleano (`values: [false, true]`), se coacciona con `!!v` (los datos viejos ya eran booleanos, pero
+  así un `open: 1` residual no deja la puerta a medio cerrar). Cualquier otro nombre de estado sólo se lee de
+  `state`, nunca de la raíz de la pieza.
 
 ```
 definition {
   schema: 1, id: 'f:door' | 'p:xxxxxxxx' | 'd:o_xxxx', name, class: 'terrain'|'object'|'wall'|'hanging',
   template?: string,                                   // la plantilla elegida al crearla (fase 1)
+  wallKind?:  'door'|'window'|'veil'|'cover'|'barrier'|'portal',  // sólo en las definiciones de fábrica que son
+                                                          // muros de JA-VTT (su visión y su exportación al 2D);
+                                                          // validateDef no lo escribe: las piezas del tablero no lo llevan
   art: { base: clave, byState?: { 'open=true': clave } },
   shape: { w: 1–8, d: 1–8, height: 0–8 (pasos de ¼ de casilla), orient: bool, random: bool,
-           layer: 'ground'|'object'|'wall'|'hanging' },
+           layer: 'ground'|'object'|'wall'|'hanging', low: bool },   // low: objeto bajo, la maleza lo oculta
   components: {
     move:       { block: bool, sides?: 'NESW' },        // sides: fase 4 (R13); hoy siempre la casilla entera
     sight:      'none' | 'limited' | 'block',           // qué tapa; 'limited' se admite y el motor la trata como 'block' hasta su fase
@@ -106,11 +119,11 @@ definition {
     cost?:      1 | 2,                                   // terreno difícil
     hide?:      bool,                                    // maleza: oculta a quien está dentro
     gmOnly?:    bool,                                    // barrera: sólo la ve el director
-    door?:      { lift?: bool },                         // es puerta (fase 2 añade tipos, quién puede, CD)
+    door?:      { lift?: number },                       // es puerta; lift: casillas que sube (la de la muralla, 1,5)
     portal?:    { looks: [...] },
     terrain?:   { liquid?, hazard?, anim?, prio, fringe? }   // sólo class 'terrain'
   },
-  states?:   { nombre: { values: [...], initial } }     // ≤ 4 estados, ≤ 4 valores cada uno
+  states?:   { nombre: { values: [...], initial } }     // ≤ 4 estados, ≤ 4 valores cada uno; nombre no reservado (ver abajo)
   variants?: [ { when: { estado: valor }, set: { componentes parciales, art? } } ]   // en orden; la última que cumple gana
   interactions: [], reactions: []                        // reservados: fases 2 y 5
 }
@@ -134,6 +147,13 @@ pieza colocada = un elemento de la lista `props` de la escena (se mantiene la li
 - Los datos propios de cada pieza (luz, portal) **se quedan donde están hoy**: nada de cajas nuevas que
   obliguen a migrar.
 - Los **terrenos** siguen siendo letras de `M.t` en esta fase; cada letra apunta a `f:<letra>`.
+- **`blocks(pieza, flag)` sin `wallKind`** (ronda de arreglos 1): las piezas del tablero y el mobiliario de
+  fábrica no tienen `wallKind`, así que se decide por componentes en vez de por la semántica de `Muros.blocks` de
+  hoy: `move` → `move.block`; `sight`/`light` → el componente **`!== 'none'`** (así `'limited'` tapa igual que
+  `'block'` hasta su fase); `hide` → `hide || sight !== 'none'`. Con `wallKind` (los muros de JA-VTT de fábrica)
+  se mantiene la semántica de hoy — portal de suelo no tapa, etc. —, también comparando `!== 'none'`. Para las
+  piezas de fábrica sin `wallKind` el resultado no cambia, porque sus componentes de vista y luz son siempre
+  `'none'`.
 
 ### 3.3 Guardado y API
 
