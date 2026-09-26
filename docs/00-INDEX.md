@@ -50,6 +50,7 @@ Trabajo en curso: nada bloqueante — ver [06-pendientes.md](06-pendientes.md).
 | `superpowers/specs/` | Diseño por feature |
 | `superpowers/plans/` | Plan de implementación por feature |
 | `_archivo/` | Fotos históricas congeladas. **No editar** |
+| `../modules/tablero3d/docs/` | Documentación del tablero 3D traída de `3d-tablero` (arquitectura del motor, guía de integración, límites, hoja de ruta). Índice en su `README.md` |
 
 ### Fuera de `docs/`
 
@@ -57,6 +58,7 @@ Trabajo en curso: nada bloqueante — ver [06-pendientes.md](06-pendientes.md).
 |---|---|
 | `CLAUDE.md` / `AGENTS.md` (raíz) | Contrato de arranque: reglas duras + punteros |
 | `README.md` | Manual de uso para quien juega |
+| `modules/tablero3d/README.md` | Interfaz del módulo del tablero 3D |
 | `~/.claude/dev-rules.md` · `~/.claude/docs-protocol.md` | Reglas globales del PC |
 
 ## Regla de oro

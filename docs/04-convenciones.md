@@ -20,17 +20,36 @@ renumerar documentos.
 ## B.1 Innegociables
 
 - **Todo el SQL vive en `server/db.js`.** Ninguna otra capa importa `pg` ni escribe consultas.
-- **Cambios de esquema = nueva migración** `server/migrations/NNN-nombre.sql`. Nunca editar
-  una ya aplicada.
-- **Reglas de negocio en `server/rules.js` y `server/auth.js`**, no en rutas ni en el cliente.
+  Excepción declarada: el SQL del tablero 3D vive en `modules/tablero3d/db.js`, siempre sobre el
+  esquema `t3d` (usa el pool del núcleo; nunca escribe en tablas de `public` salvo por las funciones
+  que le pasa `server/app.js`).
+- **Cambios de esquema = nueva migración** `server/migrations/NNN-nombre.sql` (núcleo) o
+  `modules/tablero3d/migrations/NNN-nombre.sql` (esquema `t3d`). Nunca editar una ya aplicada.
+- **Reglas de negocio en `server/rules.js` y `server/auth.js`** (en el 3D, `modules/tablero3d/rules.js`),
+  no en rutas ni en el cliente.
 - Dependencias de producción del servidor: sólo `pg`. En el cliente, three.js y cannon-es
-  vendorizados (`public/js/vendor`) para los dados 3D; nada por CDN. Añadir otra es decisión explícita.
+  vendorizados (`public/js/vendor`) para los dados 3D, y three.js r128 en
+  `modules/tablero3d/public/vendor` para el tablero 3D; nada por CDN. Añadir otra es decisión explícita.
 - Secretos sólo por variables de entorno. `.env` no se commitea.
 - El cliente son scripts clásicos compartiendo ámbito global: no introducir módulos ES ni
   bundler sin decisión explícita.
 - Textos de usuario (errores de API, UI) en castellano.
 - Estilo: `'use strict'`, comillas simples, punto y coma, 2 espacios, comentarios sólo para
   decisiones no obvias.
+
+## B.1b Tablero 3D (`modules/tablero3d`)
+
+- **Desde el 2026-09-26 el módulo se mantiene en este repositorio** (decisión del usuario). Antes se
+  copiaba tal cual desde `3d-tablero` sin tocarlo; esa regla de su guía (`modules/tablero3d/docs/08`)
+  ya no aplica. `3d-tablero` queda como histórico.
+- Se sigue manteniendo como módulo: su servidor sólo se conecta al núcleo por `createTablero3D(host)`
+  y su cliente por `Tablero3D.mount` (interfaz en `modules/tablero3d/README.md`). Las líneas de
+  JA-VTT que lo montan van marcadas `// t3d` (o `t3d:`), para poder encontrarlas y quitarlas.
+- Su cliente no depende de globales de JA-VTT salvo los que recibe al montar (`icon`, `showTab`…) y
+  `ICONS`; sus preferencias van en `localStorage` con claves `tablero:*` y `t3d-*`.
+- Cambios de su cliente: `npm run test:ui` **y** `npm run test:t3d` verdes antes de desplegar.
+- Documentación de cómo se construyó y hoja de ruta: `modules/tablero3d/docs/` (no se reescribe; lo
+  vigente va en estos `docs/`).
 
 ## B.2 Ramas
 

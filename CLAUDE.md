@@ -32,6 +32,7 @@ docker compose up -d --build && npm run test:e2e
 ## Reglas duras
 
 - **Todo el SQL en `server/db.js`**; esquema sólo por migraciones nuevas en `server/migrations/`.
+  El tablero 3D (`modules/tablero3d`, se mantiene aquí) tiene los suyos: `db.js` y `migrations/` del módulo, esquema `t3d`.
 - **Reglas de negocio en `server/rules.js` / `server/auth.js`**, nunca en rutas ni cliente.
 - Una dependencia de producción (`pg`); three.js y cannon-es vendorizados en `public/js/vendor`. Añadir otra es decisión explícita.
 - **Cambios de cliente: `npm run test:ui` verde antes de desplegar.** Un despliegue del 2026-09-16 salió con `hexA` borrada por saltarse esto.
