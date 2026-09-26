@@ -519,7 +519,9 @@ function tokensFor(doc, member, settings) {
 }
 /* una escena (mapa saneado) tal como la ve este miembro. `board` (Ruling R3b): Map de definiciones `p:`, para que una
    pieza del tablero con gmOnly se esconda igual que una de fábrica (si no, con una `p:` la Tarea 5 la mandaría al
-   jugador por no saber consultar su definición). */
+   jugador por no saber consultar su definición). Ronda de arreglos 1, «Importante 1a» (fallar cerrado): si la
+   definición de una pieza ya no resuelve (p. ej. se borró de t3d.pieces mientras seguía colocada), Catalogo.gmOnly
+   da `false` sin poder consultarla — así que además de las gmOnly se descarta toda pieza sin definición. */
 function sceneFor(map, member, settings, board) {
   if (isGm(member) || !map) return map;
   const S = cleanSettings(settings);
@@ -527,8 +529,8 @@ function sceneFor(map, member, settings, board) {
   out.minis = (map.minis || []).map((m) => tokenFor(Object.assign({}, m, { owner: typeof m.owner === 'string' ? m.owner : null, sheet: m.sheet || {} }), member, S)).filter(Boolean);
   if (map.notes) out.notes = map.notes.filter((n) => !n.gmOnly);
   if (map.plans) out.plans = map.plansReleased ? map.plans : map.plans.filter((p) => p.owner != null);
-  // lo que sólo ve el director (barreras; mañana, secretas) no sale del servidor
-  if (Array.isArray(map.props)) out.props = map.props.filter((p) => !Catalogo.gmOnly(p, board));
+  // lo que sólo ve el director (barreras; mañana, secretas; sin definición) no sale del servidor
+  if (Array.isArray(map.props)) out.props = map.props.filter((p) => Catalogo.defOf(p, board) && !Catalogo.gmOnly(p, board));
   return out;
 }
 function combatFor(doc, member, tokens, settings) {

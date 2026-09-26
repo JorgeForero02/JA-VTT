@@ -182,7 +182,14 @@ function createTablero3D(host) {
      cambia el director. El id de la ruta es el de la definición sin «p:». `boardPieces` es lo que reciben cleanMap,
      cleanCampaign, sceneFor, campaignFor… (Ruling R3b) para que una pieza `p:` valide y se filtre igual que una de fábrica. */
   const MAX_PIECES = 300;
+  const PIECE_IN_USE = 'Esa pieza está colocada en el tablero: quítala de sus escenas antes de borrarla';
   async function boardPieces(id) { return new Map((await q.pieces(id)).map((r) => [r.id, r.data])); }
+  // Ronda de arreglos 1, «Importante 1b»: además de escenas y campañas guardadas (q.pieceInUse), la mesa en vivo
+  // cargada puede tener la pieza en su documento `board` sin haberlo volcado aún.
+  function liveUsesPiece(id, defId) {
+    const L = live.get(id), bd = L && L.docs.get('board');
+    return !!(bd && bd.board && Array.isArray(bd.board.props) && bd.board.props.some((p) => p.def === defId));
+  }
   async function piecesRoutes(req, res, id, role, pid) {
     const M = req.method;
     if (!pid) {
@@ -192,21 +199,25 @@ function createTablero3D(host) {
     }
     if (role !== 'gm') return fail(res, 403, 'Solo el director cambia las piezas del tablero');
     if (!/^[a-z0-9]{2,40}$/.test(pid)) return fail(res, 400, 'Identificador no válido');
+    const defId = 'p:' + pid;
     if (M === 'DELETE') {
-      await q.deletePiece(id, 'p:' + pid);
+      if (await q.pieceInUse(id, defId) || liveUsesPiece(id, defId)) return fail(res, 409, PIECE_IN_USE);
+      await q.deletePiece(id, defId);
       await touch(id);
+      bumpPiecesRev(id);
       await refreshLivePieces(id);
       return json(res, 200, { ok: true });
     }
     if (M !== 'PUT') return fail(res, 404, 'Ruta no encontrada');
     const body = await readJson(req, R.BODY_LIMITS.small);
     const def = R.cleanPiece(body);
-    if (!def || def.id !== 'p:' + pid) return fail(res, 400, 'La pieza no es válida');
-    const exists = (await q.pieces(id)).some((r) => r.id === def.id);
+    if (!def || def.id !== defId) return fail(res, 400, 'La pieza no es válida');
+    const exists = await q.pieceExists(id, def.id);
     if (!exists && (await q.countPieces(id)) >= MAX_PIECES) return fail(res, 413, `Un tablero admite hasta ${MAX_PIECES} piezas`);
     if (await overQuota(id, 'pieces', def.id, R.docBytes(def))) return fail(res, 413, 'El almacén del tablero está lleno');
     await q.upsertPiece(id, def.id, def.name, def);
     await touch(id);
+    bumpPiecesRev(id);
     await refreshLivePieces(id);
     return json(res, 200, { ok: true });
   }
@@ -408,6 +419,11 @@ function createTablero3D(host) {
   /* ---------------- mesa en vivo en memoria ---------------- */
   // boardId → { id, docs, dirty, removed, clients: Map(conn → { peer, presence, updatedAt }), flushing }
   const live = new Map();
+  // Ronda de arreglos 1, «Menor 2»: boardId → número, lo incrementa cada PUT/DELETE de pieza (bumpPiecesRev);
+  // openLive lo lee antes y después de cargar las definiciones para no quedarse con una versión a medio abrir
+  // si una pieza cambió justo mientras `boardPieces` estaba en vuelo.
+  const piecesRev = new Map();
+  const bumpPiecesRev = (id) => piecesRev.set(id, (piecesRev.get(id) || 0) + 1);
 
   async function openLive(id) {
     const cached = live.get(id);
@@ -418,17 +434,23 @@ function createTablero3D(host) {
     const cb = docs.get('combat');
     if (cb && !cb.initiative) docs.set('combat', R.cleanLiveDoc('combat', cb, (docs.get('tokens') || {}).tokens));
     const settings = await readSettings(id);
-    const pieces = await boardPieces(id); // Ruling R3b: las definiciones `p:` del tablero, para toda la mesa en vivo
+    const rev0 = piecesRev.get(id) || 0;
+    let pieces = await boardPieces(id); // Ruling R3b: las definiciones `p:` del tablero, para toda la mesa en vivo
+    if ((piecesRev.get(id) || 0) !== rev0) pieces = await boardPieces(id); // cambió mientras cargaba: la de antes no vale
     if (live.has(id)) return live.get(id);
     const L = { id, docs, settings, pieces, dirty: new Set(), removed: new Set(), clients: new Map(), flushing: false };
     live.set(id, L);
     return L;
   }
   /* Tras un PUT/DELETE de una pieza del tablero (Ruling R3b): si la mesa está cargada, refresca sus definiciones para que
-     la próxima lectura (viewFor, liveChange, handleTravel) las vea al día sin esperar a que la mesa se descargue. */
+     la próxima lectura (viewFor, liveChange, handleTravel) las vea al día sin esperar a que la mesa se descargue, y
+     reparte otra vez el documento `board` (Menor 1): un cambio a gmOnly tiene que aplicarse ya a los jugadores conectados,
+     no sólo a la próxima vez que se toque la mesa. */
   async function refreshLivePieces(id) {
     const L = live.get(id);
-    if (L) L.pieces = await boardPieces(id);
+    if (!L) return;
+    L.pieces = await boardPieces(id);
+    if (L.docs.has('board')) broadcastDoc(L, 'board');
   }
 
   async function flush(L) {

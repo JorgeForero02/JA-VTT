@@ -62,3 +62,22 @@ test('el jugador en la mesa en vivo no recibe la pieza gmOnly del tablero al abr
   assert.deepEqual(doc.data.board.props.map((pp) => pp.def).filter((d) => d.startsWith('p:')), ['p:cofre01'], 'sin p:muro01 en la mesa en vivo del jugador');
   await g.close(); await p.close();
 });
+
+/* Ronda de arreglos 1, «Menor 1»: refreshLivePieces reparte otra vez el documento `board` tras un PUT/DELETE de
+   pieza, para que un cambio a gmOnly se aplique ya a los jugadores conectados (no sólo la próxima vez que
+   alguien toque la mesa). */
+test('menor 1: al hacer gmOnly una pieza colocada con la mesa abierta, el jugador conectado deja de verla sin reconectar', async () => {
+  const { gm, pl, b } = await tableroConPiezas('Refresh');
+  const sceneA = (await llamar(base, gm, 'GET', `/api/t3d/boards/${b.id}/scenes/A`)).data.scene;
+  const g = connect(base, b.id, gm.cookie, '/t3d/ws'); await g.opened; await g.next((m) => m.t === 'state');
+  const p = connect(base, b.id, pl.cookie, '/t3d/ws'); await p.opened; await p.next((m) => m.t === 'state');
+  g.send({ t: 'live', req: 1, key: 'board', op: 'set', data: { open: true, rev: 1, scene: 'A', board: sceneA } });
+  await g.next((m) => m.t === 'ack');
+  const first = await p.next((m) => m.t === 'doc' && m.key === 'board');
+  assert.ok(first.data.board.props.some((pp) => pp.def === 'p:cofre01'), 'antes del cambio, el jugador ve p:cofre01');
+  const gmOnlyDef = pieza('cofre01', { components: { move: { block: true }, sight: 'none', light: 'none', gmOnly: true } });
+  assert.equal((await llamar(base, gm, 'PUT', `/api/t3d/boards/${b.id}/pieces/cofre01`, gmOnlyDef)).status, 200);
+  const second = await p.next((m) => m.t === 'doc' && m.key === 'board');
+  assert.ok(!second.data.board.props.some((pp) => pp.def === 'p:cofre01'), 'tras el cambio a gmOnly, la mesa se repartió otra vez sin ella');
+  await g.close(); await p.close();
+});

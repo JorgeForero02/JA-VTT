@@ -49,10 +49,21 @@ function makeQueries(exec) {
 
     // definiciones de piezas del tablero (p:…); cuentan en la cuota con su `size`
     pieces: (boardId) => all('SELECT id, name, data, updated_at FROM t3d.pieces WHERE board_id = $1 ORDER BY id', [boardId]),
+    pieceExists: async (boardId, id) => !!(await one('SELECT 1 AS x FROM t3d.pieces WHERE board_id = $1 AND id = $2', [boardId, id])),
     countPieces: async (boardId) => (await one('SELECT COUNT(*)::int AS n FROM t3d.pieces WHERE board_id = $1', [boardId])).n,
     upsertPiece: (boardId, id, name, data) => run(`INSERT INTO t3d.pieces (board_id, id, name, data, size, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)
       ON CONFLICT (board_id, id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data, size = EXCLUDED.size, updated_at = EXCLUDED.updated_at`, [boardId, id, name, ...jsonOf(data), now()]),
     deletePiece: (boardId, id) => run('DELETE FROM t3d.pieces WHERE board_id = $1 AND id = $2', [boardId, id]),
+    // Ronda de arreglos 1, «Importante 1b»: ¿hay alguna escena guardada o campaña (en cualquiera de sus tableros)
+    // con una pieza colocada que apunte a esta definición? (el documento `board` de la mesa en vivo, si está
+    // cargada, se comprueba aparte en index.js: no tiene tabla). `defId` = 'p:…'.
+    pieceInUse: async (boardId, defId) => !!(await one(
+      `SELECT 1 AS x FROM t3d.scenes WHERE board_id = $1 AND data->'props' @> $2::jsonb
+       UNION
+       SELECT 1 FROM t3d.campaigns WHERE board_id = $1
+         AND jsonb_path_exists(data, '$.boards.*.data.props[*] ? (@.def == $d)', jsonb_build_object('d', $3::text))
+       LIMIT 1`,
+      [boardId, JSON.stringify([{ def: defId }]), defId])),
 
     drawings: (boardId, limit) => all(`SELECT ${DRAWING_COLS} FROM t3d.drawings WHERE board_id = $1 ORDER BY updated_at DESC LIMIT $2`, [boardId, limit]),
     drawingLayers: (boardId, ids) => all('SELECT drawing_id, idx, name, visible, opacity, locked, mime, data FROM t3d.drawing_layers WHERE board_id = $1 AND drawing_id = ANY($2) ORDER BY drawing_id, idx', [boardId, ids]),

@@ -510,6 +510,17 @@ test('playerDoors reconoce una puerta `p:` del tablero por ctx.pieces, igual que
   assert.match(R.playerDoors(doc, { d: {} }, { settings: { playersDoors: true }, board }), /ninguna puerta/, 'sin ctx.pieces no la reconoce');
 });
 
+/* Ronda de arreglos 1, «Importante 1a» (fallar cerrado): si a una pieza colocada le borran su definición del
+   tablero (p. ej. se quitó de t3d.pieces, aunque siguiera puesta en la escena), Catalogo.gmOnly no puede
+   consultarla y da `false` — así que sceneFor tiene que descartarla igual que si fuera gmOnly, no sólo cuando
+   lo es. El director, que ve la escena cruda, la sigue viendo (para poder quitarla). */
+test('sceneFor: una pieza sin definición (borrada mientras estaba colocada) no llega al jugador, pero el director la sigue viendo (R12/Importante 1a)', () => {
+  const pl = { role: 'player', user_id: 2 }, gm = { role: 'gm', user_id: 1 };
+  const map = { props: [{ type: 'x', def: 'p:borrada', uid: 'u1', x: 1, z: 1, v: 0 }], minis: [], notes: [], plans: [] };
+  assert.deepEqual(R.sceneFor(map, pl, {}, new Map()).props, [], 'sin su definición, el jugador no la recibe');
+  assert.deepEqual(R.sceneFor(map, gm, {}, new Map()), map, 'el director ve la escena tal cual (para poder quitarla)');
+});
+
 test('travelPlan: una pieza `p:` que bloquea cuenta como ocupada al buscar sitio de llegada (R12b)', () => {
   const muroDef = { schema: 1, id: 'p:muro1', name: 'Muro', class: 'object', art: { base: 'm' },
     shape: { w: 1, d: 1, height: 1, orient: true, random: false, layer: 'object', low: false },
