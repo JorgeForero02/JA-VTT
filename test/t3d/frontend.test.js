@@ -875,4 +875,5 @@ test('P-48: puertas por su huella y WALLAT con varias piezas por casilla', () =>
   assert.match(engine, /const cs=doorCells\(p\); if\(!p\.open\) for\(const k of cs\)\{ blocked\.add\(k\); doorShut\.add\(k\); \} if\(p\.locked\) for\(const k of cs\) lockedDoors\.add\(k\);/);
   assert.match(engine, /for\(const i of doorCells\(p\)\)\{ if\(p\.open\)\{ blocked\.delete\(i\); doorShut\.delete\(i\); \} else \{ blocked\.add\(i\); doorShut\.add\(i\); \} \}/);
   assert.match(engine, /if\(p\.x===x&&p\.z===z\) return p; if\(!hit&&propCovers\(p,x,z\)\) hit=p;/, 'doorAt: la esquina primero, luego la que cubre');
+  assert.match(engine, /untouched=!!M&&AUTO\.last!==null&&autoKey\(\)===AUTO\.last;[^\n]*\n\s*PIECES=new Map\([^\n]*if\(untouched\) autoBaseline\(\);/, 'abrir no guarda al llegar las piezas en un reintento');
 });

@@ -36,7 +36,17 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
   → **×1,01** (mediana; ×0,99 en media), dentro del ×1,15. Los números absolutos no se comparan con los 128/140 ms de
   la fase 0: otra escena (con puertas y `p:`) y otra forma de llamar; lo que vale es el cociente en la misma máquina.
-- **Revertir:** `git revert` del commit del arreglo (`1abf164`); sin migraciones ni datos.
+- **Carrera del paso nuevo, causa confirmada y arreglada (no tapada):** el paso (a) no abrió su escena una vez de
+  cinco. El motor abre «la última guardada», y medido en el navegador «Piezas 2» se volvía a guardar unos 0,4 s después
+  de que `/pieces` se recuperara (paso M4/M5), aunque nadie la había tocado. `autoKey()` serializa con
+  `Catalogo.complete(…, PIECES)`: la línea base del autoguardado se tomó con las `p:` opacas y, al llegar las
+  definiciones, la clave cambiaba y se guardaba sola. Eso rompía «abrir no guarda» y podía adelantar esa escena a una
+  recién guardada. **Arreglo** en `loadPieces`: si la escena abierta sigue igual que su línea base (su clave con las
+  piezas de antes), se rehace la base al cargar las definiciones en vez de guardar; si se editó mientras tanto, se
+  guarda como siempre. Test primero: el paso M4/M5 exige que el `updated` de la escena no cambie en los 5 s tras
+  curarse; fallaba antes (`…050007` → `…052973`). El paso (a) queda sin reintentos: un PUT y una recarga.
+  `frontend.test.js` +1 aserción. `test:t3d` → **37/37 cinco veces seguidas**; `test/t3d` 221/221; eslint limpio.
+- **Revertir:** `git revert` de los commits del arreglo (`1abf164` y el de la carrera del autoguardado); sin migraciones ni datos.
 
 ## 2026-09-26 — Despliegue de main @ d69bd08 (fase 0 del arte propio + arreglo de caída del upgrade)
 

@@ -3122,7 +3122,11 @@ let DB=null, DL=null, BOARD=null;
 // se abren (las p: quedan opacas); sólo guardar espera a PIECES_OK (piecesGate). M5: al cargar, lo que hace el motor tras editar.
 async function loadPieces(){ let wait=1000, warned=false;
   for(;;){
-    try{ if(DB){ const q=await DB.collection('pieces').get(); PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); }
+    try{ if(DB){ const q=await DB.collection('pieces').get();
+        // abrir no guarda: la escena abierta sin definiciones (M4) no cambió si su clave sigue siendo la de la línea base; con
+        // las definiciones la clave cambia (Catalogo.complete), así que se rehace la base en vez de guardar sin motivo (P-48)
+        let untouched=false; try{ untouched=!!M&&AUTO.last!==null&&autoKey()===AUTO.last; }catch(e){ untouched=false; }
+        PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); if(untouched) autoBaseline(); }
       PIECES_OK=true; piecesDone(); if(M&&PIECES.size){ refreshEntities(); rebuildRegion(0,0,M.w-1,M.d-1); lightDirty=true; fogDirty=true; } return; }
     catch(e){ if(stopped) return; piecesDone(); if(!warned){ warned=true; showHint('No se pudieron cargar las piezas del tablero; se reintenta. Mientras tanto no se guarda nada.',4000); }
       await new Promise(r=>setTimeout(r,wait)); wait=Math.min(wait*2,30000); if(stopped) return; } } }

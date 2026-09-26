@@ -390,10 +390,13 @@ try {
   await gm.unroute('**/api/t3d/boards/*/pieces');
   const healed = await gm.waitForFunction(() => t3dView.probe('los', 5, 1, 5, 6, 'sight') === false && t3dView.probe('light', 10, 2) > t3dView.probe('light', 2, 10) + 0.1, null, { timeout: 20000 }).then(() => true, () => false);
   const after = await pzLook();
+  // abrir no guarda: tampoco cuando las definiciones llegan en un reintento (la escena no cambió; antes se volvía a guardar)
+  const upd = () => gm.evaluate(async (id) => (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes.map((x) => x.name + '@' + x.updated).join(), pzBoard);
+  const upd0 = await upd(); await gm.waitForTimeout(5000); const upd1 = await upd();
   errors.splice(errs0, errors.length - errs0, ...errors.slice(errs0).filter((e) => !/ERR_FAILED|Failed to load resource|Failed to fetch/.test(e)));
-  step('M4/M5: con /pieces caído la escena se abre (p: opacas); al cargar en un reintento, vista y luz se recalculan solas',
-    opened && failing && failing.velo.every((v) => v === true) && failing.farol <= failing.dark + 0.02 && healed && after.velo.every((v) => v === false) && after.farol > after.dark + 0.1,
-    JSON.stringify({ opened, failing, healed, after }));
+  step('M4/M5: con /pieces caído la escena se abre (p: opacas); al cargar en un reintento, vista y luz se recalculan solas y no se vuelve a guardar',
+    upd0 === upd1 && opened && failing && failing.velo.every((v) => v === true) && failing.farol <= failing.dark + 0.02 && healed && after.velo.every((v) => v === false) && after.farol > after.dark + 0.1,
+    JSON.stringify({ upd0, upd1, opened, failing, healed, after }));
   // P-48 (a): una puerta p: de 2×1 cerrada bloquea en el cliente sus DOS casillas, como el servidor (gridOf); abierta, ninguna.
   // Hilera de muro en z=4 con el hueco (3,4)–(4,4) tapado por la puerta; todo se toca en (4,4), la casilla que no es su esquina.
   // (b): WALLAT con varias piezas por casilla — una p: que tapa la vista puesta ANTES que una ventana de fábrica en la misma
@@ -406,13 +409,10 @@ try {
   const puertaScene = { v: 2, name: 'Puerta p', w: 8, d: 8, h: flat16(64, '2'), t: dT.join(''), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false, animate: false, seen: '',
     props: [{ type: 'obj:o_puerta02', def: 'p:puerta02', x: 3, z: 4, v: 0, open: false }, tapa, { type: 'window', x: 5, z: 1, v: 0 }, { type: 'window', x: 1, z: 1, v: 0 }, Object.assign({}, tapa, { x: 1 })],
     minis: [{ kind: 'knight', x: 0, z: 0, fx: 0, fz: 1, id: 'k1' }] };
-  // se abre la última escena guardada: si un autoguardado de «Piezas 2» llega después del PUT, se vuelve a intentar
-  let pzOpen = false;
-  for (let k = 0; k < 3 && !pzOpen; k++) {
-    await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/pz3`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [pzBoard, puertaScene]);
-    await gm.reload();
-    pzOpen = await gm.waitForFunction(() => /^Puerta p/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 15000 }).then(() => true, () => false);
-  }
+  // el motor abre la última escena guardada: como abrir no guarda (tampoco al llegar /pieces, ver el paso M4/M5), pz3 es la última
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/pz3`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [pzBoard, puertaScene]);
+  await gm.reload();
+  const pzOpen = await gm.waitForFunction(() => /^Puerta p/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 20000 }).then(() => true, () => false);
   const doorNow = () => gm.evaluate(() => ({ cells: [t3dView.probe('cell', 3, 4), t3dView.probe('cell', 4, 4)], route: t3dView.probe('route', 'k1', 0, 7),
     open: !!(t3dView.probe('props').find((p) => p.type === 'obj:o_puerta02') || {}).open }));
   const menu = async (label) => { const at2 = await gm.evaluate(() => t3dView.probe('screen', 4, 4)); await gm.mouse.click(at2.x, at2.y, { button: 'right' });
