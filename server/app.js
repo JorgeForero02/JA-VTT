@@ -78,6 +78,30 @@ function cleanName(v) {
   return s;
 }
 const memberOf = (boardId, uid) => q.member(boardId, uid);
+/* ---------------- módulo t3d: el tablero 3D (modules/tablero3d) ---------------- */
+const { createTablero3D } = require('../modules/tablero3d');
+const t3d = createTablero3D({
+  enabled: process.env.T3D !== 'off',
+  pool: db.pool, touchBoard: q.touchBoard,
+  memberRole: async (boardId, uid) => (await memberOf(boardId, uid))?.role || null,
+  // las tiradas de la mesa 3D al chat del tablero (kind 'roll', cuerpo de dice.js); sin el tablero en memoria, el mismo recorte
+  postChat: async (boardId, user, kind, body) => {
+    const b = live.get(boardId);
+    if (b) return postChat(b, { user }, kind, body);
+    const row = await q.insertChat(boardId, user.id, kind, body);
+    if (row.id % 50 === 0) await q.trimChat(boardId, CHAT_KEEP);
+  },
+  // los ajustes del tablero son los de JA-VTT (b.settings o, sin abrir, boards.settings): el 3D los lee y cambia aquí
+  boardSettings: async (boardId) => live.get(boardId)?.settings || Object.assign({}, R.DEFAULT_BOARD, R.splitSettings((await q.board(boardId))?.settings || {}).board),
+  setBoardSettings: async (boardId, patch) => {
+    const b = live.get(boardId), board = R.splitSettings(patch).board, row = b ? null : await q.board(boardId);
+    if (row) await q.setSettings(Object.assign({}, R.DEFAULT_BOARD, R.splitSettings(row.settings || {}).board, board), boardId);
+    if (!b) return;
+    Object.assign(b.settings, board); b.settingsDirty = true;
+    for (const c of b.clients) c.ws.send({ t: 'ops', settings: settingsFor(b, b.scenes.get(c.sceneId), c.role) });
+    sendInitiative(b);
+  },
+});
 
 /* ---------------- tableros en memoria ---------------- */
 const CELL = 50;
@@ -359,7 +383,7 @@ async function handleOps(b, c, d) {
     const settings = d.settings && gm ? settingsFor(b, sc, other.role) : undefined;
     if (up.length || del.length || settings) other.ws.send({ t: 'ops', up, del, settings, by: c.user.id });
   }
-  if (boardChanged) sendInitiative(b); // mostrar u ocultar la iniciativa cambia lo que ve cada jugador
+  if (boardChanged) { sendInitiative(b); await t3d.settingsChanged(b.id); } // t3d: la mesa 3D relee los ajustes del tablero
 }
 
 /* ---------------- chat, dados e iniciativa ---------------- */
@@ -607,6 +631,7 @@ const pingTimer = setInterval(() => {
   for (const b of live.values()) for (const c of b.clients) { if (!c.ws.alive) c.ws.close(1001); else c.ws.ping(); }
 }, 25000);
 function kick(boardId, uid) {
+  t3d.kick(boardId, uid); // t3d
   const b = live.get(boardId);
   if (!b) return;
   for (const c of [...b.clients]) if (c.user.id === uid) { c.ws.send({ t: 'kicked' }); c.ws.close(4403); }
@@ -705,7 +730,7 @@ async function boardRoutes(req, res, user, parts) {
   const M = req.method;
   const id = parts[1];
   if (!id) {
-    if (M === 'GET') return send(res, 200, { boards: await q.boardsForUser(user.id) });
+    if (M === 'GET') return send(res, 200, { boards: await t3d.tagBoards(await q.boardsForUser(user.id)) }); // t3d
     if (M === 'POST') {
       const body = await readJson(req);
       const name = R.str(body.name, 60).trim() || 'Tablero sin nombre';
@@ -731,6 +756,7 @@ async function boardRoutes(req, res, user, parts) {
       if (board.owner_id === user.id) {
         const b = live.get(id);
         if (b) { for (const c of [...b.clients]) { c.ws.send({ t: 'kicked', deleted: true }); c.ws.close(4403); } live.delete(id); }
+        t3d.onBoardDeleted(id); // t3d
         await q.deleteBoard(id);
         return send(res, 200, { ok: true });
       }
@@ -849,6 +875,7 @@ async function api(req, res, url) {
   }
   if (parts[0] === 'boards') return boardRoutes(req, res, user, parts);
   if (parts[0] === 'images' && parts[1]) return imageRoutes(req, res, user, parts);
+  if (parts[0] === t3d.name) return t3d.api(req, res, url, user, parts); // t3d
   return fail(res, 404, 'Ruta no encontrada');
 }
 
@@ -871,6 +898,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local');
   try {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (url.pathname.startsWith('/t3d/')) return t3d.serve(req, res, url); // t3d
     return serveStatic(req, res, url);
   } catch (e) {
     if (!res.headersSent) fail(res, e.status || 500, e.status ? e.message : 'Error interno del servidor');
@@ -879,12 +907,12 @@ const server = http.createServer(async (req, res) => {
 });
 server.on('upgrade', async (req, sock) => {
   const url = new URL(req.url, 'http://local');
-  if (url.pathname !== '/ws') return sock.destroy();
+  if (url.pathname !== '/ws' && url.pathname !== '/t3d/ws') return sock.destroy(); // t3d
   try {
     const user = await userFrom(req);
     if (!user) { sock.end('HTTP/1.1 401 Unauthorized\r\n\r\n'); return; }
     const ws = acceptUpgrade(req, sock);
-    if (ws) await onSocket(ws, user, url.searchParams.get('board') || '');
+    if (ws) await (url.pathname === '/t3d/ws' ? t3d.socket : onSocket)(ws, user, url.searchParams.get('board') || ''); // t3d
   } catch (e) {
     console.error('Error aceptando WebSocket:', e);
     sock.destroy();
@@ -898,7 +926,7 @@ function lanAddresses() {
 }
 
 async function prepare() {
-  const applied = await db.migrate();
+  const applied = [...await db.migrate(), ...await t3d.migrate()]; // t3d
   if (applied.length) console.log(`  Migraciones aplicadas: ${applied.join(', ')}`);
 }
 
@@ -926,6 +954,7 @@ async function stop() {
   clearInterval(flushTimer); clearInterval(pingTimer);
   for (const b of live.values()) for (const c of [...b.clients]) c.ws.close(1001);
   await flushAll();
+  await t3d.close(); // t3d
   live.clear();
   await new Promise((resolve) => server.close(resolve));
   await db.close();
