@@ -227,6 +227,37 @@ try {
     drawn3.every((s) => s === 200) && lit0.lamp > lit0.dark + 0.1 && lit0.portal > lit0.dark + 0.1 && near(lit1.lamp, lit1.dark) && near(lit1.portal, lit1.dark) && lit1.tree > lit0.tree + 0.1,
     JSON.stringify({ drawn3, antes: lit0, despues: lit1 }));
 
+  // §6 (Tarea 8): al abrir una puerta, la luz de una antorcha que hay detrás llega a la casilla de delante sin esperar a otro
+  // cambio. Muro en la columna x=6 con una puerta cerrada en (6,8); antorcha en (3,8); se mide (8,8). Nadie lleva luz propia
+  // (así relight() no tiene fichas con luz que lo despierten). La puerta se abre como un usuario: clic derecho en su casilla
+  // y «Abrir la puerta» del menú.
+  const dw = [], dt = [];
+  for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) { dw.push('2'); dt.push(x === 6 ? (z === 8 ? 's' : 'w') : 'g'); }
+  const doorScene = { v: 1, name: 'Puerta y antorcha', w: 16, d: 16, h: dw.join(''), t: dt.join(''), wsrc: flat16(256, '0'), roofs: [], start: [7, 8], env: 'night', fog: false, animate: false, seen: '',
+    props: [{ type: 'door', x: 6, z: 8, v: 1, open: false }, { type: 'light', x: 3, z: 8, v: 0, preset: 'torch', r: 8, h: 1.2, color: '#ffffff', intensity: 1, anim: 'none', angle: 360, rot: 0 }],
+    minis: [{ kind: 'knight', x: 12, z: 13, fx: 0, fz: 1, id: 'k1' }] };
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/puerta1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [eqBoard, doorScene]);
+  await gm.reload();
+  await gm.waitForFunction(() => /^Puerta y antorcha/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 2, null, { timeout: 20000 });
+  const doorCells = () => gm.evaluate(() => ({ open: !!(t3dView.probe('props').find((p) => p.type === 'door') || {}).open, front: t3dView.probe('light', 8, 8), behind: t3dView.probe('light', 4, 8), dark: t3dView.probe('light', 12, 2) }));
+  const luzAntes = await doorCells();
+  const at = await gm.evaluate(() => t3dView.probe('screen', 6, 8));
+  await gm.mouse.click(at.x, at.y, { button: 'right' });
+  await gm.click('#t3d-ctxMenu button:has-text("Abrir la puerta")', { timeout: 5000 });
+  await gm.waitForFunction(() => !!(t3dView.probe('props').find((p) => p.type === 'door') || {}).open, null, { timeout: 5000 });
+  // por condición: la casilla de delante se ilumina (con el fallo, no llega nunca: se corta a los 3 s)
+  await gm.waitForFunction((t0) => t3dView.probe('light', 8, 8) > t0 + 0.05, luzAntes.front, { timeout: 3000 }).catch(() => {});
+  const luzDespues = await doorCells();
+  // y al volver a cerrarla, la casilla de delante vuelve a oscurecerse
+  await gm.mouse.click(at.x, at.y, { button: 'right' });
+  await gm.click('#t3d-ctxMenu button:has-text("Cerrar la puerta")', { timeout: 5000 });
+  await gm.waitForFunction((t0) => t3dView.probe('light', 8, 8) <= t0 + 0.02, luzAntes.front, { timeout: 3000 }).catch(() => {});
+  const luzCerrada = await doorCells();
+  step('luz: al abrir una puerta, la antorcha de detrás alumbra al momento (y al cerrarla deja de alumbrar)',
+    !luzAntes.open && luzDespues.open && !luzCerrada.open && luzAntes.behind > luzAntes.dark + 0.1 && Math.abs(luzAntes.front - luzAntes.dark) <= 0.02 &&
+    luzDespues.front > luzAntes.front + 0.05 && Math.abs(luzCerrada.front - luzAntes.front) <= 0.02,
+    JSON.stringify({ antes: luzAntes, despues: luzDespues, cerrada: luzCerrada }));
+
   // Escena vieja (v1, como F.escenaVieja() del servidor) importada en el cliente, guardada y releída: v:2, las mismas
   // piezas, puertas con su espejo, portales con destino y nombre, la luz con sus campos; y un segundo guardado no cambia uid.
   const oldScene = { v: 1, name: 'Escena vieja', w: 8, d: 8, h: flat16(64, '2'), t: flat16(64, 'g'), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false,

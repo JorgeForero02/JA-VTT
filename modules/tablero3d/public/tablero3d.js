@@ -1437,6 +1437,17 @@ function relight(){
   for(const [a0,b0,a1,b1] of all) for(let cz=Math.max(0,Math.floor(b0/CH))*CH;cz<=Math.min(M.d-1,b1);cz+=CH) for(let cx=Math.max(0,Math.floor(a0/CH))*CH;cx<=Math.min(M.w-1,a1);cx+=CH){ const k=cx+','+cz; if(done.has(k)) continue; done.add(k); makeChunk(cx,cz); }
   buildWater(); buildDecor(); if(glows.length!==allLights().filter(l=>l.glow).length) rebuildGlows();
 }
+// una puerta que se abre o se cierra cambia la luz de las fuentes a cuyo alcance está. No basta con lightDirty: relight()
+// sólo se despierta por fichas con luz. Rehace la luz y los bloques hasta el alcance de esas fuentes (lo que la puerta
+// deja pasar o tapa está en la recta fuente–casilla, más allá de la puerta, a menos de r+1 de la fuente y de la puerta).
+function doorRelight(p){
+  let pad=0; for(const l of allLights()){ const rr=Math.max(0.5,l.r)+1; if(Math.hypot(p.x+.5-l.x,p.z+.5-l.z)<=rr+1) pad=Math.max(pad,Math.ceil(rr)+1); }
+  if(!pad) return;   // ninguna fuente alcanza la puerta: la luz no cambia
+  computeLight();
+  const a0=Math.max(0,p.x-pad), b0=Math.max(0,p.z-pad), a1=Math.min(M.w-1,p.x+pad), b1=Math.min(M.d-1,p.z+pad);
+  for(let cz=Math.floor(b0/CH)*CH;cz<=b1;cz+=CH) for(let cx=Math.floor(a0/CH)*CH;cx<=a1;cx+=CH) makeChunk(cx,cz);
+  buildWater(); buildDecor();
+}
 // reconstruye solo los bloques cercanos a lo editado (con margen para la luz)
 function rebuildRegion(x0,z0,x1,z1){
   computeEH(); computeLight();
@@ -4532,6 +4543,7 @@ function toggleDoor(p,remote){
   if(p.open){ blocked.delete(i); doorShut.delete(i); } else { blocked.add(i); doorShut.add(i); }
   const b=bills.find(q=>q.prop===p); if(b) doorPose(b);
   fogDirty=true; rangeKey=''; computeAmbient();   // por una puerta abierta entra la luz de fuera
+  doorRelight(p);   // y la de las fuentes de detrás de la puerta (§6: antes esperaba a otro cambio)
   if(!remote&&LIVE.on) DB.doc('live/doors').update({d:{[p.x+'_'+p.z]:p.open?1:0}}).catch(e=>{ liveErr(e); if(!LIVE.dm) toggleDoor(p,true); });
   return true;
 }
