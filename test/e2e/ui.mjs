@@ -52,7 +52,17 @@ async function newPage() {
   // los errores de WebGL de Chrome llegan como warning: cuentan igual
   page.on('console', (m) => { if (m.type() === 'error' || /GL_INVALID|WebGL/.test(m.text())) errors.push(`[${page.__name}] ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`[${page.__name}] ${e.message}`));
+  page.on('websocket', (ws) => { if (/\/ws\?board=/.test(ws.url())) page.__ws = ws; });   // el del tablero, para esperar mensajes concretos
   return page;
+}
+/* Hace `action` y espera a que llegue la respuesta «fogof» del servidor y a que sus bloques estén en EXP.chunks
+   (se crean al procesarla, antes de cargar la imagen). Devuelve cuántos bloques mandó el servidor. */
+async function fogofApplied(page, action) {
+  const frame = page.__ws.waitForEvent('framereceived', { predicate: (f) => typeof f.payload === 'string' && f.payload.startsWith('{"t":"fogof"'), timeout: 5000 });
+  await action();
+  const keys = JSON.parse((await frame).payload).fog.map((f) => `${f.cx},${f.cy}`);
+  await page.waitForFunction((keys) => keys.every((k) => EXP.chunks.has(k)), keys, { timeout: 5000 });
+  return keys.length;
 }
 async function register(page, name, password) {
   await page.goto(BASE + '/');
@@ -385,15 +395,17 @@ try {
   const plChunks = await pl.evaluate(() => EXP.chunks.size);
   await gm.click('#rolePlayer'); await gm.waitForTimeout(300);
   const fogOpts = await gm.evaluate(() => [...document.getElementById('fogOf').options].map((o) => o.textContent));
-  await gm.selectOption('#fogOf', { index: 1 });
-  await gm.waitForFunction(() => EXP.chunks.size > 0, null, { timeout: 5000 });
+  // P-47: en Vista de jugador el director explora su propia vista en el primer fotograma tras el cambio (1 bloque);
+  // esperar a «EXP.chunks.size > 0» se cumplía con ese bloque antes de que llegase la respuesta «fogof» si el
+  // servidor tardaba más de un fotograma. Se espera a la respuesta y a que sus bloques estén cargados.
+  let sent = await fogofApplied(gm, () => gm.selectOption('#fogOf', { index: 1 }));
   const gmChunks = await gm.evaluate(() => EXP.chunks.size);
-  step('niebla ajena: el director ve los bloques explorados por el jugador (selector Niebla en Vista de jugador)', plChunks > 0 && gmChunks === plChunks && fogOpts[0] === 'Nueva (se reinicia)' && /^La de jug-/.test(fogOpts[1]), `${plChunks} → ${gmChunks} · ${fogOpts.join(' | ')}`);
-  await gm.click('#fogMine'); await gm.waitForTimeout(600);
+  step('niebla ajena: el director ve los bloques explorados por el jugador (selector Niebla en Vista de jugador)', plChunks > 0 && sent === plChunks && gmChunks === plChunks && fogOpts[0] === 'Nueva (se reinicia)' && /^La de jug-/.test(fogOpts[1]), `${plChunks} → enviados ${sent}, cargados ${gmChunks} · ${fogOpts.join(' | ')}`);
+  sent = await fogofApplied(gm, () => gm.click('#fogMine'));
   const gmAfterReset = await gm.evaluate(() => EXP.chunks.size);
   await gm.selectOption('#fogOf', 'new'); await gm.waitForTimeout(300);
   const plIntact = await pl.evaluate(() => EXP.chunks.size);
-  step('niebla ajena: «Reiniciar mi vista» recarga la del jugador y la del jugador sigue intacta', gmAfterReset === plChunks && plIntact === plChunks, `${gmAfterReset} · jugador ${plIntact}`);
+  step('niebla ajena: «Reiniciar mi vista» recarga la del jugador y la del jugador sigue intacta', sent === plChunks && gmAfterReset === plChunks && plIntact === plChunks, `enviados ${sent}, cargados ${gmAfterReset} · jugador ${plIntact}`);
   await gm.click('#roleGm'); await gm.waitForTimeout(300);
 
   // luz ambiente fuera de una zona interior cerrada por muros: desde dentro no se ve ni una línea sobre el muro

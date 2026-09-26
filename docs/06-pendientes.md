@@ -14,7 +14,6 @@ Actualizado: 2026-09-26. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 | P-39 | P2 | Tablero 3D, abiertos tras T8 (P-09 de `3d-tablero`): (a) si JA-VTT cambia sus ajustes por otro camino que `handleOps`, la mesa 3D se entera en su siguiente acción; (b) un cambio de ajustes desde el 3D puede perderse si coincide con que JA-VTT descarga un tablero sin nadie conectado; (c) la iniciativa del 3D y la de JA-VTT no se comparten; (d) dos copias de three.js en una mesa 3D (r170 de los dados + r128 del módulo) | Cada punto resuelto o aceptado por el usuario |
 | P-40 | P1 | Tablero 3D: medir con GPU real y en un portátil (todo lo medido hasta ahora fue con SwiftShader y a tamaño de escritorio). Junto con P-35 (móvil) | Tabla de fps/CPU en portátil real en [07](07-historial.md) |
 | P-42 | P2 | Licencia: el módulo vive ahora en este repositorio público con `LICENSE` MIT; `3d-tablero` no tenía licencia. Confirmar que el módulo queda bajo MIT (decisión legal del usuario) | Decisión anotada en [07](07-historial.md) |
-| P-47 | P2 | `npm run test:ui` (2D) falló una vez en 8 ejecuciones el 2026-09-26 (53/54, primera tras arrancar el servidor; el paso no quedó registrado) y pasó 7 seguidas después. Vigilar: si vuelve, registrar el paso que falla | Diez `test:ui` seguidos en verde, o el paso identificado y arreglado |
 | P-04 | P2 | Subir el pipeline a **N3**: mutación automatizada (N2 —cobertura con umbral— cerrado el 2026-09-19) | Comando en [04](04-convenciones.md) Parte C |
 | P-06 | P2 | Renombrar la carpeta local `mini-vtt` → `just-another-vtt` (no se hizo para no romper la sesión) | `git status` limpio tras mover |
 | P-07 | P2 | El pulso de luz aún se percibe «un poco» a saltos (usuario, 2026-09-16, con 60 Hz, 0,2 ms/frame y dithering ±1). Siguiente vuelta: dithering ±2 niveles o ruido temporal; medir con capturas consecutivas | El usuario lo da por fluido |
@@ -42,6 +41,10 @@ seguidas en verde tras el arreglo);
 **P-48** el 2026-09-26 (rama `p48-piezas`: puertas `p:` por toda su huella y `WALLAT` con varias piezas por casilla;
 pasos nuevos en `test:t3d` que fallaban antes de cada arreglo, incluidos los 6 menores de la revisión de la rama, 40/40 cinco veces seguidas; `refreshEntities` ×1,01 respecto de `main`,
 tabla en [07](07-historial.md)).
+**P-47** el 2026-09-26 (paso «niebla ajena: el director ve los bloques explorados por el jugador»: la espera
+se cumplía con el bloque que el director explora en su propia vista antes de que llegase la respuesta `fogof`;
+arreglado en el test, que ahora espera esa respuesta. Reproducido 1/22 antes y a voluntad retrasando la
+respuesta; después, la misma tanda sin fallos, ver [07](07-historial.md)).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
 
