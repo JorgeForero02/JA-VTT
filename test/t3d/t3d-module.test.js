@@ -98,3 +98,21 @@ test('módulo: si el volcado falla lo reintenta; borrar el tablero lo olvida', a
   m.onBoardDeleted(board.id);
   assert.equal(m.isLoaded(board.id), false);
 });
+
+/* Ola final, M7: borrar el tablero olvida también su contador de versiones de piezas (piecesRev). */
+test('módulo: borrar el tablero olvida su contador de piezas (piecesRev)', async () => {
+  const { Readable } = require('node:stream');
+  const gm = await db.createUser('ModGm7', 'h');
+  const board = await db.createBoard('Mod7', gm.id);
+  await m.markBoard(board.id);
+  const body = JSON.stringify({ schema: 1, id: 'p:cofre01', name: 'Cofre', class: 'object', art: { base: 'o_c' },
+    shape: { w: 1, d: 1, height: 1, layer: 'object' }, components: { move: { block: true } } });
+  const req = Object.assign(Readable.from([Buffer.from(body)]), { method: 'PUT', headers: { 'content-length': String(Buffer.byteLength(body)) } });
+  let status = 0;
+  const res = { writeHead: (s) => { status = s; }, end: () => {} };
+  await m.api(req, res, new URL('http://x/api/t3d/boards/' + board.id + '/pieces/cofre01'), gm, ['t3d', 'boards', String(board.id), 'pieces', 'cofre01']);
+  assert.equal(status, 200);
+  assert.equal(m.piecesRevOf(String(board.id)), 1);
+  m.onBoardDeleted(String(board.id));
+  assert.equal(m.piecesRevOf(String(board.id)), undefined);
+});

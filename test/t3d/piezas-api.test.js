@@ -81,12 +81,53 @@ test('cuota: boardUsage cuenta las piezas del tablero por su tamaño', async () 
   assert.equal(usage.bytes, R.docBytes(R.cleanPiece(def)), 'los bytes de la definición guardada cuentan en la cuota del tablero');
 });
 
-test('piezas: una escena con una pieza del tablero se guarda; con una que no existe, se descarta esa pieza', async () => {
-  const gm = await cuenta(base, 'PzGm3');
+/* I1 (ola final): una pieza p: cuya definición no existe se conserva opaca (como el cliente, R15); al jugador no le
+   llega y su casilla le sale bloqueada (blockCells, fallar cerrado). */
+test('piezas: una escena con una pieza del tablero se guarda; una p: sin definición se conserva opaca y al jugador le llega sólo como casilla bloqueada', async () => {
+  const gm = await cuenta(base, 'PzGm3'), pl = await cuenta(base, 'PzPl3');
   const b = await mesa3d(base, gm, 'Escena');
+  await llamar(base, gm, 'POST', `/api/boards/${b.id}/members`, { name: 'PzPl3' });
   await llamar(base, gm, 'PUT', `/api/t3d/boards/${b.id}/pieces/cofre01`, cofre('cofre01'));
-  const map = F.map(8, { props: [{ type: 'obj:o_cofre01', def: 'p:cofre01', x: 1, z: 1 }, { type: 'obj:o_nada0001', def: 'p:nada0001', x: 2, z: 2 }] });
+  const map = F.map(8, { props: [{ type: 'obj:o_cofre01', def: 'p:cofre01', x: 1, z: 1 },
+    { type: 'o_nada', def: 'p:nada0001', x: 2, z: 2, v: 3, uid: 'unada0001', state: { lid: true, n: 2, raro: { x: 1 } } }] });
   assert.equal((await llamar(base, gm, 'PUT', `/api/t3d/boards/${b.id}/scenes/sc1`, map)).status, 200);
   const sc = (await llamar(base, gm, 'GET', `/api/t3d/boards/${b.id}/scenes/sc1`)).data.scene;
-  assert.deepEqual(sc.props.map((p) => p.def), ['p:cofre01']);
+  assert.deepEqual(sc.props.map((p) => p.def), ['p:cofre01', 'p:nada0001'], 'el director la sigue teniendo');
+  const op = sc.props[1];
+  assert.deepEqual([op.type, op.x, op.z, op.v, op.uid], ['o_nada', 2, 2, 3, 'unada0001']);
+  assert.equal(op.state, undefined, 'un state con valores no planos se quita');
+  const vista = (await llamar(base, pl, 'GET', `/api/t3d/boards/${b.id}/scenes/sc1`)).data.scene;
+  assert.deepEqual(vista.props.map((p) => p.def), ['p:cofre01'], 'al jugador no le llega');
+  assert.deepEqual(vista.blockCells, [2 * 8 + 2], 'pero su casilla le sale bloqueada (1×1)');
+  const sc2 = F.map(8, { props: [{ type: 'o_nada', def: 'p:nada0001', x: 3, z: 3, state: { lid: true, n: 2 } }] });
+  await llamar(base, gm, 'PUT', `/api/t3d/boards/${b.id}/scenes/sc2`, sc2);
+  assert.deepEqual((await llamar(base, gm, 'GET', `/api/t3d/boards/${b.id}/scenes/sc2`)).data.scene.props[0].state, { lid: true, n: 2 }, 'un state plano se conserva');
+});
+
+test('piezas: PUT de un terreno propio → 400; cambiar la clase de una pieza colocada → 409 (sin colocar, sí)', async () => {
+  const gm = await cuenta(base, 'PzGm7');
+  const b = await mesa3d(base, gm, 'Clase');
+  const url = `/api/t3d/boards/${b.id}/pieces`, scenes = `/api/t3d/boards/${b.id}/scenes`;
+  const suelo = Object.assign(cofre('suelo01'), { class: 'terrain', shape: { w: 1, d: 1, height: 1, layer: 'ground' } });
+  assert.equal((await llamar(base, gm, 'PUT', url + '/suelo01', suelo)).status, 400, 'terrenos propios: fase 3');
+  assert.equal((await llamar(base, gm, 'PUT', url + '/cofre01', cofre('cofre01'))).status, 200);
+  assert.equal((await llamar(base, gm, 'PUT', url + '/cofre01', Object.assign(cofre('cofre01'), { name: 'Otro' }))).status, 200, 'misma clase: sí');
+  await llamar(base, gm, 'PUT', scenes + '/s1', F.map(8, { props: [{ type: 'o_cofre01', def: 'p:cofre01', x: 1, z: 1 }] }));
+  const r = await llamar(base, gm, 'PUT', url + '/cofre01', Object.assign(cofre('cofre01'), { class: 'wall' }));
+  assert.equal(r.status, 409, 'colocada: no cambia de clase');
+  await llamar(base, gm, 'PUT', scenes + '/s1', F.map(8, { props: [] }));
+  assert.equal((await llamar(base, gm, 'PUT', url + '/cofre01', Object.assign(cofre('cofre01'), { class: 'wall' }))).status, 200, 'sin colocar: sí');
+});
+
+/* I1 (ola final): la mesa en vivo volcada (t3d.live_docs, key 'board') también cuenta como «en uso», aunque la mesa esté
+   descargada (sin ella en memoria, index.js no puede mirarla). */
+test('piezas: DELETE de una definición colocada sólo en la mesa en vivo volcada (mesa descargada) → 409', async () => {
+  const gm = await cuenta(base, 'PzGm8');
+  const b = await mesa3d(base, gm, 'EnVivo');
+  const url = `/api/t3d/boards/${b.id}/pieces`;
+  await llamar(base, gm, 'PUT', url + '/cofre01', cofre('cofre01'));
+  await t3dDb.q.upsertLiveDoc(b.id, 'board', { open: true, rev: 1, board: F.map(8, { props: [{ type: 'o_cofre01', def: 'p:cofre01', x: 1, z: 1 }] }) });
+  assert.equal((await llamar(base, gm, 'DELETE', url + '/cofre01')).status, 409);
+  await t3dDb.q.upsertLiveDoc(b.id, 'board', { open: true, rev: 2, board: F.map(8, { props: [] }) });
+  assert.equal((await llamar(base, gm, 'DELETE', url + '/cofre01')).status, 200, 'quitada de la mesa, se borra');
 });

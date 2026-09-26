@@ -102,33 +102,37 @@ const PASSABLE_PROPS = FACTORY_TYPES.filter((t) => !Catalogo.blocksMove({ type: 
 const PROP_SPANS = Object.fromEntries(FACTORY_TYPES.map((t) => [t, Catalogo.span({ type: t })]).filter(([, s]) => s[0] > 1 || s[1] > 1));
 const intIn = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
 const stairsId = (x, z) => 1 + z * PORTAL_MAP_MAX + x;
-const isWallProp = (p) => DOOR_PROPS.includes(p.type) || WALL_PROPS.includes(p.type) || (p.type === 'stairs' && typeof p.to === 'string');
+/* I4 (ola final): lo que decide por `type` pregunta por el tipo de FÁBRICA (Catalogo.factoryType): una pieza p: con
+   type 'portal', 'door' o 'light' no recibe el trato de portal, puerta o luz de fábrica, sólo el que dé su definición. */
+const ftype = (p) => Catalogo.factoryType(p);
+const isWallProp = (p) => { const t = ftype(p); return DOOR_PROPS.includes(t) || WALL_PROPS.includes(t) || (t === 'stairs' && typeof p.to === 'string'); };
 /* Objeto de muro saneado; las escaleras de campaña de antes (`stairs` con `to`, `tx`, `tz`) pasan a portales con aspecto de
    escalera y un id que sale de su casilla (así la de ida y la de vuelta se encuentran). null si la casilla no es válida. */
 function cleanWallProp(p) {
   if (!intIn(p.x, 0, PORTAL_MAP_MAX - 1) || !intIn(p.z, 0, PORTAL_MAP_MAX - 1)) return null;
-  if (p.type === 'stairs') {
+  const t = ftype(p);
+  if (t === 'stairs') {
     if (!CAMP_ID.test(p.to)) return null;
     const back = intIn(p.tx, 0, PORTAL_MAP_MAX - 1) && intIn(p.tz, 0, PORTAL_MAP_MAX - 1) ? stairsId(p.tx, p.tz) : null;
     return { type: 'portal', x: p.x, z: p.z, v: 0, id: stairsId(p.x, p.z), look: 'stairs', target: { scene: p.to, portal: back } };
   }
   const v = intIn(p.v, 0, 3) ? p.v : 0;
-  if (DOOR_PROPS.includes(p.type)) return Object.assign({ type: p.type, x: p.x, z: p.z, v, open: !!p.open }, p.locked === true ? { locked: true } : {});
-  if (p.type !== 'portal') return { type: p.type, x: p.x, z: p.z, v };
+  if (DOOR_PROPS.includes(t)) return Object.assign({ type: p.type, x: p.x, z: p.z, v, open: !!p.open }, p.locked === true ? { locked: true } : {});
+  if (t !== 'portal') return { type: p.type, x: p.x, z: p.z, v };
   const o = { type: 'portal', x: p.x, z: p.z, v, id: intIn(p.id, 1, 1e6) ? p.id : 0, look: PORTAL_LOOKS.includes(p.look) ? p.look : 'door', target: null };
   const name = str(p.name, 40).trim();
   if (name) o.name = name;
-  const t = p.target;
-  if (plainObject(t) && typeof t.scene === 'string' && SCENE_ID.test(t.scene)) o.target = { scene: t.scene, portal: intIn(t.portal, 1, 1e6) ? t.portal : null };
+  const tg = p.target;
+  if (plainObject(tg) && typeof tg.scene === 'string' && SCENE_ID.test(tg.scene)) o.target = { scene: tg.scene, portal: intIn(tg.portal, 1, 1e6) ? tg.portal : null };
   return o;
 }
 /* ids de portal únicos en la escena (los que faltan o se repiten toman el siguiente libre), como Muros.fixPortalIds */
 function fixPortalIds(props) {
   let max = 0;
   const seen = new Set();
-  for (const p of props) if (p.type === 'portal' && p.id > max) max = p.id;
+  for (const p of props) if (ftype(p) === 'portal' && p.id > max) max = p.id;
   for (const p of props) {
-    if (p.type !== 'portal') continue;
+    if (ftype(p) !== 'portal') continue;
     if (!p.id || seen.has(p.id)) p.id = ++max;
     seen.add(p.id);
   }
@@ -138,9 +142,30 @@ function fixPortalIds(props) {
    giro 0–3. Cada pieza guarda sólo lo suyo (§3.5, §6, ronda de arreglos 1): puertas open/locked (espejo por
    Catalogo.complete), luces sus campos de cleanLightProp, portales id/look/target/name; nada más — un cofre con
    name/target/color… los pierde. `level`/`side` (reservados, fase 4) se sanean aparte. */
+/* I1 (ola final): una pieza p: bien formada cuya definición no está (borrada, o de un tablero que no se cargó) no se
+   descarta: se guarda opaca, sólo con lo que no depende de la definición, como hace el cliente (R15). */
+const OPAQUE_STATE_KEYS = 8;
+function opaqueState(s) {
+  if (!plainObject(s)) return null;
+  const e = Object.entries(s);
+  if (e.length > OPAQUE_STATE_KEYS) return null;
+  const ok = (v) => typeof v === 'boolean' || fin(v) || (typeof v === 'string' && v.length <= 40);
+  return e.every(([, v]) => ok(v)) ? Object.assign({}, s) : null;
+}
+const isOpaque = (p, board) => { const id = Catalogo.defIdOf(p); return !!id && id.startsWith('p:') && !Catalogo.defOf(p, board); };
+function cleanOpaqueProp(p) {
+  const keep = { type: p.type.slice(0, 40), def: p.def, x: p.x, z: p.z, v: intIn(p.v, 0, 3) ? p.v : 0 };
+  if (typeof p.uid === 'string') keep.uid = p.uid;
+  if (intIn(p.level, 0, 15)) keep.level = p.level;
+  if (typeof p.side === 'string' && ['N', 'E', 'S', 'W'].includes(p.side)) keep.side = p.side;
+  const st = opaqueState(p.state);
+  if (st) keep.state = st;
+  return Catalogo.complete(keep);
+}
 function cleanProp(p, w, d, board) {
   if (!intIn(p.x, 0, w - 1) || !intIn(p.z, 0, d - 1)) return null;
-  const base = p.type === 'light' ? cleanLightProp(p) : isWallProp(p) ? cleanWallProp(p) : Object.assign({}, p, { v: intIn(p.v, 0, 3) ? p.v : 0 });
+  if (typeof p.type === 'string' && isOpaque(p, board)) return cleanOpaqueProp(p);
+  const base = ftype(p) === 'light' ? cleanLightProp(p) : isWallProp(p) ? cleanWallProp(p) : Object.assign({}, p, { v: intIn(p.v, 0, 3) ? p.v : 0 });
   if (!base) return null;
   const keep = { type: base.type, x: base.x, z: base.z, v: base.v | 0 };
   // Ruling R1: def/uid salen de la pieza ORIGINAL (cleanWallProp los quita; el uid se regeneraría en cada guardado)
@@ -153,7 +178,7 @@ function cleanProp(p, w, d, board) {
   if (!finalDef || finalDef.class === 'terrain') return null;
   // Arreglo 2 (ronda 1): sólo se guardan los campos propios de lo que es esta pieza, según su definición final.
   const isDoorProp = Catalogo.isDoor(keep, board);
-  const own = base.type === 'light' ? ['preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'name']
+  const own = ftype(keep) === 'light' ? ['preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'name']
     : isDoorProp ? ['open', 'locked']
     : Catalogo.wallKind(keep, board) === 'portal' ? ['id', 'look', 'target', 'name'] : [];
   for (const k of own) if (k in base) keep[k] = base[k];
@@ -210,8 +235,7 @@ function cleanMap(o, board) {
   if (typeof o.wsrc === 'string' && o.wsrc.length === n && /^[012]+$/.test(o.wsrc)) map.wsrc = o.wsrc;
   if (typeof o.seen === 'string' && o.seen.length === n && /^[01]+$/.test(o.seen)) map.seen = o.seen;
   map.props = fixPortalIds(Array.isArray(o.props) ? o.props.filter(plainObject).slice(0, 5000).map((p) => cleanProp(p, w, d, board)).filter(Boolean) : []);
-  const uids = new Set();
-  for (const p of map.props) { while (uids.has(p.uid)) p.uid = Catalogo.newUid(); uids.add(p.uid); }
+  Catalogo.dedupeUids(map.props);   // M1: el primero conserva su uid; los repetidos, uno derivado estable
   map.minis = Array.isArray(o.minis) ? o.minis.filter(plainObject).slice(0, 500).map((m) => (plainObject(m.sheet) ? Object.assign({}, m, { sheet: cleanSheet(m.sheet) }) : m)) : [];
   map.roofs = Array.isArray(o.roofs) ? o.roofs.filter(plainObject).map((r) => cleanRoof(r, w, d)).filter(Boolean).slice(0, 300) : [];
   if (Array.isArray(o.start) && o.start.length === 2 && o.start.every(Number.isInteger)) map.start = o.start;
@@ -315,7 +339,7 @@ function arrival(g, px, pz, sizes, start) {
   }
   return out;
 }
-const portalIn = (map, id) => (map.props || []).find((p) => p.type === 'portal' && p.id === id) || null;
+const portalIn = (map, id) => (map.props || []).find((p) => ftype(p) === 'portal' && p.id === id) || null;
 /* ¿está la ficha (x, z, de n casillas) junto al portal o encima? A una casilla o menos, de borde a borde */
 function nearPortal(t, p) {
   const n = sizeOfMini(t), dx = Math.max(0, p.x - (t.x + n - 1), t.x - p.x), dz = Math.max(0, p.z - (t.z + n - 1), t.z - p.z);
@@ -347,7 +371,7 @@ function travelPlan(src, dst, opts, board) {
 /* Al borrar una escena, los portales que llevaban allí se quedan sin destino (como JA-VTT). true si cambió algo. */
 function clearPortalsTo(map, sceneId) {
   let changed = false;
-  for (const p of map.props || []) if (p.type === 'portal' && p.target && p.target.scene === sceneId) { p.target = null; changed = true; }
+  for (const p of map.props || []) if (ftype(p) === 'portal' && p.target && p.target.scene === sceneId) { p.target = null; changed = true; }
   return changed;
 }
 /* De las fichas de la mesa en vivo a los personajes de una escena y al revés (con su dueño); las que no tienen id lo reciben */
@@ -523,13 +547,16 @@ function tokensFor(doc, member, settings) {
    jugador por no saber consultar su definición). Ronda de arreglos 1, «Importante 1a» (fallar cerrado): si la
    definición de una pieza ya no resuelve (p. ej. se borró de t3d.pieces mientras seguía colocada), Catalogo.gmOnly
    da `false` sin poder consultarla — así que además de las gmOnly se descarta toda pieza sin definición. */
-/* Ruling R18: casillas (z*w+x, ordenadas y sin repetir) que tapan el paso las piezas gmOnly que bloquean, con su tamaño y giro */
+/* Ruling R18: casillas (z*w+x, ordenadas y sin repetir) que tapan el paso las piezas gmOnly que bloquean, con su tamaño y giro.
+   I1 (ola final): una pieza p: sin definición tampoco le llega al jugador y bloquea su casilla (1×1: fallar cerrado). */
 function gmOnlyBlockCells(map, board) {
   const w = map.w, d = map.d, set = new Set();
   if (!Number.isInteger(w) || !Number.isInteger(d)) return [];
   for (const p of map.props) {
-    if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.z) || !Catalogo.gmOnly(p, board) || !Catalogo.blocksMove(p, board)) continue;
-    const [sw, sd] = Catalogo.span(p, board);
+    if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.z)) continue;
+    const opaque = typeof p.type === 'string' && isOpaque(p, board);
+    if (!opaque && (!Catalogo.gmOnly(p, board) || !Catalogo.blocksMove(p, board))) continue;
+    const [sw, sd] = opaque ? [1, 1] : Catalogo.span(p, board);
     for (let j = 0; j < sd; j++) for (let k = 0; k < sw; k++) { const X = p.x + k, Z = p.z + j; if (X >= 0 && Z >= 0 && X < w && Z < d) set.add(Z * w + X); }
   }
   return [...set].sort((a, b) => a - b);

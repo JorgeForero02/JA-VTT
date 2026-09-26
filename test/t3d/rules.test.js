@@ -497,7 +497,9 @@ test('cleanCampaign y cleanLiveDoc(board) conservan una pieza `p:` del tablero s
   const raw = Object.assign({}, F.campaign(), { boards: { tpueblo: { name: 'Pueblo', data: F.map(8, { props: [{ type: 'z', def: 'p:cofre1', x: 1, z: 1 }] }) } } });
   const camp = R.cleanCampaign(raw, board);
   assert.deepEqual(camp.boards.tpueblo.data.props.map((p) => p.def), ['p:cofre1'], 'con las definiciones a mano, la pieza no se descarta');
-  assert.deepEqual(R.cleanCampaign(raw).boards.tpueblo.data.props, [], 'sin ellas (como antes de la Tarea 5), se pierde');
+  // I1 (ola final): sin ellas, la pieza ya no se pierde: se conserva opaca (sólo type, def, uid, x, z, v)
+  const opaca = R.cleanCampaign(raw).boards.tpueblo.data.props;
+  assert.deepEqual(opaca.map((p) => [p.type, p.def, p.x, p.z, p.v]), [['z', 'p:cofre1', 1, 1, 0]], 'sin ellas, se conserva opaca');
   const doc = R.cleanLiveDoc('board', { open: true, rev: 1, board: F.map(8, { props: [{ type: 'z', def: 'p:cofre1', x: 2, z: 2 }] }) }, null, board);
   assert.deepEqual(doc.board.props.map((p) => p.def), ['p:cofre1']);
 });

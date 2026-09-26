@@ -72,6 +72,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { createDb } = require('./db');
 const R = require('./rules');
+const Catalogo = require('./public/catalogo.js');
 const dice = require('./dice');
 
 const BOARD_QUOTA = 500 * 1024 * 1024;
@@ -183,6 +184,7 @@ function createTablero3D(host) {
      cleanCampaign, sceneFor, campaignFor… (Ruling R3b) para que una pieza `p:` valide y se filtre igual que una de fábrica. */
   const MAX_PIECES = 300;
   const PIECE_IN_USE = 'Esa pieza está colocada en el tablero: quítala de sus escenas antes de borrarla';
+  const PIECE_CLASS_IN_USE = 'Esa pieza está colocada en el tablero: quítala de sus escenas antes de cambiar su clase';
   async function boardPieces(id) { return new Map((await q.pieces(id)).map((r) => [r.id, r.data])); }
   // Ronda de arreglos 1, «Importante 1b»: además de escenas y campañas guardadas (q.pieceInUse), la mesa en vivo
   // cargada puede tener la pieza en su documento `board` sin haberlo volcado aún.
@@ -212,7 +214,12 @@ function createTablero3D(host) {
     const body = await readJson(req, R.BODY_LIMITS.small);
     const def = R.cleanPiece(body);
     if (!def || def.id !== defId) return fail(res, 400, 'La pieza no es válida');
-    const exists = await q.pieceExists(id, def.id);
+    // I1 (ola final): los terrenos propios son de la fase 3 (viven en M.t, no se colocan como pieza)
+    if (def.class === 'terrain') return fail(res, 400, 'Los terrenos propios todavía no se pueden crear');
+    // cambiar la clase de una pieza ya colocada cambiaría lo que es cada copia en sus escenas (o la haría desaparecer)
+    const prev = await q.piece(id, def.id);
+    if (prev && prev.data && prev.data.class !== def.class && (await q.pieceInUse(id, defId) || liveUsesPiece(id, defId))) return fail(res, 409, PIECE_CLASS_IN_USE);
+    const exists = !!prev;
     if (!exists && (await q.countPieces(id)) >= MAX_PIECES) return fail(res, 413, `Un tablero admite hasta ${MAX_PIECES} piezas`);
     if (await overQuota(id, 'pieces', def.id, R.docBytes(def))) return fail(res, 413, 'El almacén del tablero está lleno');
     await q.upsertPiece(id, def.id, def.name, def);
@@ -335,7 +342,7 @@ function createTablero3D(host) {
     const row = sceneId && await q.scene(id, sceneId);
     const map = row && R.cleanMap(row.data, await boardPieces(id));
     if (!map) return fail(res, 404, 'Escena no encontrada');
-    const portals = map.props.filter((p) => p.type === 'portal').map((p) => ({ id: p.id, name: p.name || '', look: p.look, target: p.target }));
+    const portals = map.props.filter((p) => Catalogo.factoryType(p) === 'portal').map((p) => ({ id: p.id, name: p.name || '', look: p.look, target: p.target }));
     return json(res, 200, { scene: { id: row.id, name: row.name }, portals });
   }
   /* Ajustes del tablero (los de JA-VTT: playersDoors, dados, vida…): los leen los miembros y los cambia el director; la mesa
@@ -673,6 +680,7 @@ function createTablero3D(host) {
   function onBoardDeleted(boardId) {
     closeOwn(boardId, null, { t: 'kicked', deleted: true });
     live.delete(boardId);
+    piecesRev.delete(boardId);   // M7: no se queda el contador de un tablero que ya no existe
   }
 
   async function close() {
@@ -684,7 +692,7 @@ function createTablero3D(host) {
 
   return {
     name: 't3d', publicDir: PUBLIC_DIR, enabled: true,
-    migrate, serve, api, socket, kick, onBoardDeleted, markBoard, tagBoards, describeBoards, settingsChanged, close, isLoaded: (id) => live.has(id), flushAll,
+    migrate, serve, api, socket, kick, onBoardDeleted, markBoard, tagBoards, describeBoards, settingsChanged, close, isLoaded: (id) => live.has(id), piecesRevOf: (id) => piecesRev.get(id), flushAll,
     join, ws: handleMsg, leave,
   };
 }

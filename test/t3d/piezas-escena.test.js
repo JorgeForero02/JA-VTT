@@ -99,14 +99,18 @@ test('llegada por portal: la rejilla sale del catálogo (el puente se pisa; el c
 
 // Ronda de arreglos 1, punto 1: el `def` restaurado por el ruling R1 tiene que resolver una definición real, o una
 // barrera/puerta con un `def` ajeno pasaría validada y dejaría de comportarse como lo que es.
-test('cleanProp: un `def` ajeno (p: sin resolver) descarta la pieza; uno que no es p: lo deriva el catálogo del `type`', () => {
+// I1 (ola final): la de `def` p: sin resolver ya no se descarta: se conserva opaca (sin el trato de barrera ni de puerta).
+test('cleanProp: un `def` p: sin resolver deja la pieza opaca (sin trato de fábrica); uno que no es p: lo deriva el catálogo del `type`', () => {
   const sinTablero = R.cleanMap(F.map(8, { props: [
     { type: 'barrier', x: 1, z: 1, def: 'p:zzzz' },
-    { type: 'door', x: 2, z: 1, def: 'p:zzzz' },
+    { type: 'door', x: 2, z: 1, def: 'p:zzzz', open: true, locked: true },
     { type: 'barrier', x: 3, z: 1, def: 'f:chest' },
   ] }));
-  assert.equal(sinTablero.props.length, 1, 'las dos con def p: sin tablero se descartan; la de f: ajeno no');
-  const barrera = sinTablero.props[0];
+  assert.equal(sinTablero.props.length, 3, 'ninguna se pierde');
+  const [op1, op2] = sinTablero.props;
+  assert.deepEqual([op1.def, op2.def], ['p:zzzz', 'p:zzzz'], 'las dos opacas conservan su def');
+  assert.deepEqual(Object.keys(op2).sort(), ['def', 'type', 'uid', 'v', 'x', 'z'], 'opaca: sin open/locked (no es una puerta de fábrica)');
+  const barrera = sinTablero.props[2];
   assert.equal(barrera.type, 'barrier', 'el catálogo deriva f: del type: sigue siendo una barrera, no un cofre');
   assert.equal(barrera.def, 'f:barrier');
   assert.ok(!R.sceneFor(sinTablero, PL, null).props.some((p) => p.type === 'barrier'), 'sigue sin llegar al jugador (gmOnly)');
@@ -214,4 +218,48 @@ test('R18: blockCells es derivado: cleanMap no lo conserva', () => {
   const m = R.cleanMap(Object.assign(F.map(8, { props: [{ type: 'barrier', x: 1, z: 1 }] }), { blockCells: [0, 1, 2] }));
   assert.equal(m.blockCells, undefined);
   assert.equal(R.cleanMap(R.sceneFor(m, PL, null)).blockCells, undefined, 'ni aunque vuelva la vista del jugador');
+});
+
+/* Ola final, I3 (Ruling R20): una puerta p: tiene estado como la de fábrica. Una gmOnly abierta no bloquea: no sale en blockCells. */
+test('I3: una puerta p: gmOnly abierta no sale en blockCells; cerrada, sí', () => {
+  const def = Catalogo.validateDef({ schema: 1, id: 'p:secreta01', name: 'Secreta', class: 'wall', art: { base: 'o_sec' },
+    shape: { w: 1, d: 1, height: 1, orient: true, layer: 'wall' },
+    components: { move: { block: true }, sight: 'block', light: 'block', door: {}, gmOnly: true } });
+  const board = new Map([[def.id, def]]);
+  const m = R.cleanMap(F.map(8, { props: [{ type: 'o_sec', def: def.id, x: 1, z: 1, open: true }, { type: 'o_sec', def: def.id, x: 3, z: 1 }] }), board);
+  assert.deepEqual(m.props.map((p) => [p.state, p.open]), [[{ open: true, locked: false }, true], [{ open: false, locked: false }, false]], 'estado y espejo');
+  assert.deepEqual(R.sceneFor(m, PL, null, board).blockCells, [1 * 8 + 3], 'sólo la cerrada');
+});
+
+/* Ola final, I4: una pieza p: con type 'portal', 'door' o 'light' no recibe el trato de fábrica (cleanWallProp,
+   cleanLightProp, id de portal, espejo de puerta, cruces), sólo lo que diga su definición. */
+test('I4: piezas p: con type portal/door/light no se tratan como las de fábrica', () => {
+  const def = Catalogo.validateDef({ schema: 1, id: 'p:cosa01', name: 'Cosa', class: 'object', art: { base: 'o_cosa' },
+    shape: { w: 1, d: 1, height: 1, orient: true, layer: 'object' }, components: { move: { block: true }, sight: 'none', light: 'none' } });
+  const board = new Map([[def.id, def]]);
+  const m = R.cleanMap(F.map(8, { props: [
+    { type: 'portal', def: def.id, x: 1, z: 1, id: 5, look: 'magic', target: { scene: 'otra', portal: 1 } },
+    { type: 'door', def: def.id, x: 2, z: 1, open: true, locked: true },
+    { type: 'light', def: def.id, x: 3, z: 1, preset: 'torch', r: 8, h: 1 },
+    { type: 'stairs', def: def.id, x: 4, z: 1, to: 'cabajo', tx: 1, tz: 1 },
+    { type: 'portal', x: 5, z: 1, look: 'door' },
+  ] }), board);
+  const [pt, dr, lt, st, real] = m.props;
+  assert.deepEqual(Object.keys(pt).sort(), ['def', 'type', 'uid', 'v', 'x', 'z'], 'el portal p: no tiene id, look ni target');
+  assert.deepEqual(Object.keys(dr).sort(), ['def', 'type', 'uid', 'v', 'x', 'z'], 'la puerta p: (sin componente door) no guarda open/locked');
+  assert.deepEqual(Object.keys(lt).sort(), ['def', 'type', 'uid', 'v', 'x', 'z'], 'la luz p: no pasa por cleanLightProp');
+  assert.deepEqual([st.type, st.def], ['stairs', def.id], 'la escalera p: no se convierte en portal');
+  assert.equal(real.id, 1, 'el único portal de fábrica toma el id 1 (el p: no cuenta)');
+  assert.equal(R.portalIn(m, 5), null, 'el p: no es un portal al que llegar');
+  assert.equal(R.clearPortalsTo(Object.assign({}, m, { props: [Object.assign({}, pt, { target: { scene: 'otra' } })] }), 'otra'), false, 'ni se le quita destino');
+  assert.deepEqual(R.fixPortalIds([{ type: 'portal', def: def.id, x: 0, z: 0 }]), [{ type: 'portal', def: def.id, x: 0, z: 0 }], 'fixPortalIds no le pone id');
+});
+
+/* Ola final, M1: uid repetidos → el mismo resultado en dos guardados (determinista, en los dos lados con Catalogo.dedupeUids). */
+test('M1: el mismo mapa con uid repetidos da los mismos uid en dos guardados', () => {
+  const raw = () => F.map(8, { props: [{ type: 'chest', x: 1, z: 1, uid: 'uaaaaaaaa' }, { type: 'barrel', x: 2, z: 1, uid: 'uaaaaaaaa' }, { type: 'crates', x: 3, z: 1, uid: 'uaaaaaaaa' }] });
+  const a = R.cleanMap(raw()), b = R.cleanMap(raw());
+  assert.deepEqual(a.props.map((p) => p.uid), b.props.map((p) => p.uid));
+  assert.equal(a.props[0].uid, 'uaaaaaaaa', 'el primero conserva el suyo');
+  assert.equal(new Set(a.props.map((p) => p.uid)).size, 3);
 });
