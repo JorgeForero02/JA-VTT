@@ -46,7 +46,26 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
   guarda como siempre. Test primero: el paso M4/M5 exige que el `updated` de la escena no cambie en los 5 s tras
   curarse; fallaba antes (`…050007` → `…052973`). El paso (a) queda sin reintentos: un PUT y una recarga.
   `frontend.test.js` +1 aserción. `test:t3d` → **37/37 cinco veces seguidas**; `test/t3d` 221/221; eslint limpio.
-- **Revertir:** `git revert` de los commits del arreglo (`1abf164` y el de la carrera del autoguardado); sin migraciones ni datos.
+- **Menores de la revisión de la rama (aprobada sin críticos ni importantes), arreglados en la misma rama:**
+  - **Paso M4/M5 que muerde:** `upd0` se lee con `/pieces` aún caído (antes, tras curarse: podía llegar tarde); la espera
+    de 5 s queda comentada como deliberada (más de dos ciclos de `AUTO_MS`). Sin el arreglo de `loadPieces`, falla.
+  - **`doorRelight` con puerta `p:`:** paso nuevo — puerta `p:` 1×8 en una columna de muro, antorcha (r 4) junto a la
+    casilla (6,10) y lejos de la esquina (6,4); al abrirla tocando en (6,10), la luz de (7,10) sube al momento. Con
+    `doorRelight` sólo desde la esquina, falla (0,333 → 0,333).
+  - **Reja `p:`:** `GRID.door`/`AGRID.door` miran `doorSeal` (sólo puertas de fábrica cerradas, que tapan como un
+    muro); una puerta `p:` tapa vista y luz por sus componentes y su estado desde `WALLAT` (ya entraba por `senseOf`).
+    Paso nuevo: reja `p:` 2×1 (`door`, `sight`/`light` `'none'`) cerrada con llave → se ve a través en sus dos
+    casillas y no se pasa; la puerta `p:` con `sight:'block'` sigue tapando. Fallaba antes (`los` false).
+  - **`toggleDoor` y otras piezas en la casilla:** rehace `blocked`/`doorShut`/`doorSeal` de cada casilla de la puerta
+    con todas las piezas que la cubren (`recalcCell`, el mismo criterio que `refreshEntities`). Paso nuevo con JSON
+    importado: cofre en (4,4) bajo una puerta `p:` 2×1 → al abrir, (4,4) sigue bloqueada. Fallaba antes (se liberaba).
+  - **Cambio de comportamiento sólo alcanzable con JSON importado:** con `WALLAT` por listas, **dos muros de fábrica en
+    la misma casilla tapan si cualquiera tapa**; antes ganaba el último de la lista. El editor no deja apilarlos.
+  - `probe('cell')` devuelve también `seal`. `docs/01` (línea larga partida) y `README` del módulo al día.
+  - **Verificado:** `test/t3d` 221/221 · eslint limpio · `test:t3d` → **40/40 cinco veces seguidas**. El nuevo coste en
+    `refreshEntities` es un `Muros.kindOf` por puerta cerrada (despreciable frente a la medida de arriba).
+- **Revertir:** `git revert` de los commits del arreglo (`1abf164`, el de la carrera del autoguardado y el de los
+  menores de la revisión); sin migraciones ni datos.
 
 ## 2026-09-26 — Despliegue de main @ d69bd08 (fase 0 del arte propio + arreglo de caída del upgrade)
 

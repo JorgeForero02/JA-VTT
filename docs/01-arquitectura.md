@@ -156,8 +156,11 @@ Cimientos para que las fases siguientes añadan piezas propias sin reescribir el
   motor, una pieza sin `wallKind` que pueda tapar vista, luz o maleza entra en `WALLAT` en todas sus casillas y
   `GRID.bk` pregunta a `Catalogo.blocks` con las definiciones del tablero; `WALLAT` guarda varias piezas por
   casilla y tapa si alguna tapa (P-48). Una puerta `p:` tiene los estados `open`/`locked` de la de fábrica
-  (spec §3.2) y bloquea, se abre y se toca en todas las casillas de su huella, como `gridOf` del servidor (P-48). Si `/pieces` falla, la escena y la mesa se abren igual (las `p:`
-  quedan opacas) y sólo el guardado espera; al llegar las definiciones se rehacen luz y niebla.
+  (spec §3.2) y bloquea, se abre y se toca en todas las casillas de su huella, como `gridOf` del servidor
+  (P-48); tapa vista y luz por sus componentes y su estado (una reja `sight:'none'` cerrada deja ver), mientras
+  que las de fábrica cerradas tapan como un muro (`doorSeal`). Si `/pieces` falla, la escena y la mesa se abren
+  igual (las `p:` quedan opacas) y sólo el guardado espera; al llegar las definiciones se rehacen luz y niebla,
+  sin volver a guardar la escena si no se tocó.
 
 ## Decisiones y trampas
 

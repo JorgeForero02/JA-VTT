@@ -580,7 +580,10 @@ pantalla); `'scene'` (id, nombre, medidas y ajustes); `'roofs'`; `'env'`, `'ambi
 - **Representación, por casilla** (primera fase; JA-VTT usa segmentos finos entre casillas, que
   quedan en la hoja de ruta, R13): ver [Escena](#escena-t3dscenesdata). Así no hace falta otra capa
   en el mapa. `refreshEntities` llena `WALLAT` (casilla → lista de piezas que pueden
-  tapar; tapa si alguna tapa), `doorShut` y `lockedDoors` (todas las casillas de cada puerta), y `HAS_COVER`.
+  tapar; tapa si alguna tapa: también dos muros de fábrica en la misma casilla, cosa que sólo llega con JSON
+  importado y en la que antes ganaba el último), `doorShut`, `doorSeal` (puertas de fábrica cerradas, que tapan
+  como un muro; las `p:` tapan por sus componentes desde `WALLAT`) y `lockedDoors` (todas las casillas de cada
+  puerta), y `HAS_COVER`. `toggleDoor` rehace cada casilla de la puerta con todas las piezas que la cubren.
 - **Reglas por casilla** (`Muros.blocks`, el `blocks()` de JA-VTT: una puerta abierta no tapa nada;
   `'hide'` = lo que tapa la vista + la maleza): `Vision.los`/`lightReaches` reciben `g.bk(i, flag)`;
   una puerta cerrada, un velo, un portal de pie o la maleza (sólo para `'hide'`) tapan lo que pasa a

@@ -40,7 +40,7 @@ Cerrados: P-01, P-02, P-03 (2026-09-16); **P-05** el 2026-09-19 (ya existía `#p
 `server.on('upgrade', ...)` de `server/app.js`, ver [07](07-historial.md); `test/realtime.test.js` 5/5
 seguidas en verde tras el arreglo);
 **P-48** el 2026-09-26 (rama `p48-piezas`: puertas `p:` por toda su huella y `WALLAT` con varias piezas por casilla;
-dos pasos nuevos en `test:t3d` que fallaban antes del arreglo, 37/37 tras él; `refreshEntities` ×1,01 respecto de `main`,
+pasos nuevos en `test:t3d` que fallaban antes de cada arreglo, incluidos los 6 menores de la revisión de la rama, 40/40 cinco veces seguidas; `refreshEntities` ×1,01 respecto de `main`,
 tabla en [07](07-historial.md)).
 
 ## Hallazgo ajeno a este repo (avisado al usuario el 2026-09-16)
