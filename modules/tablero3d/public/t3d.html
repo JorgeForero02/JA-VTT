@@ -1,0 +1,335 @@
+<!-- Tablero 3D: marcado del módulo. Tablero3D.mount() mete cada <template data-slot> en el
+     elemento del anfitrión marcado con data-t3d-slot="<nombre>" (o al final de la raíz si no lo hay).
+     Todos los ids y las clases propias llevan el prefijo t3d-; las clases sin prefijo (btn, fold,
+     tabs, tabpane, scenePop, tool…) son los componentes del anfitrión, los de Just Another VTT. -->
+<!-- cabecera, junto al nombre del tablero: menú de escenas -->
+<template data-slot="scene-button">
+  <button id="t3d-open" class="sceneBtn" title="Escenas del tablero"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /> <path d="M15 5.764v15" /> <path d="M9 3.236v15" /></svg><span id="t3d-mapName"></span><svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+</template>
+<!-- cabecera, antes del botón del panel: dibujar, deshacer, importar y exportar -->
+<template data-slot="actions">
+  <button id="t3d-artOpen" class="btn t3d-gm" data-ic="palette" title="Dibujar tu propio arte: casillas, personajes y objetos"><span class="hideSm">Dibujar</span></button>
+  <span class="hsep hideSm"></span>
+  <button id="t3d-undo" class="btn sq ghost t3d-gm" data-ic="undo-2" title="Deshacer (Ctrl+Z)" aria-label="Deshacer"></button>
+  <button id="t3d-redo" class="btn sq ghost t3d-gm" data-ic="redo-2" title="Rehacer (Ctrl+Y)" aria-label="Rehacer"></button>
+  <button id="t3d-export" class="btn sq ghost" data-ic="download" title="Exportar escena (.json)" aria-label="Exportar escena" hidden></button>
+  <button id="t3d-import" class="btn sq ghost t3d-gm" data-ic="folder-open" title="Importar escena (.json)" aria-label="Importar escena"></button>
+  <input type="file" id="t3d-file" accept=".json,application/json" hidden>
+</template>
+<!-- zona principal: raíl de herramientas y lienzo -->
+<template data-slot="stage">
+  <nav id="t3d-rail" aria-label="Herramientas">
+    <button class="tool" id="t3d-explore" data-ic="mouse-pointer-2" title="Explorar: mover la cámara y los personajes (V)" aria-pressed="true"><kbd>V</kbd></button>
+    <div class="railsep t3d-gm"></div>
+    <button class="tool t3d-gm" data-tool="paint" data-ic="paintbrush" title="Pintar terreno (1)" aria-pressed="false"><kbd>1</kbd></button>
+    <button class="tool t3d-gm" data-tool="raise" data-ic="arrow-big-up" title="Subir el terreno un nivel (2)" aria-pressed="false"><kbd>2</kbd></button>
+    <button class="tool t3d-gm" data-tool="lower" data-ic="arrow-big-down" title="Bajar el terreno un nivel (3)" aria-pressed="false"><kbd>3</kbd></button>
+    <button class="tool t3d-gm" data-tool="water" data-ic="droplets" title="Manantiales y agua quieta (4)" aria-pressed="false"><kbd>4</kbd></button>
+    <button class="tool t3d-gm" data-tool="prop" data-ic="trees" title="Colocar objetos (5)" aria-pressed="false"><kbd>5</kbd></button>
+    <button class="tool t3d-gm" data-tool="mini" data-ic="person-standing" title="Colocar personajes (6)" aria-pressed="false"><kbd>6</kbd></button>
+    <button class="tool t3d-gm" data-tool="roof" data-ic="warehouse" title="Techos: toca dos esquinas para techar una casa (7)" aria-pressed="false"><kbd>7</kbd></button>
+    <button class="tool t3d-gm" data-tool="zone" data-ic="house" title="Zona interior: aquí no llega la luz ambiental (Z)" aria-pressed="false"><kbd>Z</kbd></button>
+    <button class="tool t3d-gm" data-tool="light" data-ic="lightbulb" title="Luces: coloca fuentes de luz con color, radio y altura (8)" aria-pressed="false"><kbd>8</kbd></button>
+    <button class="tool t3d-gm" data-tool="wall" data-ic="brick-wall" title="Muros, puertas, ventanas, velos, maleza, barreras y portales (M)" aria-pressed="false"><kbd>M</kbd></button>
+    <button class="tool t3d-gm" data-tool="level" data-ic="mountain" title="Nivelar: arrastra desde una casilla y las demás toman su altura (9)" aria-pressed="false"><kbd>9</kbd></button>
+    <button class="tool t3d-gm" data-tool="erase" data-ic="eraser" title="Quitar objetos, luces y personajes (0)" aria-pressed="false"><kbd>0</kbd></button>
+    <div class="railsep"></div>
+    <button class="tool" id="t3d-rotL" data-ic="rotate-ccw" title="Girar a la izquierda (Q)"><kbd>Q</kbd></button>
+    <button class="tool" id="t3d-rotR" data-ic="rotate-cw" title="Girar a la derecha (E)"><kbd>E</kbd></button>
+    <button class="tool" id="t3d-zoomIn" data-ic="zoom-in" title="Acercar (+)"><kbd>+</kbd></button>
+    <button class="tool" id="t3d-zoomOut" data-ic="zoom-out" title="Alejar (−)"><kbd>−</kbd></button>
+  </nav>
+  <div id="t3d-stageWrap">
+    <div id="t3d-stage"><canvas id="t3d-c" aria-label="Tablero 3D en pixel art"></canvas></div>
+    <div class="t3d-minimap" id="t3d-miniBox" title="Minimapa: toca para mover la cámara"><canvas id="t3d-mini" width="140" height="140"></canvas></div>
+    <div id="t3d-stats" aria-live="off"></div>
+    <div class="t3d-hint" id="t3d-hint" role="status"></div>
+    <div class="t3d-ctxmenu" id="t3d-ctxMenu" hidden role="menu"></div>
+    <div class="t3d-travel" id="t3d-travel" hidden role="dialog"><div id="t3d-travelTxt"></div><div class="row"><button class="btn primary" id="t3d-travelGo">Viajar</button><button class="btn t3d-gm" id="t3d-travelAll">Con todo el grupo</button><button class="btn" id="t3d-travelNo">Quedarse</button></div></div>
+    <button id="t3d-backToArt" class="btn primary t3d-backToArt" data-ic="palette" hidden>Volver al editor de dibujo</button>
+  </div>
+</template>
+<!-- pestañas del panel lateral (antes de las del anfitrión) -->
+<template data-slot="tabs">
+      <button role="tab" data-tab="t3d-scene" aria-selected="true" data-ic="sun">Escena</button>
+      <button role="tab" data-tab="t3d-tokens" aria-selected="false" data-ic="users" title="Ficha del personaje elegido">Fichas</button>
+      <button role="tab" data-tab="t3d-game" aria-selected="false" data-ic="swords" title="Combate, niebla, dados y medidas">Partida</button>
+      <button role="tab" data-tab="t3d-camp" aria-selected="false" data-ic="book-open" title="Escenas unidas por portales y notas del director">Campaña</button>
+</template>
+<!-- contenido de esas pestañas -->
+<template data-slot="panes">
+    <section class="tabpane" id="t3d-tab-scene" data-pane="t3d-scene">
+      <details class="fold t3d-gm" data-fold="t3d-herramienta" id="t3d-edit" open hidden>
+        <summary><span class="foldTitle">Herramienta</span></summary>
+        <div class="foldBody">
+          <p id="t3d-toolHelp">Clic izquierdo pinta; clic derecho y arrastrar mueve la cámara. Las teclas 1 a 9 y 0 cambian de herramienta.</p>
+          <div class="row"><button class="btn" id="t3d-brush" data-ic="grid-2x2" title="Tamaño del pincel ([ y ])"><span>1×1</span></button><button class="btn" id="t3d-fill" data-ic="paint-bucket" aria-pressed="false" title="Rellenar toda la zona conectada"><span>Relleno</span></button></div>
+          <div class="t3d-palFilter" id="t3d-palFilter" hidden></div>
+          <div class="t3d-palgrid" id="t3d-palette" data-epane="pal"></div>
+          <div class="t3d-toolOpts" id="t3d-toolOpts" hidden></div>
+        </div>
+      </details>
+      <details class="fold t3d-gm" data-fold="t3d-esta" open>
+        <summary><span class="foldTitle">Esta escena</span></summary>
+        <div class="foldBody">
+          <p>Guárdala en el tablero para abrirla después desde el menú de escenas o llevarla a la mesa en vivo.</p>
+          <label class="gateField"><span>Nombre</span><input id="t3d-bname" maxlength="40" aria-label="Nombre de la escena"></label>
+          <div class="row"><button class="btn primary" id="t3d-save" data-ic="save">Guardar en el tablero</button></div>
+        </div>
+      </details>
+      <details class="fold t3d-gm" data-fold="t3d-luz" open>
+        <summary><span class="foldTitle">Iluminación</span></summary>
+        <div class="foldBody">
+          <p>Cuánta luz llega sin fuentes. Los muros tapan la vista en cualquier caso.</p>
+          <div class="envGrid" id="t3d-envGrid"></div>
+          <div class="rangeRow"><span>Luz ambiental</span><input id="t3d-ambient" type="range" min="0" max="100" step="1" aria-label="Luz ambiental"><output id="t3d-ambientOut"></output></div>
+          <div class="rangeRow"><span>Color de la oscuridad</span><input id="t3d-darkColor" type="color" aria-label="Color de la oscuridad"></div>
+          <label class="check"><input type="checkbox" id="t3d-animToggle" checked> Animar llamas y pulsos</label>
+        </div>
+      </details>
+      <details class="fold t3d-gm" data-fold="t3d-cuadricula" open>
+        <summary><span class="foldTitle">Cuadrícula</span></summary>
+        <div class="foldBody">
+          <p>Cada casilla mide 5 pies. En 3D las fichas y los objetos siempre van por casillas.</p>
+          <label class="check"><input type="checkbox" id="t3d-gridToggle" checked> Mostrar cuadrícula</label>
+        </div>
+      </details>
+      <details class="fold t3d-gm" data-fold="t3d-zonas" open>
+        <summary><span class="foldTitle">Zonas interiores</span></summary>
+        <div class="foldBody">
+          <p>En un exterior con edificios o cuevas, dentro de una zona no llega la luz ambiental. Cada techo crea la suya; las ventanas y las puertas abiertas dejan entrar la luz de fuera.</p>
+          <div class="row"><button class="btn" id="t3d-zoneToolBtn" data-ic="house">Dibujar zona</button></div>
+        </div>
+      </details>
+      <details class="fold" data-fold="t3d-vista" open>
+        <summary><span class="foldTitle">Vista y efectos</span></summary>
+        <div class="foldBody">
+          <h3 class="popSub">Cámara</h3>
+          <div class="t3d-opts"><button class="btn" id="t3d-free" aria-pressed="false">Giro libre</button><button class="btn" id="t3d-angle" aria-pressed="true">Vista diagonal</button><button class="btn" id="t3d-high" aria-pressed="false">Vista alta (T)</button><button class="btn" id="t3d-miniT" aria-pressed="true">Minimapa</button><button class="btn" id="t3d-pix">Tamaño 100%</button><button class="btn" id="t3d-res">Resolución 32</button></div>
+          <h3 class="popSub">Luz y ambiente</h3>
+          <div class="t3d-opts"><button class="btn" id="t3d-light">Luz tramada</button><button class="btn" id="t3d-outline" aria-pressed="true">Contornos</button><button class="btn" id="t3d-decor" aria-pressed="true">Decoración</button></div>
+          <h3 class="popSub">Objetos y muros</h3>
+          <div class="t3d-opts"><button class="btn" id="t3d-walls" aria-pressed="false">Muros bajos</button><button class="btn" id="t3d-roofsBtn">Techos: automáticos (I)</button><button class="btn" id="t3d-solid" aria-pressed="false">Todo gira con el mundo</button></div>
+        </div>
+      </details>
+    </section>
+    <section class="tabpane" id="t3d-tab-tokens" data-pane="t3d-tokens">
+      <details class="fold" data-fold="t3d-ficha" open>
+        <summary><span class="foldTitle">Ficha del personaje</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gSheet"></div></div>
+      </details>
+    </section>
+    <section class="tabpane" id="t3d-tab-game" data-pane="t3d-game">
+      <details class="fold" data-fold="t3d-turnos" open>
+        <summary><span class="foldTitle">Combate y niebla</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gTurns"></div></div>
+      </details>
+      <details class="fold" data-fold="t3d-dados" open>
+        <summary><span class="foldTitle">Dados</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gDice"></div></div>
+      </details>
+      <details class="fold" data-fold="t3d-medir" open>
+        <summary><span class="foldTitle">Medir</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gMeasure"></div></div>
+      </details>
+    </section>
+    <section class="tabpane" id="t3d-tab-camp" data-pane="t3d-camp">
+      <details class="fold" data-fold="t3d-campana" open>
+        <summary><span class="foldTitle">Campaña</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gCamp"></div></div>
+      </details>
+    </section>
+</template>
+<!-- pestaña Mesa del anfitrión, tras «Invitar» -->
+<template data-slot="live">
+      <details class="fold" data-fold="t3d-mesa" open>
+        <summary><span class="foldTitle">Mesa en vivo</span></summary>
+        <div class="foldBody"><div class="t3d-wrap" id="t3d-gTable"></div></div>
+      </details>
+      <!-- ajustes del tablero con las claves y los textos de Just Another VTT (t3d.boards.settings) -->
+      <details class="fold t3d-gm" data-fold="t3d-reglas" open>
+        <summary><span class="foldTitle">Reglas para jugadores</span></summary>
+        <div class="foldBody">
+          <label class="check"><input type="checkbox" id="t3d-sharedVision" checked> Visión compartida: cada jugador ve lo que ve el grupo</label>
+          <label class="check"><input type="checkbox" id="t3d-playersDoors" checked> Pueden abrir y cerrar puertas</label>
+          <label class="check"><input type="checkbox" id="t3d-initiativeShown"> Mostrar la iniciativa a los jugadores</label>
+          <label class="field stack"><span>Vida de las fichas</span>
+            <select id="t3d-hpVisibility">
+              <option value="all">La ven todos (barra y números)</option>
+              <option value="gm">Sólo el director (cada jugador ve la suya)</option>
+              <option value="bar_only">Los jugadores ven sólo la barra</option>
+            </select>
+          </label>
+          <p class="small muted">Las puertas con llave no las abre nadie más que tú. La clase de armadura de las fichas ajenas nunca les llega a los jugadores, ni las fichas ocultas.</p>
+        </div>
+      </details>
+      <details class="fold t3d-gm" data-fold="t3d-mesa-fichas" open>
+        <summary><span class="foldTitle">Chat, dados y fichas</span></summary>
+        <div class="foldBody">
+          <label class="check"><input type="checkbox" id="t3d-chatEnabled" checked> Chat de texto</label>
+          <label class="check"><input type="checkbox" id="t3d-diceEnabled" checked> Dados</label>
+          <label class="check"><input type="checkbox" id="t3d-hpEnabled" checked> Vida de las fichas</label>
+          <label class="check"><input type="checkbox" id="t3d-conditionsEnabled" checked> Condiciones y altura</label>
+          <label class="check"><input type="checkbox" id="t3d-acEnabled" checked> Clase de armadura (CA)</label>
+          <p class="small muted">Lo que apagues desaparece para todo el mundo, tú incluido. Vida y condiciones se ocultan pero no se borran. El chat de texto es el del anfitrión; el tablero 3D manda a él las tiradas.</p>
+        </div>
+      </details>
+</template>
+<!-- pestaña Mesa del anfitrión, al final -->
+<template data-slot="live-end">
+      <details class="fold" data-fold="t3d-atajos">
+        <summary><span class="foldTitle">Atajos de teclado</span></summary>
+        <div class="foldBody">
+          <div class="keys">
+            <kbd>WASD</kbd><span>Mover la cámara (Mayús: más rápido)</span>
+            <kbd>Q / E</kbd><span>Girar el tablero</span>
+            <kbd>+ / −</kbd><span>Acercar y alejar</span>
+            <kbd>Rueda</kbd><span>Acercar hacia el cursor; con Mayús, girar 90°</span>
+            <kbd>F</kbd><span>Centrar en el personaje elegido</span>
+            <kbd>Tab</kbd><span>Siguiente personaje</span>
+            <kbd>H</kbd><span>Volver a la vista inicial</span>
+            <kbd>T</kbd><span>Vista alta</span>
+            <kbd>I</kbd><span>Techos: automáticos, visibles u ocultos</span>
+            <kbd>N</kbd><span>Siguiente turno en combate</span>
+            <kbd>P</kbd><span>Señalar la casilla a la mesa</span>
+            <kbd>1 a 7</kbd><span>Herramientas de edición</span>
+            <kbd>Z</kbd><span>Zonas interiores</span>
+            <kbd>Ctrl+Z</kbd><span>Deshacer</span>
+            <kbd>Esc</kbd><span>Cerrar ventanas y menús</span>
+          </div>
+          <div class="row" style="margin-top:10px"><button class="btn" id="t3d-helpBtn" data-ic="keyboard">Todos los controles</button></div>
+        </div>
+      </details>
+</template>
+<!-- ventanas, editor de dibujo y entradas de archivo (al final de la raíz) -->
+<template data-slot="overlays">
+<div id="t3d-sheet" class="scenePop" hidden role="dialog" aria-label="Escenas">
+  <div class="t3d-popHead"><h2>Escenas</h2><button id="t3d-closeSheet" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
+  <div id="t3d-list"></div>
+  <div class="t3d-gm">
+    <h3 class="popSub">Nueva escena</h3>
+    <label class="gateField"><span>Nombre</span><input id="t3d-newName" maxlength="40" placeholder="Tablero nuevo" aria-label="Nombre de la escena nueva"></label>
+    <div class="sceneCreate">
+      <button class="btn" id="t3d-newSize" title="Cambia el tamaño de la escena nueva">Nuevo 16×16</button>
+      <select id="t3d-newTerr" aria-label="Terreno base"><option value="g">Pasto</option><option value="a">Arena</option><option value="p">Camino</option><option value="c">Adoquín</option><option value="s">Piedra</option><option value="o">Madera</option><option value="n">Nieve</option></select>
+      <select id="t3d-newEnv" aria-label="Iluminación de la escena nueva"><option value="day">Exterior de día</option><option value="dusk">Atardecer</option><option value="night">Noche</option><option value="interior">Interior</option></select>
+      <button class="btn primary" id="t3d-create" data-ic="plus">Crear vacía</button>
+    </div>
+    <details class="fold" data-fold="t3d-plantillas">
+      <summary><span class="foldTitle">Empezar desde una plantilla</span></summary>
+      <div class="foldBody">
+        <p class="small muted">Se abren sólo en tu pantalla. Guárdalas para que formen parte del tablero.</p>
+        <div class="t3d-opts"><button class="btn" data-map="demo" aria-pressed="false">Claro 8×8</button><button class="btn" data-map="d64" aria-pressed="false">Mazmorra 64×64</button><button class="btn" data-map="d128" aria-pressed="false">Mazmorra 128×128</button><button class="btn" data-map="town" aria-pressed="false">Pueblo de Brezo 48×40</button><button class="btn" data-map="lights" aria-pressed="false">Taller de luces 43×24</button></div>
+      </div>
+    </details>
+  </div>
+  <p class="small muted">Las escenas guardadas son de todo el tablero. Una escena nueva se abre sin guardar: guárdala con Ctrl+S o en la pestaña Escena.</p>
+</div>
+<div id="t3d-helpSheet" class="scenePop" hidden role="dialog" aria-label="Controles y atajos">
+  <div class="t3d-popHead"><h2>Controles y atajos</h2><button data-close="helpSheet" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
+  <h3 class="popSub">Ratón</h3>
+  <p class="small">Arrastrar: mover la cámara (en edición, pintar)<br>Clic derecho o central y arrastrar: girar; al soltar se ajusta al ángulo más cercano<br>Mayús + clic derecho, o Espacio + arrastrar: mover la cámara<br>Rueda: acercar hacia el cursor. Mayús + rueda: girar 90°<br>Doble clic: centrar la cámara en esa casilla<br>Arrastrar un personaje: moverlo (muestra la distancia en pies)<br>Clic derecho sin arrastrar: menú de la casilla o del personaje</p>
+  <h3 class="popSub">Teclado</h3>
+  <p class="small">WASD o flechas: mover la cámara (Mayús, más rápido)<br>Q y E: girar. + y −: acercar y alejar<br>F: centrar en el personaje elegido. Tab: siguiente personaje<br>H: volver a la vista inicial. T: vista alta. I: techos. N: siguiente turno en combate. R: girar la luz dirigida (herramienta Luz; Mayús+R al revés). Esc: cerrar paneles<br>Director: 1 a 9 y 0 eligen herramienta (8 luz, 9 nivelar, 0 borrar), M la de muros (R gira el elegido) y Z la de zonas interiores; [ y ] cambian el pincel; Ctrl+Z y Ctrl+Y; Ctrl+S guarda la escena</p>
+  <h3 class="popSub">Táctil</h3>
+  <p class="small">Un dedo: mover la cámara (en edición, pintar); sobre un personaje, arrastrarlo<br>Mantener pulsado: menú de la casilla o del personaje<br>Dos dedos: mover, pellizcar para acercar y girar para rotar el tablero</p>
+  <h3 class="popSub">Editor de dibujo</h3>
+  <p class="small">Clic derecho: color secundario. Alt + clic: gotero. Mayús + clic: línea desde el último punto<br>Espacio o clic central: mover el lienzo. Dos dedos: deshacer; tres: rehacer; mantener pulsado: gotero<br>
+    B lápiz, E borrador, G cubeta, I gotero, L línea, U rectángulo, O elipse, A aerógrafo, K degradado, M selección, W varita, Q lazo, V mover, S sombra, D tramado, H mano<br>
+    [ y ]: tamaño del pincel (1 a 8). X: intercambiar colores. Ctrl+A: seleccionar todo. Ctrl+I: invertir la selección. Mayús + varita o lazo: sumar a la selección<br>
+    Flechas: mover la selección (Mayús, de 4 en 4); sin selección, cambiar de cuadro. , y .: cuadro anterior y siguiente</p>
+</div>
+
+<section class="t3d-art" id="t3d-art" hidden aria-label="Editor de pixel art">
+  <header class="t3d-artHead">
+    <button class="btn sq ghost" id="t3d-artClose" data-ic="arrow-left" title="Volver al tablero" aria-label="Volver al tablero"></button>
+    <span class="brand hideSm">Dibujo</span>
+    <div class="t3d-doc-title"><input id="t3d-artName" maxlength="30" aria-label="Nombre del dibujo"><small id="t3d-artDocInfo"></small></div>
+    <span class="grow"></span>
+    <button class="btn sq ghost" id="t3d-artUndoB" data-ic="undo-2" title="Deshacer (Ctrl+Z, dos dedos)" aria-label="Deshacer"></button>
+    <button class="btn sq ghost" id="t3d-artRedoB" data-ic="redo-2" title="Rehacer (Ctrl+Y, tres dedos)" aria-label="Rehacer"></button>
+    <span class="hsep hideSm"></span>
+    <button class="btn" id="t3d-artNewB" data-ic="plus" title="Nuevo dibujo"><span class="hideSm">Nuevo</span></button>
+    <button class="btn" id="t3d-artLib" data-ic="folder-open" title="Tus dibujos guardados"><span class="hideSm">Biblioteca</span></button>
+    <button class="btn" id="t3d-artAll" data-ic="layers" title="Todos los sprites del tablero: ábrelos para editarlos o restaura el original"><span class="hideSm">Todo el arte</span></button>
+    <button class="btn" id="t3d-artTry" data-ic="eye" title="Aplicar al tablero sin guardar"><span class="hideSm">Probar</span></button>
+    <button class="btn primary" id="t3d-artSave" data-ic="save" title="Guardar en el tablero"><span>Guardar</span></button>
+  </header>
+  <div class="t3d-art-body">
+    <div class="t3d-art-rail" id="t3d-artTools" role="toolbar" aria-label="Herramientas de dibujo"></div>
+    <div class="t3d-art-stage" id="t3d-artStage">
+      <canvas id="t3d-artCv" aria-label="Lienzo de dibujo"></canvas>
+      <div class="t3d-art-prev" id="t3d-artPrevBox"><canvas id="t3d-artPrev" width="200" height="170"></canvas><div class="t3d-art-cap" id="t3d-artPrevCap"></div></div>
+      <div class="t3d-art-info" id="t3d-artInfo"></div>
+      <div class="t3d-stage-tools">
+        <button class="btn sq" id="t3d-zOut" data-ic="zoom-out" title="Alejar" aria-label="Alejar"></button>
+        <button class="btn sq" id="t3d-zIn" data-ic="zoom-in" title="Acercar" aria-label="Acercar"></button>
+        <button class="btn sq" id="t3d-zFit" data-ic="maximize" title="Ajustar a la pantalla" aria-label="Ajustar a la pantalla"></button>
+        <button class="btn sq" id="t3d-prevT" data-ic="box" aria-pressed="true" title="Mostrar u ocultar la vista previa" aria-label="Vista previa"></button>
+      </div>
+    </div>
+    <aside class="t3d-art-side">
+      <div class="tabs" role="tablist" id="t3d-artTabs">
+        <button role="tab" data-atab="opts" aria-selected="true">Opciones</button>
+        <button role="tab" data-atab="cols" aria-selected="false">Colores</button>
+        <button role="tab" data-atab="frames" aria-selected="false">Cuadros</button>
+        <button role="tab" data-atab="layers" aria-selected="false">Capas</button>
+        <button role="tab" data-atab="adjust" aria-selected="false">Ajustes</button>
+      </div>
+      <div class="t3d-pane" data-apane="opts"><div class="t3d-wrap" id="t3d-artOpts"></div></div>
+      <div class="t3d-pane" data-apane="cols" hidden>
+        <div class="t3d-wrap"><span class="t3d-lbl">Paleta base</span>
+          <select id="t3d-artPreset" aria-label="Paleta base">
+            <option value="board">Tablero (rampas con sombra)</option><option value="sweetie">Sweetie 16</option><option value="pico">PICO-8</option><option value="gb">Game Boy</option><option value="endesga">Endesga 32</option>
+          </select></div>
+        <div class="t3d-wrap" id="t3d-artPal"></div></div>
+      <div class="t3d-pane" data-apane="frames" hidden><div class="t3d-wrap" id="t3d-artFrames"></div></div>
+      <div class="t3d-pane" data-apane="layers" hidden><div class="t3d-wrap" id="t3d-artLayers"></div></div>
+      <div class="t3d-pane" data-apane="adjust" hidden><div class="t3d-wrap"><span class="t3d-lbl">Imagen</span><button class="btn" id="t3d-artImp">Importar imagen a la capa</button><button class="btn" id="t3d-artExp" hidden>Exportar PNG</button></div><div class="t3d-wrap" id="t3d-artAdjust"></div></div>
+    </aside>
+  </div>
+</section>
+<div class="t3d-modal" id="t3d-artNewDlg" hidden role="dialog" aria-modal="true" aria-labelledby="t3d-artNewTitle">
+  <div class="t3d-dlg">
+    <h2 id="t3d-artNewTitle">Nuevo dibujo</h2>
+    <p>Elige qué vas a crear. Puedes empezar en blanco, desde el arte que ya existe o desde una imagen tuya.</p>
+    <div class="field stack"><span>Tipo</span>
+      <div class="t3d-kindSeg" id="t3d-kindSeg">
+        <button class="env" data-kind="tile" aria-pressed="true"><b>Casilla</b><small>Superficie o lateral de un terreno, agua o cascada</small></button>
+        <button class="env" data-kind="char" aria-pressed="false"><b>Personaje</b><small>Frente, espalda y perfil; mira hacia donde camina</small></button>
+        <button class="env" data-kind="obj" aria-pressed="false"><b>Objeto 3D</b><small>Por rebanadas; gira con el tablero</small></button>
+      </div>
+      <select id="t3d-artKind" hidden aria-label="Tipo de arte"><option value="tile">Casilla</option><option value="char">Personaje</option><option value="obj">Objeto por capas</option></select>
+    </div>
+    <label class="field stack"><span>Qué dibujar</span><select id="t3d-artTarget" aria-label="Qué dibujar"></select></label>
+    <label class="field stack"><span>Resolución (píxeles por casilla)</span>
+      <select id="t3d-artRes" aria-label="Resolución"><option value="16">16: pocos detalles, rápido de dibujar</option><option value="32" selected>32: equilibrio</option><option value="64">64: mucho detalle</option></select></label>
+    <label class="field stack" id="t3d-charSizeL" hidden><span>Tamaño del personaje</span>
+      <select id="t3d-artCharSize" aria-label="Tamaño del personaje"></select>
+      <small class="muted">Cada tamaño tiene su lienzo: el píxel del personaje mide lo mismo que el del suelo.</small></label>
+    <div class="field stack" id="t3d-objSize"><span>Tamaño del objeto</span>
+      <div class="numPair"><select id="t3d-artFp" aria-label="Ancho del objeto"><option value="1">1 casilla de ancho</option><option value="1.5" selected>1,5 casillas de ancho</option><option value="2">2 casillas de ancho</option></select>
+      <select id="t3d-artHt" aria-label="Alto del objeto"><option value="1">1 casilla de alto</option><option value="1.5" selected>1,5 casillas de alto</option><option value="2">2 casillas de alto</option><option value="3">3 casillas de alto</option></select></div>
+    </div>
+    <label class="check" id="t3d-artLightL"><input type="checkbox" id="t3d-artLight"> El objeto emite luz, como un brasero</label>
+    <div class="t3d-dlg-prev"><canvas id="t3d-artDlgPrev" width="64" height="64"></canvas><span id="t3d-artDlgCap" class="small muted"></span></div>
+    <div class="t3d-dlg-actions">
+      <button class="btn" id="t3d-artNew" data-ic="square">Lienzo vacío</button>
+      <button class="btn primary" id="t3d-artFrom" data-ic="copy">Partir del arte actual</button>
+      <button class="btn" id="t3d-artFromImg" data-ic="image-up">Desde una imagen</button>
+      <button class="btn ghost" id="t3d-artNewCancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="t3d-artFile" accept="image/*" hidden>
+<input type="file" id="t3d-artRefFile" accept="image/*" hidden>
+<input type="file" id="t3d-artPalFile" accept=".gpl,.hex,.txt,image/*" hidden>
+<input type="file" id="t3d-campFile" accept=".json,application/json" hidden>
+<div class="scenePop" id="t3d-artLibSheet" hidden role="dialog" aria-label="Biblioteca de dibujos">
+  <div class="t3d-popHead"><h2>Biblioteca de dibujos</h2><button id="t3d-artLibClose" class="btn sq ghost" data-ic="x" aria-label="Cerrar"></button></div>
+  <div class="tabs" role="tablist"><button role="tab" data-ltab="mine" aria-selected="true">Tus dibujos</button><button role="tab" data-ltab="all" aria-selected="false">Todo el arte</button></div>
+  <div id="t3d-artLibList"></div>
+  <div id="t3d-artAllList" hidden></div>
+</div>
+<button id="t3d-mode" hidden aria-pressed="false">Editar</button>
+</template>

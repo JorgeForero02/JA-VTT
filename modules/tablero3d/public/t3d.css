@@ -1,0 +1,202 @@
+/* Tablero 3D: estilos del módulo (servidos en /t3d/t3d.css y cargados por Tablero3D.mount).
+   Reglas: todo cuelga de .t3d-root; ids y clases propias llevan el prefijo t3d-; los colores,
+   fuentes, sombras y capas son las variables del anfitrión (las de Just Another VTT: --ink,
+   --panel, --raise, --line, --bone, --fog, --amber, --rust, --verdigris, --shadow, --sans,
+   --serif, --z-*), nunca se redefinen aquí. Las clases sin prefijo (btn, fold, tabs, tool,
+   scenePop…) son componentes del anfitrión y sólo se ajustan dentro de .t3d-root. */
+.t3d-root.t3d-player .t3d-gm{display:none!important}
+/* interruptor interno de edición: el motor lo pulsa por código, nunca se ve */
+.t3d-root #t3d-mode{display:none!important}
+.t3d-root #t3d-rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;overflow-y:auto}
+.t3d-root #t3d-stageWrap{position:relative;min-width:0;min-height:0;overflow:hidden;background:#12171A}
+.t3d-root #t3d-stage{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:default}
+.t3d-root #t3d-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.t3d-root #t3d-stage #t3d-c{inset:auto;left:0;top:0;pointer-events:auto;touch-action:none;image-rendering:crisp-edges;image-rendering:pixelated}
+.t3d-root .t3d-minimap{position:absolute;left:12px;top:12px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:5;cursor:pointer;touch-action:none}
+.t3d-root .t3d-minimap canvas{display:block;border-radius:6px;image-rendering:pixelated;image-rendering:crisp-edges}
+.t3d-root #t3d-stats{position:absolute;left:12px;bottom:14px;color:var(--fog);font-size:12px;font-variant-numeric:lining-nums tabular-nums;background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px;pointer-events:none;z-index:5;white-space:nowrap}
+.t3d-root .t3d-hint{position:absolute;left:50%;bottom:66px;transform:translateX(-50%);background:var(--bone);color:var(--ink);border-radius:10px;padding:8px 14px;z-index:var(--z-toast);pointer-events:none;box-shadow:var(--shadow);max-width:min(80%,460px);text-align:center;transition:opacity .35s}
+.t3d-root .t3d-hint.t3d-hide{opacity:0}
+.t3d-root .t3d-hint:empty{display:none}
+.t3d-root .t3d-ctxmenu{position:fixed;z-index:var(--z-pop);min-width:210px;max-width:min(300px,92vw);padding:5px;display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.t3d-root .t3d-ctxmenu strong{font-size:12px;font-weight:400;color:var(--fog);padding:4px 9px 6px}
+.t3d-root .t3d-ctxmenu small{font-size:13px;color:var(--fog);padding:0 9px 4px;line-height:1.35}
+.t3d-root .t3d-ctxmenu button{display:flex;align-items:center;gap:9px;width:100%;min-height:0;text-align:left;border:0;background:transparent;padding:8px 9px;border-radius:7px;cursor:pointer;white-space:normal;justify-content:flex-start}
+.t3d-root .t3d-ctxmenu button:hover{background:var(--raise);border-color:transparent}
+.t3d-root .t3d-ctxmenu textarea{font:inherit;font-size:14px;min-height:80px;margin:0 5px 4px;background:var(--ink);color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:6px 8px;resize:vertical}
+.t3d-root .t3d-travel,.t3d-root .t3d-backToArt{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:6}
+.t3d-root .t3d-travel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;max-width:min(92%,420px);display:flex;flex-direction:column;gap:10px}
+.t3d-root .t3d-backToArt{box-shadow:var(--shadow)}
+.t3d-root .btn[aria-pressed="true"]{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+.t3d-root .btn.primary[aria-pressed="true"]{background:var(--amber);color:var(--amber-ink)}
+.t3d-root .t3d-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.t3d-root .t3d-opts .btn{white-space:normal;line-height:1.15;min-height:36px;text-align:center}
+.t3d-root .foldBody .popSub:first-child{margin-top:2px}
+/* paleta del editor: tarjetas como la biblioteca de luces de JA-VTT */
+.t3d-root .t3d-palgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.t3d-root .t3d-palgrid .t3d-sw{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0;padding:10px 4px 8px;border-radius:12px;border:1px solid var(--line);background:var(--raise);cursor:pointer;text-align:center;font-size:13px;line-height:1.15;white-space:normal}
+.t3d-root .t3d-palgrid .t3d-sw:hover{border-color:var(--fog)}
+.t3d-root .t3d-palgrid .t3d-sw[aria-pressed="true"]{border-color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber);background:var(--amber-soft)}
+.t3d-root .t3d-palgrid .t3d-sw canvas{height:30px;width:auto;max-width:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+/* tipos de luz: icono de JA-VTT con el color de la luz sobre un halo */
+.t3d-root .t3d-palgrid .t3d-swIc{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,currentColor 34%,transparent) 0,transparent 70%)}
+.t3d-root .t3d-palgrid .t3d-swIc .ic{width:21px;height:21px;color:color-mix(in srgb,currentColor 62%,var(--bone))}
+/* nombre de cada luz sobre el tablero (sólo en edición) */
+.t3d-root .t3d-tags{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.t3d-root .t3d-tag{position:absolute;left:0;top:0;padding:1px 7px;border-radius:6px;background:color-mix(in srgb,var(--panel) 84%,transparent);border:1px solid var(--line);color:var(--bone);font:500 12px/1.3 var(--sans);white-space:nowrap}
+.t3d-root .t3d-tag.t3d-off{opacity:.55;text-decoration:line-through}
+.t3d-root .t3d-palgrid .t3d-note{grid-column:1/-1;color:var(--fog);font-size:13px;white-space:normal}
+/* secciones de partida generadas por el tablero */
+.t3d-root .t3d-wrap{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.t3d-root .t3d-wrap>.btn{flex:1 1 auto}
+.t3d-root .t3d-wrap .t3d-sep{flex-basis:100%;height:1px;background:var(--line);margin:4px 0}
+.t3d-root .t3d-lbl{color:var(--fog);font-size:13px}
+.t3d-root .t3d-wrap .t3d-lbl{flex-basis:100%;margin-top:4px}
+.t3d-root .t3d-ginfo{flex-basis:100%;color:var(--fog);font-size:14px;line-height:1.4}
+.t3d-root .t3d-ginfo b{color:var(--bone)}
+.t3d-root .t3d-artWarn{font-style:italic}
+.t3d-root .t3d-stat{flex-basis:100%;display:flex;align-items:center;gap:6px}
+.t3d-root .t3d-stat>span:first-child{flex:1;color:var(--fog);font-size:14px}
+.t3d-root .t3d-stat b{min-width:4.2em;text-align:center;font:700 16px var(--serif);font-variant-numeric:lining-nums tabular-nums}
+.t3d-root .t3d-stat .btn{width:34px;padding:0;flex:none}
+.t3d-root .t3d-hpbar{flex-basis:100%;height:6px;border-radius:3px;background:var(--raise);border:1px solid var(--line);overflow:hidden;margin:2px 0 4px}
+.t3d-root .t3d-hpbar{position:relative}
+.t3d-root .t3d-hpbar i{display:block;height:100%;background:var(--verdigris)}
+.t3d-root .t3d-hpbar .t3d-tmp{position:absolute;left:0;top:0;height:40%;background:#7fd6e5}
+/* ficha: números en tres columnas, desplegables y estados como chapas de JA-VTT */
+.t3d-root #t3d-gSheet .numPair{flex-basis:100%;margin-top:2px}
+.t3d-root #t3d-gSheet .numPair.t3d-num3{grid-template-columns:repeat(3,1fr)}
+.t3d-root #t3d-gSheet .numPair input{width:100%;min-width:0}
+.t3d-root #t3d-gSheet .field{flex-basis:100%;margin-top:2px}
+.t3d-root #t3d-gSheet .check{flex-basis:100%;margin-top:4px;font-size:14px}
+.t3d-root .t3d-conds{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px}
+.t3d-root .t3d-cond{display:inline-flex;align-items:center;gap:5px;min-height:0;padding:2px 7px 2px 2px;border:1px solid var(--line);border-radius:7px;background:var(--raise);color:var(--fog);font-size:12px;cursor:pointer;opacity:.62}
+.t3d-root .t3d-cond:hover{opacity:1;border-color:var(--fog)}
+.t3d-root .t3d-cond[aria-pressed="true"]{opacity:1;border-color:var(--amber);color:var(--bone);background:var(--amber-soft)}
+.t3d-root .t3d-cond:disabled{cursor:default;opacity:1}
+.t3d-root .t3d-cond .t3d-abbr{display:inline-grid;place-items:center;min-width:22px;height:18px;padding:0 3px;border-radius:4px;border:1px solid rgba(0,0,0,.45);font:700 10px/1 var(--sans);letter-spacing:.04em}
+.t3d-root .t3d-order{flex-basis:100%;display:flex;flex-direction:column;gap:4px}
+.t3d-root .t3d-order button{display:grid;grid-template-columns:2.4em 1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--raise);border-radius:9px;padding:6px 8px;cursor:pointer;white-space:normal;min-height:0}
+.t3d-root .t3d-order button[aria-current="true"]{border-color:var(--amber);background:var(--amber-soft)}
+.t3d-root .t3d-order button.t3d-down{opacity:.55}
+.t3d-root .t3d-order .t3d-ini{font:700 16px var(--serif);font-variant-numeric:lining-nums;text-align:center;color:var(--amber)}
+.t3d-root .t3d-order .t3d-hp{font-size:12px;color:var(--fog)}
+.t3d-root .t3d-log{flex-basis:100%;max-height:14em;overflow:auto;display:flex;flex-direction:column;gap:4px;font-size:14px;margin-top:4px}
+.t3d-root .t3d-log div{background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.t3d-root .t3d-log div:first-child{border-color:var(--amber);font-weight:700}
+.t3d-root .t3d-peer{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:14px}
+.t3d-root .t3d-peer i{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.25)}
+.t3d-root .t3d-gname{flex:1 1 100%;min-height:34px;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:0 10px;color:var(--bone)}
+.t3d-root .t3d-note-row{flex-basis:100%;display:flex;gap:6px;align-items:flex-start}
+.t3d-root .t3d-note-row span{flex:1;font-size:14px;line-height:1.35;white-space:pre-wrap}
+/* ventanas: escenas, controles, biblioteca de dibujos */
+.t3d-root .t3d-popHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.t3d-root .t3d-popHead h2{margin:0}
+.t3d-root #t3d-sheet,.t3d-root #t3d-helpSheet,.t3d-root #t3d-artLibSheet{left:50%;top:62px;transform:translateX(-50%)}
+.t3d-root #t3d-helpSheet p{margin:0 0 6px;line-height:1.5}
+.t3d-root #t3d-list,.t3d-root #t3d-artLibList{display:flex;flex-direction:column;gap:4px}
+.t3d-root #t3d-list .item,.t3d-root #t3d-artLibList .item{margin:0}
+.t3d-root .item .t3d-open{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:0;background:transparent;padding:6px 4px;border-radius:8px;cursor:pointer;white-space:normal;min-height:0}
+.t3d-root .item .t3d-open:hover{background:var(--panel)}
+.t3d-root .item .t3d-open span{font-weight:500}
+.t3d-root .item small{color:var(--fog);font-size:12px}
+.t3d-root .sceneCreate .btn{min-width:0}
+/* editor de dibujo: pantalla completa con el mismo armazón que el tablero */
+.t3d-root .t3d-art{position:fixed;inset:0;z-index:50;background:var(--ink);display:grid;grid-template-rows:54px minmax(0,1fr)}
+.t3d-root .t3d-doc-title{display:flex;flex-direction:column;min-width:0;flex:0 1 260px}
+.t3d-root #t3d-artName{border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 8px;font:700 17px var(--serif);min-width:0}
+.t3d-root #t3d-artName:hover,.t3d-root #t3d-artName:focus{border-color:var(--line)}
+.t3d-root .t3d-doc-title small{font-size:12px;color:var(--fog);padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t3d-root .t3d-art-body{display:grid;grid-template-columns:auto minmax(0,1fr) 330px;min-height:0}
+.t3d-root .t3d-art-rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;overflow-y:auto}
+.t3d-root .t3d-art-rail .t3d-tb{width:56px;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--fog);font-size:11px;cursor:pointer}
+.t3d-root .t3d-art-rail .t3d-tb:hover{background:var(--raise);color:var(--bone)}
+.t3d-root .t3d-art-rail .t3d-tb[aria-pressed="true"]{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}
+.t3d-root .t3d-art-rail .t3d-tb .ic{width:20px;height:20px}
+.t3d-root .t3d-art-rail .t3d-chips{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:8px;border-top:1px solid var(--line)}
+.t3d-root .t3d-big{width:34px;height:34px;min-width:34px;padding:0;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+.t3d-root .t3d-art-stage{position:relative;min-width:0;overflow:hidden;background:#12171A}
+.t3d-root #t3d-artCv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.t3d-root .t3d-art-prev{position:absolute;right:10px;top:10px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);touch-action:none;cursor:grab}
+.t3d-root .t3d-art-prev canvas{display:block;width:180px;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+.t3d-root .t3d-art-cap{font-size:12px;color:var(--fog);text-align:center;margin-top:4px;max-width:180px}
+.t3d-root .t3d-art-info{position:absolute;left:10px;bottom:10px;font-size:12px;color:var(--fog);background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px;pointer-events:none}
+.t3d-root .t3d-art-info:empty{display:none}
+.t3d-root .t3d-stage-tools{position:absolute;right:10px;bottom:10px;display:flex;gap:4px}
+.t3d-root .t3d-stage-tools .btn{box-shadow:var(--shadow)}
+.t3d-root .t3d-art-side{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.t3d-root .t3d-art-side .tabs button{font-size:13px;padding:12px 2px 10px}
+.t3d-root .t3d-art-side .t3d-pane{overflow-y:auto;padding:12px 14px;flex:1;min-height:0}
+.t3d-root .t3d-art-side .t3d-wrap+.t3d-wrap{margin-top:10px}
+.t3d-root .t3d-art select,.t3d-root .t3d-art input[type=text]:not(#t3d-artName){min-height:32px;background:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 8px;color:var(--bone)}
+.t3d-root .t3d-art .t3d-chk{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+.t3d-root .t3d-art .t3d-chk input{accent-color:var(--amber)}
+.t3d-root .t3d-swc{width:24px;height:24px;min-width:24px;min-height:24px;padding:0;border-radius:5px;border:1px solid rgba(0,0,0,.2);cursor:pointer}
+.t3d-root .t3d-swc[aria-pressed="true"]{outline:2px solid var(--bone);outline-offset:1px;position:relative;z-index:1}
+.t3d-root .t3d-swc.t3d-tr,.t3d-root .t3d-big.t3d-tr{background:repeating-conic-gradient(rgba(128,128,128,.35) 0 25%,rgba(255,255,255,.35) 0 50%) 0 0/10px 10px!important}
+.t3d-root .t3d-ramp{display:flex;gap:2px;margin:0 6px 2px 0}
+.t3d-root .t3d-fr{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 5px;min-height:0}
+.t3d-root .t3d-fr canvas{height:34px;width:auto;image-rendering:pixelated;background:repeating-conic-gradient(rgba(128,128,128,.25) 0 25%,transparent 0 50%) 0 0/8px 8px}
+/* asistente de dibujo nuevo */
+.t3d-root .t3d-modal{position:fixed;inset:0;z-index:var(--z-modal);display:grid;place-items:center;background:rgba(20,16,10,.45);padding:16px}
+.t3d-root .t3d-dlg{width:min(580px,100%);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px}
+.t3d-root .t3d-dlg h2{font:700 20px var(--serif);font-variant-numeric:lining-nums;margin:0 0 4px}
+.t3d-root .t3d-dlg>p{margin:0 0 10px;color:var(--fog);font-size:14px;line-height:1.35}
+.t3d-root .t3d-dlg .field{margin-top:12px}
+.t3d-root .t3d-dlg select{width:100%;min-height:36px;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:0 8px;color:var(--bone)}
+.t3d-root .t3d-kindSeg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.t3d-root .t3d-dlg .numPair{margin-top:0}
+.t3d-root .t3d-dlg-prev{display:flex;gap:12px;align-items:center;background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:8px;margin:12px 0}
+.t3d-root .t3d-dlg-prev canvas{height:64px;width:auto;image-rendering:pixelated;background:repeating-conic-gradient(rgba(128,128,128,.25) 0 25%,transparent 0 50%) 0 0/8px 8px}
+.t3d-root .t3d-dlg-actions{display:flex;gap:6px;flex-wrap:wrap}
+.t3d-root .t3d-dlg-actions .btn{flex:1 1 150px}
+.t3d-root .t3d-fail{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font:700 20px var(--serif);background:var(--ink);z-index:var(--z-modal)}
+@media (max-width:980px){
+  .t3d-root .t3d-art-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) minmax(0,40vh)}
+  .t3d-root .t3d-art-rail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .t3d-root .t3d-art-rail .t3d-chips{flex-direction:row;margin:0 0 0 6px;padding:0 0 0 8px;border-top:0;border-left:1px solid var(--line)}
+  .t3d-root .t3d-art-side{border-left:0;border-top:1px solid var(--line)}
+  .t3d-root .t3d-art-prev canvas{width:118px}.t3d-root .t3d-art-cap{max-width:118px}
+  .t3d-root .t3d-kindSeg{grid-template-columns:1fr}
+  .t3d-root .t3d-minimap canvas{width:96px;height:96px}
+}
+/* herramientas del editor de escenas: filtros de objetos y opciones de la luz */
+.t3d-root .t3d-palFilter{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.t3d-root .t3d-palFilter .btn{min-height:28px;padding:0 9px;font-size:13px}
+.t3d-root .t3d-toolOpts{margin-top:12px;padding-top:4px;border-top:1px solid var(--line)}
+.t3d-root .t3d-toolOpts .rangeRow span{width:56px;color:var(--fog);font-size:14px}
+.t3d-root .t3d-toolOpts .rangeRow output{width:68px}
+.t3d-root .t3d-toolOpts .t3d-shapes{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:4px;margin:6px 0 8px}
+.t3d-root .t3d-toolOpts .t3d-shape{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:58px;padding:5px 4px;font-size:12px;line-height:1.15;text-align:center}
+.t3d-root .t3d-toolOpts .t3d-shape canvas{width:32px;height:24px;image-rendering:pixelated}
+.t3d-root .t3d-toolOpts .t3d-roofDir{flex:1;color:var(--fog);font-size:14px}
+.t3d-root input[type=color].t3d-colorIn{width:56px;height:30px;border:1px solid var(--line);border-radius:7px;background:var(--ink);padding:2px;cursor:pointer}
+.t3d-root .t3d-pathTip{position:absolute;z-index:6;pointer-events:none;background:var(--bone);color:var(--ink);font:700 12px/1 var(--sans);font-variant-numeric:lining-nums tabular-nums;padding:5px 7px;border-radius:7px;box-shadow:var(--shadow);white-space:nowrap}
+.t3d-root .t3d-pathTip.t3d-bad{background:var(--rust);color:#fff}
+/* editor: explorador de todo el arte, código de color y capas */
+.t3d-root .t3d-artGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:0 0 12px}
+.t3d-root .t3d-artCell{display:flex;flex-direction:column;gap:4px}
+.t3d-root .t3d-artCell .t3d-open{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;cursor:pointer;font-size:12px;text-align:center}
+.t3d-root .t3d-artCell .t3d-open:hover{border-color:var(--amber)}
+.t3d-root .t3d-artCell canvas{width:56px;height:56px;object-fit:contain;image-rendering:pixelated}
+.t3d-root .t3d-artCell.t3d-mod .t3d-open{border-color:var(--amber)}
+.t3d-root .t3d-artCell .t3d-badge{font-size:10px;color:var(--amber)}
+.t3d-root .t3d-artCell .btn{font-size:11px;padding:3px 6px}
+.t3d-root #t3d-artAllList h3{font-size:13px;margin:10px 0 6px;color:var(--fog)}
+.t3d-root #t3d-artLibSheet .tabs{margin:0 0 10px}
+.t3d-root input.t3d-hexIn,.t3d-root input.t3d-layerName{width:92px;font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit}
+.t3d-root #t3d-sheet .sceneCreate{display:flex;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:0;border-top:0}
+.t3d-root #t3d-sheet .sceneCreate #t3d-create{margin-left:auto}
+.t3d-root #t3d-sheet [data-fold="t3d-plantillas"]{margin-top:10px}
+/* cabecera del editor de dibujo: la misma que la del anfitrión */
+.t3d-root .t3d-artHead{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
+@media (max-width:520px){
+  .t3d-root .t3d-artHead{gap:4px;padding:0 6px}
+  .t3d-root #t3d-undo,.t3d-root #t3d-redo,.t3d-root #t3d-import,.t3d-root #t3d-export{display:none}
+}
+.t3d-root .t3d-tag.t3d-note{border-color:var(--amber);color:var(--bone)}
+.t3d-root .t3d-tag.t3d-gmnote{border-color:#b79bd8;border-style:dashed;color:#cdb8e6}
+.t3d-root .t3d-formula{display:flex;gap:6px;align-items:center}
+.t3d-root .t3d-formula input{flex:1;min-width:0}
+.t3d-root .t3d-plan-row{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.t3d-root .t3d-plan-row i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}

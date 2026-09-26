@@ -13,6 +13,7 @@ RUN npm config set strict-ssl ${NPM_STRICT_SSL}   && npm ci --omit=dev --no-audi
 COPY server.js ./
 COPY server ./server
 COPY public ./public
+COPY modules ./modules
 
 USER node
 EXPOSE 3000
