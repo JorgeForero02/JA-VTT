@@ -4,6 +4,8 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
 ## 2026-09-26 — Tablero 3D: documentación traída, guardado automático y Mesa → Conexión
 
+- **Desplegado:** `main @ 0b12ed4` (deployment `td1pkzrluvctlpmbony9paay`): `finished`, app/db healthy, `/t3d/tablero3d.js` con `autoSave` y `main.js` con `t3dStatusText`; datos intactos (4 usuarios, 6 tableros, 1 mesa 3D).
+
 - **Qué:** (1) `docs/` y README de `3d-tablero@403d6a5` en `modules/tablero3d/docs/` con índice propio; el módulo
   se mantiene aquí desde hoy (regla en [04](04-convenciones.md) B.1b; pendientes abiertos del 3D en 06, P-37 a P-42);
   su prueba de humo pasa a `npm run test:t3d`. (2) Guardado automático de la escena 3D (o de la campaña) del director,

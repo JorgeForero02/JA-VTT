@@ -19,7 +19,7 @@ Desplegar: push a **`main`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br
 UI). El push solo no despliega (`instant_deploy: false`, sin webhook). `main` es la única rama. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
-Último despliegue: 2026-09-26, `main @ f3e5f68` (tablero 3D integrado, módulo activo; copia previa de la base en `vps1new:/root/backups/ja-vtt-predeploy/`). Anterior: 2026-09-21, `release @ be83c7e`. Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
+Último despliegue: 2026-09-26, `main @ 0b12ed4` (tablero 3D: guardado automático y Mesa → Conexión). Antes, el mismo día, `main @ f3e5f68` (tablero 3D integrado; copia previa de la base en `vps1new:/root/backups/ja-vtt-predeploy/`). Verificado el 2026-09-16 desde dentro del servidor: `GET /` 200, `/api/health` ok, certificado
 correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RESTART=no` → 10/10
 (WSS por Traefik, 190 ms por mensaje); restart por API → mismas filas antes y después.
 
