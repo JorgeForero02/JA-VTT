@@ -43,8 +43,10 @@
   const SPANS=Object.fromEntries(FACT.map(t=>[t,C.span({type:t})]).filter(([,s])=>s[0]>1||s[1]>1));
 
   const kindOf=p=>!p||typeof p.type!=='string'?null:C.wallKind(p);
-  // ¿tapa este objeto (flag: 'sight' | 'light' | 'move' | 'hide')? Lo dice su definición (catalogo.js)
-  function blocks(p,flag){ return C.blocks(p,flag); }
+  // I4 (ola final): lo que decide por tipo pregunta por el de FÁBRICA; una pieza p: con type 'portal' no es un portal
+  const ft=p=>!p||typeof p.type!=='string'?null:C.factoryType(p);
+  // ¿tapa este objeto (flag: 'sight' | 'light' | 'move' | 'hide')? Lo dice su definición (catalogo.js); `board`: las p: del tablero
+  function blocks(p,flag,board){ return C.blocks(p,flag,board); }
   // id del portal en que se convierte una escalera de campaña de antes: sale de su casilla, así la de ida y la de vuelta se
   // encuentran sin mirar la otra escena (el cliente y el servidor lo calculan igual)
   const stairsId=(x,z)=>1+z*MAP_MAX+x;
@@ -52,7 +54,7 @@
   /* Un objeto de muro saneado (o null si no es de muro). `x`, `z` ya comprobados por quien llama. Las escaleras de campaña de
      antes (`stairs` con `to`, `tx`, `tz`) pasan a portales con aspecto de escalera. */
   function normProp(p){
-    if(p.type==='stairs'&&typeof p.to==='string'&&CAMP_ID.test(p.to))
+    if(ft(p)==='stairs'&&typeof p.to==='string'&&CAMP_ID.test(p.to))
       return {type:'portal',x:p.x,z:p.z,v:0,id:stairsId(p.x,p.z),look:'stairs',target:{scene:p.to,portal:int(p.tx,0,MAP_MAX-1)&&int(p.tz,0,MAP_MAX-1)?stairsId(p.tx,p.tz):null}};
     const k=kindOf(p); if(!k) return null;
     const v=int(p.v,0,3)?p.v:0;
@@ -65,21 +67,21 @@
   }
   // ids de portal únicos en la escena: los que faltan o se repiten toman el siguiente libre
   function fixPortalIds(props){ let max=0; const seen=new Set();
-    for(const p of props) if(p.type==='portal'&&p.id>max) max=p.id;
-    for(const p of props) if(p.type==='portal'){ if(!p.id||seen.has(p.id)) p.id=++max; seen.add(p.id); }
+    for(const p of props) if(ft(p)==='portal'&&p.id>max) max=p.id;
+    for(const p of props) if(ft(p)==='portal'){ if(!p.id||seen.has(p.id)) p.id=++max; seen.add(p.id); }
     return props; }
-  const nextPortalId=props=>1+props.reduce((m,p)=>p.type==='portal'&&p.id>m?p.id:m,0);
+  const nextPortalId=props=>1+props.reduce((m,p)=>ft(p)==='portal'&&p.id>m?p.id:m,0);
 
   /* ---- llegada: dónde aparecen las fichas que cruzan un portal (la idea de arrivalPoints de JA-VTT, por casillas) ----
      Rejilla de una escena guardada (`serialize`) o cargada: se pisa si no es muro, lava ni agua, no hay un objeto que ocupe
      la casilla (salvo los que se pisan) ni otra ficha. */
-  function gridOf(m){
+  function gridOf(m,board){
     const w=m.w, d=m.d, n=w*d, open=new Uint8Array(n), h=new Int8Array(n);
     for(let i=0;i<n;i++){ const tt=m.t[i], hv=typeof m.h==='string'?parseInt(m.h[i],36):m.h[i], ws=m.wsrc!=null?m.wsrc:m.src;
       const water=ws!=null&&ws.length===n&&String(ws[i])!=='0';
       h[i]=hv|0; open[i]=tt!=='w'&&tt!=='l'&&tt!=='~'&&!water?1:0; }
     const off=(x,z,sw,sd)=>{ for(let j=0;j<sd;j++) for(let k=0;k<sw;k++){ const X=x+k, Z=z+j; if(X>=0&&Z>=0&&X<w&&Z<d) open[Z*w+X]=0; } };
-    for(const p of m.props||[]) if(p&&(C.blocksMove(p)||C.isDoor(p))&&Number.isInteger(p.x)&&Number.isInteger(p.z)){ const [sw,sd]=C.span(p); off(p.x,p.z,sw,sd); }
+    for(const p of m.props||[]) if(p&&(C.blocksMove(p,board)||C.isDoor(p,board))&&Number.isInteger(p.x)&&Number.isInteger(p.z)){ const [sw,sd]=C.span(p,board); off(p.x,p.z,sw,sd); }
     for(const q of m.minis||[]) if(q&&Number.isInteger(q.x)&&Number.isInteger(q.z)){ const s=q.sheet&&int(q.sheet.size,1,4)?q.sheet.size:1; off(q.x,q.z,s,s); }
     for(const i of m.blockCells||[]) if(Number.isInteger(i)&&i>=0&&i<n) open[i]=0;   // R18: lo que tapan piezas del director que este cliente no tiene
     return {w,d,open:i=>open[i]===1,h:i=>h[i]};

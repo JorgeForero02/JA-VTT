@@ -348,6 +348,52 @@ try {
   bar.gmAcross = await gm.evaluate(() => t3dView.probe('route', t3dView.probe('tokens')[0].id, 9, 8));
   step('barrera (R18): el jugador en la mesa en vivo no la tiene en sus datos y su camino a través de ella sale bloqueado',
     bar.barriers === 0 && bar.props === 0 && bar.across === null && bar.same !== null && bar.gmAcross === null, JSON.stringify(bar));
+  // Ola final: piezas p: en el motor. I2 — una definición 2×1 con sight:'block' tapa la vista por sus dos casillas; con
+  // 'none', no. M3 — un árbol v:3 (válido en el servidor) carga sin romper las piezas que vienen detrás. M2 — level/side
+  // sobreviven a un guardado del cliente. M4/M5 — si /pieces falla, la escena se abre igual (las p: opacas) y, cuando la
+  // carga llega en un reintento, la vista y la luz se recalculan sin tocar nada.
+  await gm.evaluate(() => { location.hash = '#/'; });
+  await gm.waitForSelector('#dashView:not([hidden]) .boardCard', { timeout: 10000 });
+  await gm.fill('#newBoardName', 'Mesa piezas'); await gm.selectOption('#newBoardType', '3d'); await gm.click('#newBoardForm button[type=submit]');
+  await gm.waitForFunction(() => (document.getElementById('t3d-mapName')?.textContent || '').length > 3, null, { timeout: 20000 });
+  const pzBoard = await gm.evaluate(() => location.hash.split('/').pop());
+  const pdef = (id, comps, shape) => ({ schema: 1, id: 'p:' + id, name: id, class: 'object', art: { base: 'o_' + id },
+    shape: Object.assign({ w: 2, d: 1, height: 1, orient: true, layer: 'object' }, shape || {}), components: comps });
+  const pzPut = await gm.evaluate(async ([id, defs]) => { const out = [];
+    for (const d of defs) out.push((await fetch(`/api/t3d/boards/${id}/pieces/${d.id.slice(2)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })).status);
+    return out; }, [pzBoard, [pdef('velo02', { move: { block: false }, sight: 'block', light: 'none' }), pdef('hueco02', { move: { block: false }, sight: 'none', light: 'none' }),
+    pdef('farol01', { move: { block: true }, sight: 'none', light: 'none', emitLight: { r: 6, h: 1 } }, { w: 1 })]]);
+  const pzScene = { v: 2, name: 'Piezas', w: 12, d: 12, h: flat16(144, '2'), t: flat16(144, 'g'), wsrc: flat16(144, '0'), roofs: [], start: [0, 11], env: 'night', fog: false, animate: false, seen: '',
+    props: [{ type: 'tree', x: 1, z: 1, v: 3 }, { type: 'obj:o_velo02', def: 'p:velo02', x: 5, z: 4, v: 0 }, { type: 'obj:o_hueco02', def: 'p:hueco02', x: 5, z: 8, v: 0 },
+      { type: 'obj:o_farol01', def: 'p:farol01', x: 10, z: 1, v: 0 }, { type: 'chest', x: 9, z: 9, v: 0, level: 2, side: 'N' }],
+    minis: [{ kind: 'knight', x: 0, z: 11, fx: 0, fz: 1, id: 'k1' }] };
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/pz1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [pzBoard, pzScene]);
+  const pzLook = () => gm.evaluate(() => { const L = (...a) => t3dView.probe('los', ...a, 'sight'); return {
+    velo: [L(5, 1, 5, 6), L(6, 1, 6, 6)], hueco: [L(5, 6, 5, 10), L(6, 6, 6, 10)], farol: t3dView.probe('light', 10, 2), dark: t3dView.probe('light', 2, 10),
+    shown: (t3dView.probe('props') || []).map((q) => q.shown) }; });
+  await gm.reload();
+  await gm.waitForFunction(() => /^Piezas/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 20000 });
+  const pz = await pzLook();
+  step('piezas p: (I2, M3): una 2×1 con sight:block tapa la vista por sus dos casillas y con none no; un árbol v:3 no rompe la escena',
+    pzPut.every((x) => x === 200) && pz.velo.every((v) => v === false) && pz.hueco.every((v) => v === true) && pz.shown.every(Boolean) && pz.farol > pz.dark + 0.1, JSON.stringify({ pzPut, pz }));
+  await gm.fill('#t3d-bname', 'Piezas 2');
+  let pz2 = null;
+  for (let k = 0; k < 50 && !pz2; k++) { pz2 = await gm.evaluate(async (id) => { const l = (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes; const s = l.find((x) => x.name === 'Piezas 2'); return s || null; }, pzBoard); if (!pz2) await gm.waitForTimeout(300); }
+  const chest2 = pz2 && pz2.props.find((q) => q.type === 'chest');
+  step('M2: level y side sobreviven a un guardado del cliente', !!chest2 && chest2.level === 2 && chest2.side === 'N', JSON.stringify(chest2));
+  // M4/M5: /pieces falla al abrir; la escena se abre igual con las p: opacas (no tapan ni alumbran) y se arregla sola al reintentar
+  const errs0 = errors.length;   // los fallos de red de /pieces provocados aquí no cuentan como errores de consola
+  await gm.route('**/api/t3d/boards/*/pieces', (r) => r.abort());
+  await gm.reload();
+  const opened = await gm.waitForFunction(() => /^Piezas 2/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 20000 }).then(() => true, () => false);
+  const failing = opened ? await pzLook() : null;
+  await gm.unroute('**/api/t3d/boards/*/pieces');
+  const healed = await gm.waitForFunction(() => t3dView.probe('los', 5, 1, 5, 6, 'sight') === false && t3dView.probe('light', 10, 2) > t3dView.probe('light', 2, 10) + 0.1, null, { timeout: 20000 }).then(() => true, () => false);
+  const after = await pzLook();
+  errors.splice(errs0, errors.length - errs0, ...errors.slice(errs0).filter((e) => !/ERR_FAILED|Failed to load resource|Failed to fetch/.test(e)));
+  step('M4/M5: con /pieces caído la escena se abre (p: opacas); al cargar en un reintento, vista y luz se recalculan solas',
+    opened && failing && failing.velo.every((v) => v === true) && failing.farol <= failing.dark + 0.02 && healed && after.velo.every((v) => v === false) && after.farol > after.dark + 0.1,
+    JSON.stringify({ opened, failing, healed, after }));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

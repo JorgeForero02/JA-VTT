@@ -1170,7 +1170,8 @@ const hpOn=()=>SETTINGS.hpEnabled!==false, acOn=()=>SETTINGS.acEnabled!==false, 
 const withheld=(b,k)=>!!(b&&b.sheet&&Array.isArray(b.sheet.withheld)&&b.sheet.withheld.includes(k));
 // definiciones de piezas del tablero (p:…, Tablero3D.Catalogo las lee junto a las de fábrica); vacías hasta la fase 1.
 // Van aquí arriba (y no junto a CAMP) porque propSpan y compañía las usan desde el primer mapa. Las llena loadPieces;
-// hasta que termina bien (PIECES_OK) no se guarda nada, y lo que lee escenas del servidor espera a PIECES_READY.
+// hasta que termina bien (PIECES_OK) no se guarda nada; lo que lee escenas espera a PIECES_READY, que se cumple tras el primer intento
+// (bien o mal, M4): con la carga fallida, las p: quedan opacas hasta que un reintento las trae.
 let PIECES=new Map(), PIECES_OK=false, piecesDone=null;
 const PIECES_READY=new Promise(r=>{ piecesDone=r; });
 // ¿se puede guardar ya? Si no, se avisa y no se guarda: sin las definiciones se perderían piezas
@@ -1180,10 +1181,13 @@ const piecesGate=()=>{ if(PIECES_OK) return true; showHint('Aún se están carga
 const opaque=p=>typeof p.def==='string'&&p.def.startsWith('p:')&&Catalogo.defIdOf(p)===p.def&&!Catalogo.defOf(p,PIECES);
 const UID_OK=/^u[a-z0-9]{8}$/;
 // objeto por capas con el que se pinta un objeto del mapa: el portal, el de su aspecto
-const propKind=p=>p.type==='portal'?(Muros.PORTAL_LOOKS[p.look]||Muros.PORTAL_LOOKS.door).prop:p.type;
+// I4 (ola final): lo que decide comportamiento o campos por tipo pregunta por el de FÁBRICA (Catalogo.factoryType): una pieza p:
+// con type 'portal', 'light', 'window' o 'tree' no es un portal, una luz, una ventana ni un árbol de fábrica. El arte sigue por `type`.
+const FT=p=>Catalogo.factoryType(p);
+const propKind=p=>FT(p)==='portal'?(Muros.PORTAL_LOOKS[p.look]||Muros.PORTAL_LOOKS.door).prop:p.type;
 // clave del dibujo que sustituye a un objeto: los árboles guardan el suyo como tree0–tree2 (así pueden tener luz propia, arreglo §6);
 // un portal, el de su aspecto (el que se pinta, propKind)
-const propArtKey=p=>p.type==='tree'?'tree'+((p.v|0)%3):propKind(p);
+const propArtKey=p=>FT(p)==='tree'?'tree'+((p.v|0)%3):propKind(p);
 const gmView=()=>!LIVE.on||LIVE.dm;
 // ¿puede quien mira abrir esta puerta? El director, siempre; un jugador, si no tiene llave y el tablero lo deja (playersDoors)
 const canOpenDoor=p=>gmView()||(!p.locked&&SETTINGS.playersDoors!==false);
@@ -1260,7 +1264,7 @@ const Lc=i=>[L[i*3],L[i*3+1],L[i*3+2]];
 function lightRGB(hex){ const c=hexRGB(/^#[0-9a-f]{6}$/i.test(hex||'')?hex:WARM); return [c[0]/255,c[1]/255,c[2]/255]; }
 // rejilla para Vision (vision.js, Tablero3D.Vision): superficie, muros y puertas cerradas del mapa actual
 const GRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>EH[i]*STEP, wall:i=>M.t[i]==='w', door:i=>doorShut.has(i),
-  bk:(i,flag)=>{ const p=WALLAT.get(i); return !!p&&Muros.blocks(p,flag); } };
+  bk:(i,flag)=>{ const p=WALLAT.get(i); return !!p&&Muros.blocks(p,flag,PIECES); } };
 const lightReaches=(lx,ly,lz,tx,tz,ty)=>Vision.lightReaches(GRID,lx,ly,lz,tx,tz,ty);
 // cono (linterna sorda, ventana): fuera del ángulo no llega luz; el borde se funde en CONE_SOFT grados
 const CONE_SOFT=12;
@@ -1440,13 +1444,14 @@ function relight(){
 // una puerta que se abre o se cierra cambia la luz de las fuentes a cuyo alcance está. No basta con lightDirty: relight()
 // sólo se despierta por fichas con luz. Rehace la luz y los bloques hasta el alcance de esas fuentes (lo que la puerta
 // deja pasar o tapa está en la recta fuente–casilla, más allá de la puerta, a menos de r+1 de la fuente y de la puerta).
-function doorRelight(p){
-  let pad=0; for(const l of allLights()){ const rr=Math.max(0.5,l.r)+1; if(Math.hypot(p.x+.5-l.x,p.z+.5-l.z)<=rr+1) pad=Math.max(pad,Math.ceil(rr)+1); }
-  if(!pad) return;   // ninguna fuente alcanza la puerta: la luz no cambia
-  computeLight();
-  const a0=Math.max(0,p.x-pad), b0=Math.max(0,p.z-pad), a1=Math.min(M.w-1,p.x+pad), b1=Math.min(M.d-1,p.z+pad);
-  for(let cz=Math.floor(b0/CH)*CH;cz<=b1;cz+=CH) for(let cx=Math.floor(a0/CH)*CH;cx<=a1;cx+=CH) makeChunk(cx,cz);
-  buildWater(); buildDecor();
+// M6 (ola final): acepta una puerta o varias (un lote de la mesa en vivo): un solo computeLight y cada bloque una vez
+function doorRelight(ps){ ps=Array.isArray(ps)?ps:[ps]; const lights=allLights(), done=new Set(); let any=false;
+  for(const p of ps){ let pad=0; for(const l of lights){ const rr=Math.max(0.5,l.r)+1; if(Math.hypot(p.x+.5-l.x,p.z+.5-l.z)<=rr+1) pad=Math.max(pad,Math.ceil(rr)+1); }
+    if(!pad) continue;   // ninguna fuente alcanza la puerta: la luz no cambia
+    if(!any){ computeLight(); any=true; }
+    const a0=Math.max(0,p.x-pad), b0=Math.max(0,p.z-pad), a1=Math.min(M.w-1,p.x+pad), b1=Math.min(M.d-1,p.z+pad);
+    for(let cz=Math.floor(b0/CH)*CH;cz<=b1;cz+=CH) for(let cx=Math.floor(a0/CH)*CH;cx<=a1;cx+=CH){ const k=cx+','+cz; if(!done.has(k)){ done.add(k); makeChunk(cx,cz); } } }
+  if(any){ buildWater(); buildDecor(); }
 }
 // reconstruye solo los bloques cercanos a lo editado (con margen para la luz)
 function rebuildRegion(x0,z0,x1,z1){
@@ -1631,7 +1636,8 @@ function addBill(kind,x,z,opt={}){
   if(isMini){ geo=GEO.mini; mat=new THREE.MeshBasicMaterial({map:(SPR[kind]||SPR.knight).front,alphaTest:0.5}); sh=GEO.shS; }
   else if(kind.startsWith('obj:')){ const key=kind.slice(4), st=CSTACK[key]||(PLACEHOLDER||(PLACEHOLDER=placeholderStack())); geo=st.geo; mat=new THREE.MeshBasicMaterial({map:st.tex,alphaTest:0.5}); sh=GEO.shL; }
   else if(PROP3D[kind]){ const st=pstack(kind); geo=st.geo; mat=new THREE.MeshBasicMaterial({map:st.tex,alphaTest:0.5}); sh=PROP3D[kind].big?GEO.shL:GEO.shS; }
-  else if(kind==='tree'){ const st=STACK[opt.v||0]; geo=st.geo; mat=new THREE.MeshBasicMaterial({map:st.tex,alphaTest:0.5}); sh=GEO.shL; }
+  // M3 (ola final): sólo hay 3 árboles (STACK 0–2); un v=3, válido en el servidor (0–3), no revienta
+  else if(kind==='tree'){ const st=STACK[(opt.v|0)%3]; geo=st.geo; mat=new THREE.MeshBasicMaterial({map:st.tex,alphaTest:0.5}); sh=GEO.shL; }
   else if(kind==='light'){ geo=GEO.lightMark; mat=new THREE.MeshBasicMaterial({map:SPR.sel,transparent:true,depthWrite:false,color:opt.darkness?'#8a6ad0':(opt.color||WARM),opacity:opt.on===false?0.35:1}); sh=null; }
   else if(CSTACK.brazier){ const st=CSTACK.brazier; geo=st.geo; mat=new THREE.MeshBasicMaterial({map:st.tex,alphaTest:0.5}); sh=GEO.shS; }
   else { geo=GEO.brazier; mat=brazierMat; sh=GEO.shS; }
@@ -1759,7 +1765,7 @@ function tokenShown(b){
   return Fichas.footprint(b.x,b.z,nOf(b)).some(([x,z])=>inb(x,z)&&fogVis(idx(x,z))===2&&hideOK(idx(x,z)));
 }
 // objetos que la maleza oculta (los pequeños: mobiliario, decorado y los dibujados); los muros, estructuras y árboles, no
-const hideable=b=>!!b.prop&&b.kind!=='light'&&!Muros.kindOf(b.prop)&&Catalogo.isLow(b.prop,PIECES);
+const hideable=b=>!!b.prop&&FT(b.prop)!=='light'&&!Muros.kindOf(b.prop)&&Catalogo.isLow(b.prop,PIECES);
 
 /* ============ mapas ============ */
 function demoMap(){
@@ -1821,6 +1827,9 @@ function dungeonMap(n,seed){
   return { name:`Mazmorra ${n}×${n}`, w,d,h,t, env:'interior', start:[rooms[0].cx,rooms[0].cz], props, minis, seed };
 }
 const undoStack=[], redoStack=[];
+// ¿puede esta definición tapar algo? {hide} si alguna forma suya (la base o una variante) tapa vista, luz o es maleza; si no, null
+function senseOf(D){ let any=false, hide=false; const look=c=>{ if(!c) return; if('sight' in c&&c.sight!=='none') any=true; if('light' in c&&c.light!=='none') any=true; if(c.hide){ any=true; hide=true; } };
+  look(D.components); for(const va of D.variants||[]) look(va.set); return any?{hide}:null; }
 function refreshEntities(){
   clearBills(); blocked=new Set(); M.lights=[];
   doorShut=new Set(); lockedDoors=new Set(); WALLAT=new Map(); HAS_COVER=false;
@@ -1830,8 +1839,11 @@ function refreshEntities(){
     if(D&&D.components.door){ if(!p.open){ blocked.add(i); doorShut.add(i); } if(p.locked) lockedDoors.add(i); if(b) doorPose(b); }
     else if(op||Catalogo.blocksMove(p,PIECES)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
     const wk=Muros.kindOf(p); if(wk&&wk!=='door'){ WALLAT.set(i,p); if(wk==='cover') HAS_COVER=true; }
+    // I2 (ola final): una pieza sin wallKind que pueda tapar vista, luz o maleza (en su forma o en alguna variante) entra en
+    // WALLAT en todas sus casillas; GRID.bk pregunta a Catalogo.blocks con su estado de ese momento (puerta abierta, no tapa)
+    else if(!wk&&D){ const c=senseOf(D); if(c){ for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) WALLAT.set(idx(cx,cz),p); if(c.hide) HAS_COVER=true; } }
     if(b&&Catalogo.gmOnly(p,PIECES)) b.gmOnly=true;
-    const l=op?null:propLight(p,b); if(l){ M.lights.push(l); b.emissive=p.type!=='light'; b.light=l; } }
+    const l=op?null:propLight(p,b); if(l){ M.lights.push(l); b.emissive=FT(p)!=='light'; b.light=l; } }
   let lava=0; for(let i=0;i<M.t.length&&lava<48;i++) if(M.t[i]==='l'){ const lx=i%M.w, lz=(i/M.w)|0; M.lights.push({x:lx+.5,z:lz+.5,y:0,r:3,c:'#ff5a2a',k:0.8,f:1,lava:true,baseY:()=>topY(lx,lz)+0.3}); lava++; }
   for(const m of M.minis) addBill(m.kind,m.x,m.z,m);
   if(EH){ for(const b of bills) b.gy=billY(b); for(const l of M.lights) l.y=l.baseY(); }
@@ -1857,14 +1869,16 @@ function propLight(p,b){
   const spec=key=>{ const s2=objLightSpec(key); if(!s2) return null; const T=LIGHT_TYPES[s2.preset];
     const l=mk((s2.px+0.5-s2.w/2)/s2.res,(s2.s+0.5)/s2.res,(s2.py+0.5-s2.w/2)/s2.res,s2.r,s2.c,s2.f,T&&!T.darkness?T.intensity:null);
     if(T&&!T.darkness) l.anim=s2.f?T.anim==='none'?'flicker':T.anim:'none'; l.seed=p.x*7+p.z*13; return l; };
-  if(p.type==='light'){ if(p.on===false) return null; const T=LIGHT_TYPES[p.preset];
+  if(FT(p)==='light'){ if(p.on===false) return null; const T=LIGHT_TYPES[p.preset];
     const l=mk(0,Math.max(0,Math.min(4,p.h==null?1.2:+p.h)),0,Math.max(1,Math.min(24,p.r||5)),HEX6.test(p.color||'')?p.color:WARM,p.anim==='flicker'?1:0,Number.isFinite(p.intensity)?p.intensity:1);
     return lightExtras(l,p.anim,p.angle,p.rot,p.darkness,T?T.glow!==false:true,p.x*7+p.z*13); }
-  if(p.type.startsWith('obj:')) return spec(p.type.slice(4));
+  // un dibujo antiguo (d:) alumbra con su dibujo; una pieza p: con arte de dibujo, también si ese dibujo existe (manda, como
+  // en el arreglo §6); si no, su emitLight (I4, ola final: el prefijo obj: del type no decide solo)
+  if(p.type.startsWith('obj:')&&(CUSTOM.objs[p.type.slice(4)]||String(Catalogo.defIdOf(p)).startsWith('d:'))) return spec(p.type.slice(4));
   // un dibujo que sustituye a un objeto de fábrica manda sobre su luz: con luz, la suya; con light:false, ninguna (arreglo §6)
   if(CUSTOM.objs[propArtKey(p)]) return CUSTOM.objs[propArtKey(p)].light?spec(propArtKey(p)):null;
   // el portal mágico alumbra con su tipo de luz (Cristal arcano: violeta que late) desde el centro del aro
-  if(p.type==='portal'){ const lk=Muros.PORTAL_LOOKS[p.look], T=lk&&LIGHT_TYPES[lk.light]; if(!T) return null;
+  if(FT(p)==='portal'){ const lk=Muros.PORTAL_LOOKS[p.look], T=lk&&LIGHT_TYPES[lk.light]; if(!T) return null;
     return lightExtras(mk(0,1.1,0,T.r,T.color,0,T.intensity),T.anim,360,0,false,true,p.x*7+p.z*13); }
   const E=Catalogo.emitLight(p,PIECES); if(E) return mk(0,E.h,0,E.r,WARM,1);
   return null;
@@ -2046,8 +2060,8 @@ for(const [id,k,val] of [['ambient','ambient',()=>+$('ambient').value/100],['dar
 let INTERIOR=null, AMBF=null, ambTex=null;
 // rejilla sin los muros recortados al abrir un techo (así la luz de las ventanas no cambia al asomarse)
 const AGRID={ get w(){ return M.w; }, get d(){ return M.d; }, top:i=>(DECK&&DECK[i]?DECK[i]:M.h[i])*STEP, wall:i=>M.t[i]==='w', door:i=>doorShut.has(i),
-  bk:(i,flag)=>{ const p=WALLAT.get(i); return !!p&&Muros.blocks(p,flag); } };
-const openings=()=>M.props.filter(p=>p.type==='window'||(Catalogo.isDoor(p,PIECES)&&p.open));
+  bk:(i,flag)=>{ const p=WALLAT.get(i); return !!p&&Muros.blocks(p,flag,PIECES); } };
+const openings=()=>M.props.filter(p=>FT(p)==='window'||(Catalogo.isDoor(p,PIECES)&&p.open));
 function computeAmbient(){
   const n=M.w*M.d; INTERIOR=Ambiente.interiorMask(M.w,M.d,M.roofs,M.zoneCells);
   const win=Ambiente.windowLight(AGRID,INTERIOR,openings(),(lx,ly,lz,tx,tz,ty)=>Vision.lightReaches(AGRID,lx,ly,lz,tx,tz,ty));
@@ -2208,7 +2222,7 @@ function onTap(cx,cy){
   if(hm.length){ selected=minis.find(b=>b.mesh===hm[0].object); return; }
   const doors=bills.filter(b=>!b.mini&&b.prop&&Catalogo.isDoor(b.prop,PIECES)&&b.mesh.visible), hd=ray.intersectObjects(doors.map(b=>b.mesh),false);
   if(hd.length){ const db=doors.find(b=>b.mesh===hd[0].object); if(db&&db.prop) toggleDoor(db.prop); return; }
-  const pts=bills.filter(b=>b.prop&&b.prop.type==='portal'&&b.mesh.visible), hp=ray.intersectObjects(pts.map(b=>b.mesh),false);
+  const pts=bills.filter(b=>b.prop&&FT(b.prop)==='portal'&&b.mesh.visible), hp=ray.intersectObjects(pts.map(b=>b.mesh),false);
   if(hp.length){ const pb=pts.find(b=>b.mesh===hp[0].object); if(pb) portalClick(pb.prop); return; }
   const cell=cellAt(cx,cy); if(!cell) return;
   const x=cell.x, z=cell.z;
@@ -2597,7 +2611,7 @@ const miniCells=m=>Fichas.cellsOf(m.sheet||defaultSheet(m.kind));
 // forMini: un personaje puede estar sobre lo que se pisa (velo, maleza, escalones). «Se pisa» es lo de su definición, no lo de
 // su estado: una puerta abierta sigue ocupando su casilla al colocar (como antes; Muros.gridOf mira igual)
 const walkable=p=>!opaque(p)&&!Catalogo.blocksMove(p,PIECES)&&!Catalogo.isDoor(p,PIECES);
-function occupied(x,z,forMini){ return (inb(x,z)&&blockCell(idx(x,z)))||M.props.some(p=>p.type!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
+function occupied(x,z,forMini){ return (inb(x,z)&&blockCell(idx(x,z)))||M.props.some(p=>FT(p)!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
 function applyTool(x,z,first){
   const t=state.tool, r=(state.brush-1)>>1, cells=[];
   for(let dz=-r;dz<=r;dz++) for(let dx=-r;dx<=r;dx++){ const X=x+dx, Z=z+dz; if(inb(X,Z)) cells.push([X,Z]); }
@@ -2634,7 +2648,7 @@ function applyTool(x,z,first){
     for(const [X,Z] of cells){ const i=idx(X,Z); if(M.t[i]!=='w'&&M.h[i]!==state.levelH){ M.h[i]=state.levelH; touch(X,Z); } }
   } else if(t==='light'){
     if(!first) return;
-    const here=M.props.find(p=>p.type==='light'&&p.x===x&&p.z===z);
+    const here=M.props.find(p=>FT(p)==='light'&&p.x===x&&p.z===z);
     if(here){ state.lightSel=here; renderToolOpts(); showHint(here.angle<360?'Luz elegida: R la gira; el resto, en el panel.':'Luz elegida: cambia su tipo, radio, altura y color en el panel.',1800); return; }
     const np=Object.assign({type:'light',x,z,v:0,uid:Catalogo.newUid()},normLight(state.lightDraft));
     M.props.push(np); state.lightSel=np; stroke.ents=true; touchLight(np); renderToolOpts();
@@ -2896,7 +2910,7 @@ function renderWallOpts(el){
     row.lastChild.classList.add('danger'); el.appendChild(row); }
 }
 /* ---- portales (T6b): como los de JA-VTT, unen cualquier escena 3D del tablero (en una campaña, sus escenas) ---- */
-const portalAt=(x,z)=>M.props.find(p=>p.type==='portal'&&p.x===x&&p.z===z)||null;
+const portalAt=(x,z)=>M.props.find(p=>FT(p)==='portal'&&p.x===x&&p.z===z)||null;
 const portalLabel=p=>p.name||(Muros.PORTAL_LOOKS[p.look]||Muros.PORTAL_LOOKS.door).name;
 const newSceneId=()=>'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const hereId=()=>CAMP?CAMP.cur:M.boardId;
@@ -2906,7 +2920,7 @@ function refreshScenes(){ if(!scnLoading) scnLoading=storeList().then(items=>{ S
 function sceneChoices(){ if(CAMP) return Object.entries(CAMP.boards).filter(([id])=>id!==CAMP.cur).map(([id,b])=>[id,b.name]);
   return [...SCN].filter(([id])=>id!==M.boardId).map(([id,v])=>[id,v.name]); }
 function portalsOf(sid){ const data=CAMP&&CAMP.boards[sid]?CAMP.boards[sid].data:SCN.get(sid)&&SCN.get(sid).data; if(!data||!Array.isArray(data.props)) return [];
-  return Muros.fixPortalIds(data.props.map(x=>Muros.normProp(x)||x)).filter(x=>x.type==='portal'); }
+  return Muros.fixPortalIds(data.props.map(x=>Muros.normProp(x)||x)).filter(x=>FT(x)==='portal'); }
 function portalDest(p){ const t=p&&p.target; if(!t) return null;
   if(CAMP&&CAMP.boards[t.scene]) return {camp:true,name:CAMP.boards[t.scene].name};
   const sc=SCN.get(t.scene); return {name:sc?'«'+sc.name+'»':'otra escena'}; }
@@ -2936,9 +2950,9 @@ function renderPortalOpts(el,sel){
 async function backlink(p){ const t=p.target, here=hereId(); if(!t||!t.portal) return;
   if(!here){ showHint('Guarda esta escena en el tablero para enlazar la vuelta.',2200); return; }
   if(CAMP&&CAMP.boards[t.scene]){ const data=CAMP.boards[t.scene].data; data.props=Muros.fixPortalIds(data.props.map(x=>Muros.normProp(x)||x));
-    const q=data.props.find(x=>x.type==='portal'&&x.id===t.portal); if(q){ q.target={scene:here,portal:p.id}; showHint('Vuelta enlazada. Guarda la campaña.',1800); } return; }
+    const q=data.props.find(x=>FT(x)==='portal'&&x.id===t.portal); if(q){ q.target={scene:here,portal:p.id}; showHint('Vuelta enlazada. Guarda la campaña.',1800); } return; }
   await refreshScenes(); const sc=SCN.get(t.scene); if(!sc) return; const data=JSON.parse(JSON.stringify(sc.data));
-  data.props=Muros.fixPortalIds((data.props||[]).map(x=>Muros.normProp(x)||x)); const q=data.props.find(x=>x.type==='portal'&&x.id===t.portal); if(!q) return;
+  data.props=Muros.fixPortalIds((data.props||[]).map(x=>Muros.normProp(x)||x)); const q=data.props.find(x=>FT(x)==='portal'&&x.id===t.portal); if(!q) return;
   q.target={scene:here,portal:p.id};
   try{ await storeSave(t.scene,data); await refreshScenes(); showHint('Vuelta enlazada: «'+portalLabel(q)+'» de «'+sc.name+'» lleva aquí.',2400); }catch(e){ showHint('No se pudo enlazar la vuelta.',2000); }
 }
@@ -3028,6 +3042,8 @@ async function openLatestScene(){
   const it=items.slice().sort((a,b)=>(b.updated||0)-(a.updated||0))[0];
   try{ const m=deserialize(it); m.boardId=it.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); showHint('Abierta la última escena: «'+m.name+'».',2000); }catch(e){}
 }
+// M2 (ola final): los campos reservados level (0–15) y side (N/E/S/W) viajan como en el servidor (cleanProp)
+const levelSide=p=>({...(Number.isInteger(p.level)&&p.level>=0&&p.level<=15?{level:p.level}:{}),...(['N','E','S','W'].includes(p.side)?{side:p.side}:{})});
 function serialize(){
   syncMinis();
   return { v:2, name:M.name, w:M.w, d:M.d, h:Array.from(M.h,n=>n.toString(36)).join(''), t:M.t.join(''), wsrc:Array.from(M.src).join(''),
@@ -3035,8 +3051,8 @@ function serialize(){
     // la puerta escribe su `state` desde la raíz (open/locked, lo que tocan toggleDoor, lockDoor y la mesa en vivo); la opaca, tal cual
     props:M.props.map(p=>{ if(opaque(p)) return JSON.parse(JSON.stringify(p));
       const door=Catalogo.isDoor(p,PIECES), st=door?Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}):p.state;
-      const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(st?{state:st}:{}),
-      ...(p.type==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})},PIECES); if(!p.uid) p.uid=q.uid; return q; }), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
+      const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(st?{state:st}:{}),...levelSide(p),
+      ...(FT(p)==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})},PIECES); if(!p.uid) p.uid=q.uid; return q; }), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
     minis:M.minis.map(m=>({kind:m.kind,x:m.x,z:m.z,fx:m.fx,fz:m.fz,id:m.id,sheet:m.sheet,...(m.owner?{owner:m.owner}:{})})), ...ENV, ...(M.zoneCells?{zoneCells:M.zoneCells}:{}), fog:!!state.fog, seen:M.seen?Array.from(M.seen).join(''):'',
     ...sceneExtras(M) };
 }
@@ -3055,13 +3071,14 @@ function deserialize(o){
   const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&(isPiece(p)||opaque(p))&&ok(p.x,p.z))
     .map(p=>{ if(opaque(p)) return Catalogo.complete(JSON.parse(JSON.stringify(p)),PIECES);   // tal cual (con uid)
       const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:Catalogo.isDoor(p,PIECES)&&!!(p.state&&'open' in p.state?p.state.open:p.open)};
-      if(typeof p.uid==='string') q.uid=p.uid; if(typeof p.def==='string') q.def=p.def;
+      if(typeof p.uid==='string') q.uid=p.uid; if(typeof p.def==='string') q.def=p.def; Object.assign(q,levelSide(p));
       if(p.state&&typeof p.state==='object') q.state=Object.assign({},p.state);
-      if(p.type==='light') Object.assign(q,normLight(p));
+      if(FT(p)==='light') Object.assign(q,normLight(p));
       // muros de JA-VTT: puertas con llave, portales; las escaleras de campaña de antes pasan a portales (Muros.normProp, como el servidor)
       const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:Catalogo.isDoor(wp,PIECES)&&!!q.open});
       if(p.state&&p.state.locked) q.locked=true;
       return Catalogo.complete(q,PIECES); }).slice(0,5000);
+  Catalogo.dedupeUids(props);   // M1: uid repetidos, igual que el servidor (el primero conserva el suyo)
   Muros.fixPortalIds(props);
   const minis=(Array.isArray(o.minis)?o.minis:[]).filter(m=>m&&typeof m.kind==='string'&&(MINI_KINDS.includes(m.kind)||/^c_[a-z0-9]{4,16}$/.test(m.kind))&&ok(m.x,m.z))
     .map(m=>{ const fx=Math.sign(m.fx|0), fz=fx?0:(Math.sign(m.fz|0)||1); return {kind:m.kind,x:m.x,z:m.z,fx,fz,id:typeof m.id==='string'&&/^[a-z0-9]{2,12}$/.test(m.id)?m.id:undefined,sheet:normSheet(m.sheet,m.kind),
@@ -3089,18 +3106,20 @@ let DB=null, DL=null, BOARD=null;
     try{ DL=await c.use('downloads'); }catch(e){ DL=null; }
     try{ BOARD=await c.use('board'); }catch(e){ BOARD=null; }
     if(BOARD){ BOARD.onSettings(applySettings); BOARD.settings().then(applySettings,()=>{}); }
-    setTimeout(()=>{ PIECES_READY.then(()=>liveInit(c)); },0);   // la mesa en vivo, con las piezas ya cargadas
+    setTimeout(()=>{ PIECES_READY.then(()=>liveInit(c)); },0);   // la mesa en vivo, tras el primer intento de cargar las piezas (M4)
   }
   $('export').hidden=!DL; $('artExp').hidden=!DL; layout();
-  setTimeout(loadAllAssets,0); setTimeout(loadPieces,0); PIECES_READY.then(openLatestScene);   // la escena, cuando ya están sus piezas
+  setTimeout(loadAllAssets,0); setTimeout(loadPieces,0); PIECES_READY.then(openLatestScene);   // la escena, tras el primer intento de cargar sus piezas (M4)
 })();
 // definiciones de piezas del tablero (p:…); vacías hasta la fase 1. Se cargan antes que las escenas para poder leerlas
 // Si falla, se reintenta con espera creciente (1 s, 2 s… hasta 30 s) y se avisa una vez; sin DB (local) no hay nada que cargar.
+// M4 (ola final): abrir no espera a que carguen: tras el primer intento (bien o mal) PIECES_READY se cumple y la escena y la mesa
+// se abren (las p: quedan opacas); sólo guardar espera a PIECES_OK (piecesGate). M5: al cargar, lo que hace el motor tras editar.
 async function loadPieces(){ let wait=1000, warned=false;
   for(;;){
     try{ if(DB){ const q=await DB.collection('pieces').get(); PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); }
-      PIECES_OK=true; piecesDone(); if(M&&PIECES.size) refreshEntities(); return; }
-    catch(e){ if(stopped) return; if(!warned){ warned=true; showHint('No se pudieron cargar las piezas del tablero; se reintenta. Mientras tanto no se guarda nada.',4000); }
+      PIECES_OK=true; piecesDone(); if(M&&PIECES.size){ refreshEntities(); rebuildRegion(0,0,M.w-1,M.d-1); lightDirty=true; fogDirty=true; } return; }
+    catch(e){ if(stopped) return; piecesDone(); if(!warned){ warned=true; showHint('No se pudieron cargar las piezas del tablero; se reintenta. Mientras tanto no se guarda nada.',4000); }
       await new Promise(r=>setTimeout(r,wait)); wait=Math.min(wait*2,30000); if(stopped) return; } } }
 const LS='tablero:boards';
 function lsAll(){ try{ return JSON.parse(localStorage.getItem(LS)||'{}')||{}; }catch(e){ return {}; } }
@@ -4542,13 +4561,13 @@ function doorPose(b){ const base=((b.prop&&b.prop.v)|0)*HALF_PI, open=!!(b.prop&
   if(lift){ b.mesh.rotation.y=base; b.ox=0; b.oz=0; b.oy=open?lift:0; return; }   // el rastrillo sube dentro del arco
   b.mesh.rotation.y=base+(open?HALF_PI:0); const c=Math.cos(base), s2=Math.sin(base);
   const lx=open?-0.42:0, lz=open?-0.42:0; b.ox=lx*c+lz*s2; b.oz=-lx*s2+lz*c; }
-function toggleDoor(p,remote){
+function toggleDoor(p,remote,batch){
   if(!remote&&!canOpenDoor(p)){ showHint(p.locked?'Esa puerta está cerrada con llave.':'El director no deja a los jugadores abrir puertas.',1800); return false; }
   p.open=!p.open; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}); const i=idx(p.x,p.z);
   if(p.open){ blocked.delete(i); doorShut.delete(i); } else { blocked.add(i); doorShut.add(i); }
   const b=bills.find(q=>q.prop===p); if(b) doorPose(b);
   fogDirty=true; rangeKey=''; computeAmbient();   // por una puerta abierta entra la luz de fuera
-  doorRelight(p);   // y la de las fuentes de detrás de la puerta (§6: antes esperaba a otro cambio)
+  if(batch) batch.push(p); else doorRelight(p);   // y la de las fuentes de detrás de la puerta (§6); en un lote, una vez al final (M6)
   if(!remote&&LIVE.on) DB.doc('live/doors').update({d:{[p.x+'_'+p.z]:p.open?1:0}}).catch(e=>{ liveErr(e); if(!LIVE.dm) toggleDoor(p,true); });
   return true;
 }
@@ -4704,8 +4723,8 @@ function campGo(id,arrive){
   const moved=[];
   if(travellers.length){ // llegan junto al portal de destino, del lado por el que se anda (Muros.arrival, como el servidor)
     m.minis=m.minis.filter(q=>!travellers.some(t=>t.id===q.id));
-    const tp=m.props.find(q=>q.type==='portal'&&q.id===arrive.portal), at=tp?[tp.x,tp.z]:m.start;
-    const cells=Muros.arrival(Muros.gridOf(m),at[0],at[1],travellers.map(t=>Fichas.cellsOf(t.sheet)),m.start);
+    const tp=m.props.find(q=>FT(q)==='portal'&&q.id===arrive.portal), at=tp?[tp.x,tp.z]:m.start;
+    const cells=Muros.arrival(Muros.gridOf(m,PIECES),at[0],at[1],travellers.map(t=>Fichas.cellsOf(t.sheet)),m.start);
     travellers.forEach((t,i)=>{ if(cells[i]){ m.minis.push({...t,x:cells[i][0],z:cells[i][1]}); moved.push(t.id); } });
     if(moved.length){ const f=m.minis.find(q=>q.id===moved[0]); m.start=[f.x,f.z]; }
     const pd=CAMP.boards[prev].data; pd.minis=pd.minis.filter(q=>!moved.includes(q.id));   // quien llega deja el tablero de origen
@@ -4715,7 +4734,7 @@ function campGo(id,arrive){
 }
 // al llegar junto a un portal que lleva a algún sitio, se ofrece cruzar (sólo a quien mueve esa ficha)
 function arrived(b){
-  if(!b.mini||b!==selected||!canControl(b)) return; const p=M.props.find(q=>q.type==='portal'&&q.target&&Muros.near(b.x,b.z,nOf(b),q)); if(!p) return;
+  if(!b.mini||b!==selected||!canControl(b)) return; const p=M.props.find(q=>FT(q)==='portal'&&q.target&&Muros.near(b.x,b.z,nOf(b),q)); if(!p) return;
   if(!portalDest(p)) return; travelDialog(p,b);
 }
 // crear portales de ida y vuelta entre dos tableros de la campaña (con aspecto de escalera, como los pasos de antes)
@@ -4818,7 +4837,7 @@ async function liveInit(c){
   // tiradas: las hace el servidor y llegan a todos, también a quien tira (el cuerpo de JA-VTT, ver dados.js)
   LIVE.room.on('roll',m=>{ if(!LIVE.on) return; const d=m.data; if(d&&Array.isArray(d.dice)) logRoll(d,m.sameTab?'':nameOf(m.by)); });
   // un jugador pide cruzar un portal con su ficha: el director decide (la mesa sigue su escena)
-  LIVE.room.on('travelAsk',m=>{ if(!LIVE.on||!LIVE.dm||!M) return; const d=m.data||{}, p=M.props.find(q=>q.type==='portal'&&q.id===d.portal), b=byId(d.token); if(!p||!b) return;
+  LIVE.room.on('travelAsk',m=>{ if(!LIVE.on||!LIVE.dm||!M) return; const d=m.data||{}, p=M.props.find(q=>FT(q)==='portal'&&q.id===d.portal), b=byId(d.token); if(!p||!b) return;
     const dst=portalDest(p); travelDialog(p,b,nameOf(m.by)+' quiere cruzar el portal «'+portalLabel(p)+'» con '+miniName(b)+(dst?' hacia '+dst.name:'')+'.'); });
   LIVE.room.on('ping',m=>{ if(!LIVE.on) return; const d=m.data; if(d&&Number.isInteger(d.x)&&Number.isInteger(d.z)&&M&&inb(d.x,d.z)) showPing(d.x,d.z,LIVE.colors.get(m.by)||'#ffd35a',m.isMe?'Señalaste':nameOf(m.by)+' señala'); });
   await liveCheck(); if(LIVE.exists&&!LIVE.on) showHint('Hay una mesa en vivo abierta. Únete en la pestaña Mesa.',4500);
@@ -4865,7 +4884,8 @@ function liveSubscribe(){
     if(d&&d.plans&&typeof d.plans==='object') for(const [k,v] of Object.entries(d.plans)){ const pl=Ajustes.normPlan(Object.assign({},v,{id:+k}),160,160); if(pl&&pl.owner) out[k]=pl; }
     LIVE.plans=out; if(state.gameOpen) renderGame(); },()=>{}));
   LIVE.uns.push(DB.doc('live/doors').onSnapshot(sn=>{ const d=sn.exists?sn.data():null; if(!d||!d.d||!M) return;
-    for(const [k,v] of Object.entries(d.d)){ const m=/^(\d{1,3})_(\d{1,3})$/.exec(k); if(!m) continue; const p=doorAt(+m[1],+m[2]); if(p&&!!p.open!==!!v) toggleDoor(p,true); } },()=>{}));
+    const lot=[]; for(const [k,v] of Object.entries(d.d)){ const m=/^(\d{1,3})_(\d{1,3})$/.exec(k); if(!m) continue; const p=doorAt(+m[1],+m[2]); if(p&&!!p.open!==!!v) toggleDoor(p,true,lot); }
+    if(lot.length) doorRelight(lot); },()=>{}));
   LIVE.room.presence({role:LIVE.dm?'dm':'player',uid:LIVE.me&&UID.test(LIVE.me)?LIVE.me:null}).catch(()=>{});
   roleUI(); renderGame();
 }
