@@ -4,6 +4,9 @@ const assert = require('node:assert/strict');
 const R = require('../../modules/tablero3d/rules');
 const core = require('../../server/rules');
 const F = require('./helpers/fixtures');
+// Tarea 4: toda pieza colocada se completa con def/uid (y state, si tiene) contra el catálogo (Catalogo.complete).
+// Estos tests portados comparaban el objeto exacto de antes: se quita def/uid (uid es al azar) para seguir comparando lo mismo.
+const stripMeta = (p) => { const rest = Object.assign({}, p); delete rest.def; delete rest.uid; return rest; };
 
 test('cleanMap: acepta un mapa del cliente y descarta claves ajenas', () => {
   const m = R.cleanMap(Object.assign(F.map(8), { hack: '<script>' }));
@@ -24,9 +27,14 @@ test('cleanMap: rechaza tamaños, alturas y terrenos inválidos', () => {
   assert.equal(R.cleanMap(Object.assign(F.map(8), { name: '' })).name, 'Escena');
 });
 
-test('cleanMap: rechaza un mapa demasiado grande', () => {
+test('cleanMap: un campo ajeno en cada pieza (relleno) ya no infla la escena: se descarta al validar contra el catálogo (Tarea 4)', () => {
+  // antes de la Tarea 4 este relleno pasaba tal cual y hacía crecer la escena hasta rechazarla (> SCENE_MAX_BYTES);
+  // ahora cada pieza se valida contra su definición y sólo se guardan sus campos propios, así que la escena sigue siendo válida y pequeña
   const big = F.map(8, { props: Array.from({ length: 5000 }, () => ({ type: 'tree', x: 1, z: 1, pad: 'x'.repeat(500) })) });
-  assert.equal(R.cleanMap(big), null);
+  const m = R.cleanMap(big);
+  assert.ok(m, 'el relleno ajeno no cuenta: la escena sigue siendo válida');
+  assert.ok(m.props.every((p) => !('pad' in p)), 'el campo ajeno se descarta');
+  assert.ok(R.docBytes(m) < R.SCENE_MAX_BYTES / 4, 'sin el relleno el tamaño real se queda muy por debajo del tope');
 });
 
 test('cleanCampaign: conserva escenas válidas, notas y la escena actual', () => {
@@ -176,10 +184,11 @@ test('cleanMap: las luces sueltas guardan los campos de JA-VTT saneados y las de
   const cone = { type: 'light', x: 1, z: 1, preset: 'bullseye', r: 24, h: 1.25, color: '#FFE6B8', intensity: 1, anim: 'none', angle: 60, rot: 90, darkness: false, on: true, name: ' Linterna ' };
   const tree = { type: 'tree', x: 1, z: 1, v: 2 };
   const m = R.cleanMap(F.map(8, { props: [old, bad, cone, tree] }));
-  assert.deepEqual(m.props[0], { type: 'light', x: 2, z: 3, v: 0, preset: 'custom', r: 5, h: 1.25, color: '#ff9c50', intensity: 1, anim: 'none', angle: 360, rot: 0, darkness: false, on: true });
-  assert.deepEqual(m.props[1], { type: 'light', x: 4, z: 4, v: 0, preset: 'custom', r: 24, h: 4, color: '#ff9c50', intensity: 1.2, anim: 'flicker', angle: 1, rot: 3600, darkness: true, on: false, name: 'x'.repeat(40) });
-  assert.deepEqual(m.props[2], { type: 'light', x: 1, z: 1, v: 0, preset: 'bullseye', r: 24, h: 1.25, color: '#ffe6b8', intensity: 1, anim: 'none', angle: 60, rot: 90, darkness: false, on: true, name: 'Linterna' });
-  assert.deepEqual(m.props[3], tree, 'los demás objetos no cambian');
+  for (const p of m.props) assert.match(p.uid, /^u[a-z0-9]{8}$/);
+  assert.deepEqual(stripMeta(m.props[0]), { type: 'light', x: 2, z: 3, v: 0, preset: 'custom', r: 5, h: 1.25, color: '#ff9c50', intensity: 1, anim: 'none', angle: 360, rot: 0, darkness: false, on: true });
+  assert.deepEqual(stripMeta(m.props[1]), { type: 'light', x: 4, z: 4, v: 0, preset: 'custom', r: 24, h: 4, color: '#ff9c50', intensity: 1.2, anim: 'flicker', angle: 1, rot: 3600, darkness: true, on: false, name: 'x'.repeat(40) });
+  assert.deepEqual(stripMeta(m.props[2]), { type: 'light', x: 1, z: 1, v: 0, preset: 'bullseye', r: 24, h: 1.25, color: '#ffe6b8', intensity: 1, anim: 'none', angle: 60, rot: 90, darkness: false, on: true, name: 'Linterna' });
+  assert.deepEqual(stripMeta(m.props[3]), tree, 'los demás objetos no cambian');
   assert.equal(R.cleanLightProp({ type: 'light', x: 0, z: 0, f: 1 }).anim, 'flicker', 'f: 1 era una llama');
 });
 
@@ -283,11 +292,12 @@ test('muros: los objetos de muro se sanean (puerta con llave, ventana, velo, mal
     { type: 'window', x: 3, z: 1, v: 1, open: true, locked: true }, { type: 'veil', x: 4, z: 1 }, { type: 'cover', x: 5, z: 1, v: 2 },
     { type: 'barrier', x: 6, z: 1, v: 3 }, { type: 'window', x: 1.5, z: 1 }, { type: 'veil', x: -1, z: 1 }, { type: 'tree', x: 1, z: 2, v: 0, open: false, extra: 1 },
   ]);
-  assert.deepEqual(m.props, [
-    { type: 'door', x: 1, z: 1, v: 1, open: true, locked: true }, { type: 'gate', x: 2, z: 1, v: 0, open: false },
+  assert.deepEqual(m.props.map(stripMeta), [
+    { type: 'door', x: 1, z: 1, v: 1, open: true, locked: true, state: { open: true, locked: true } },
+    { type: 'gate', x: 2, z: 1, v: 0, open: false, state: { open: false, locked: false } },
     { type: 'window', x: 3, z: 1, v: 1 }, { type: 'veil', x: 4, z: 1, v: 0 }, { type: 'cover', x: 5, z: 1, v: 2 }, { type: 'barrier', x: 6, z: 1, v: 3 },
-    { type: 'tree', x: 1, z: 2, v: 0, open: false, extra: 1 },
-  ], 'una casilla que no es entera se descarta; los demás objetos pasan como antes');
+    { type: 'tree', x: 1, z: 2, v: 0, open: false },
+  ], 'una casilla que no es entera se descarta; los demás objetos pasan como antes (Tarea 4: def/uid/state completos; un campo ajeno como `extra` ya no se guarda sin validar)');
   assert.deepEqual(R.WALL_KINDS, ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'portal']);
 });
 
@@ -299,7 +309,7 @@ test('portales: id único, aspecto, nombre y destino { scene, portal } saneados,
     { type: 'portal', x: 4, z: 1, id: 2.5, name: 'x'.repeat(50), target: 'b3' },
   ]);
   assert.deepEqual(m.props.map((p) => p.id), [4, 5, 6, 7], 'repetidos y ausentes toman el siguiente libre');
-  assert.deepEqual(m.props[0], { type: 'portal', x: 1, z: 1, v: 0, id: 4, look: 'magic', target: { scene: 'b1', portal: 2 }, name: 'Arco' });
+  assert.deepEqual(stripMeta(m.props[0]), { type: 'portal', x: 1, z: 1, v: 0, id: 4, look: 'magic', target: { scene: 'b1', portal: 2 }, name: 'Arco' });
   assert.deepEqual([m.props[1].look, m.props[1].target], ['door', null]);
   assert.deepEqual(m.props[2].target, { scene: 'b2', portal: null });
   assert.equal(m.props[2].open, undefined, 'un portal no se abre');
@@ -311,10 +321,10 @@ test('portales: las escaleras de campaña de antes pasan a portales con aspecto 
   const c = R.cleanCampaign(F.campaign());
   const a = R.cleanMap(F.map(8, { props: [{ type: 'stairs', x: 2, z: 3, v: 0, open: false, to: 'tcueva', tx: 5, tz: 6 }, { type: 'stairs', x: 4, z: 4, v: 0 }] }));
   const b = R.cleanMap(F.map(16, { props: [{ type: 'stairs', x: 5, z: 6, v: 0, open: false, to: 'tpueblo', tx: 2, tz: 3 }] }));
-  assert.deepEqual(a.props[0], { type: 'portal', x: 2, z: 3, v: 0, id: R.stairsId(2, 3), look: 'stairs', target: { scene: 'tcueva', portal: R.stairsId(5, 6) } });
+  assert.deepEqual(stripMeta(a.props[0]), { type: 'portal', x: 2, z: 3, v: 0, id: R.stairsId(2, 3), look: 'stairs', target: { scene: 'tcueva', portal: R.stairsId(5, 6) } });
   assert.equal(b.props[0].id, a.props[0].target.portal, 'la ida lleva al id de la vuelta');
   assert.equal(b.props[0].target.portal, a.props[0].id);
-  assert.deepEqual(a.props[1], { type: 'stairs', x: 4, z: 4, v: 0 }, 'una escalera sin destino sigue siendo un objeto');
+  assert.deepEqual(stripMeta(a.props[1]), { type: 'stairs', x: 4, z: 4, v: 0 }, 'una escalera sin destino sigue siendo un objeto');
   assert.equal(R.cleanMap(F.map(8, { props: [{ type: 'stairs', x: 1, z: 1, to: 'MAL/X' }] })).props.length, 0);
   assert.equal(R.cleanMap(F.map(8, { props: [{ type: 'stairs', x: 1, z: 1, to: 'tcueva' }] })).props[0].target.portal, null);
   assert.ok(c.boards.tpueblo.data.props.every((p) => p.type !== 'stairs' || !p.to), 'también dentro de las campañas');

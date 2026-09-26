@@ -12,6 +12,22 @@ function map(n = 8, extra = {}) {
   }, extra);
 }
 
+// escena con el formato de antes de la fase 0 (v:1): puertas con llave, portal con destino, escalera de campaña de antes,
+// dibujo propio, luz suelta, barrera (sólo director), puente de dos casillas y un tipo inexistente (se descarta)
+function escenaVieja() {
+  return map(8, { v: 1, props: [
+    { type: 'door', x: 1, z: 2, v: 1, open: false, locked: true },
+    { type: 'gate', x: 2, z: 2, v: 0, open: true },
+    { type: 'portal', x: 3, z: 3, v: 0, id: 7, look: 'cave', target: { scene: 'bOtra', portal: 2 }, name: 'Cueva' },
+    { type: 'stairs', x: 4, z: 4, to: 'cabajo', tx: 1, tz: 1 },
+    { type: 'obj:o_abcd1234', x: 5, z: 5, v: 2 },
+    { type: 'light', x: 6, z: 6, preset: 'torch', r: 8, h: 1.25, color: '#ffa652', intensity: 1, anim: 'flicker', on: true },
+    { type: 'barrier', x: 0, z: 7, v: 0 },
+    { type: 'bridge2', x: 2, z: 6, v: 1 },
+    { type: 'nave_espacial', x: 1, z: 1 },
+  ] });
+}
+
 function drawing(key = 'c_heroe1', layers = 1) {
   return {
     key, kind: 'char', target: key, name: 'Héroe', res: 32, w: 32, h: 32, light: false, count: 3, cols: 3,
@@ -28,4 +44,4 @@ function token(owner, extra = {}) {
   return Object.assign({ kind: 'knight', x: 3, z: 4, fx: 0, fz: 1, sheet: { name: 'Caballero', hp: 10, hpMax: 12, ac: 16, speed: 30, init: 2, team: 'pc', vision: 12 }, owner: owner == null ? null : String(owner) }, extra);
 }
 
-module.exports = { PNG_1x1, map, drawing, campaign, token };
+module.exports = { PNG_1x1, map, drawing, campaign, token, escenaVieja };

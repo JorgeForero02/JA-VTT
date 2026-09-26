@@ -4,6 +4,8 @@
    y edita la ficha de sus propios personajes en la mesa en vivo, abre las puertas sin llave si el tablero lo deja
    (playersDoors) y pide cruzar portales. */
 
+const Catalogo = require('./public/catalogo.js');
+
 const MAP_MIN = 4;
 const MAP_MAX = 160;
 const TERRAIN = 'gapsow~cnl';
@@ -88,15 +90,16 @@ function cleanLightProp(p) {
    En 3D, por casilla: `wall` es la casilla de terreno 'w'; `door`, los objetos puerta (door, gate) con open y locked;
    window, veil, cover, barrier y portal, objetos del mismo nombre. Lo mismo que lee el cliente (Muros.normProp). */
 const WALL_KINDS = ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'portal'];
-const DOOR_PROPS = ['door', 'gate'];
 const WALL_PROPS = ['window', 'veil', 'cover', 'barrier', 'portal'];
 const PORTAL_LOOKS = ['door', 'stairs', 'cave', 'trapdoor', 'magic'];
 const PORTAL_MAP_MAX = 160;
 const SCENE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CAMP_ID = /^[a-z0-9]{2,16}$/;
-/* Para colocar fichas que llegan: objetos que se pisan y los que ocupan varias casillas (PROP3D del cliente; un test los compara) */
-const PASSABLE_PROPS = ['light', 'stairs', 'bridge', 'bridge2', 'veil', 'cover'];
-const PROP_SPANS = { stall: [2, 1], stall2: [2, 1], bridge2: [2, 1], windmill: [3, 3], cart: [2, 1] };
+/* Qué es cada tipo lo dice el catálogo (public/catalogo.js); estas listas se calculan de él y se mantienen por compatibilidad */
+const FACTORY_TYPES = Object.keys(Catalogo.FACTORY).filter((k) => Catalogo.FACTORY[k].class !== 'terrain').map((k) => k.slice(2));
+const DOOR_PROPS = FACTORY_TYPES.filter((t) => Catalogo.isDoor({ type: t }));
+const PASSABLE_PROPS = FACTORY_TYPES.filter((t) => !Catalogo.blocksMove({ type: t }) && !Catalogo.isDoor({ type: t }));
+const PROP_SPANS = Object.fromEntries(FACTORY_TYPES.map((t) => [t, Catalogo.span({ type: t })]).filter(([, s]) => s[0] > 1 || s[1] > 1));
 const intIn = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
 const stairsId = (x, z) => 1 + z * PORTAL_MAP_MAX + x;
 const isWallProp = (p) => DOOR_PROPS.includes(p.type) || WALL_PROPS.includes(p.type) || (p.type === 'stairs' && typeof p.to === 'string');
@@ -131,7 +134,18 @@ function fixPortalIds(props) {
   }
   return props;
 }
-const cleanProp = (p) => (p.type === 'light' ? cleanLightProp(p) : isWallProp(p) ? cleanWallProp(p) : p);
+/* Una pieza de la escena: tiene que existir su definición (fábrica, dibujo antiguo o del tablero), estar en el mapa y tener
+   giro 0–3. Las luces y los muros conservan su saneado propio; luego se completa def, uid y state (Catalogo.complete). */
+function cleanProp(p, w, d, board) {
+  if (!intIn(p.x, 0, w - 1) || !intIn(p.z, 0, d - 1)) return null;
+  const base = p.type === 'light' ? cleanLightProp(p) : isWallProp(p) ? cleanWallProp(p) : Object.assign({}, p, { v: intIn(p.v, 0, 3) ? p.v : 0 });
+  if (!base || !Catalogo.defOf(base, board)) return null;
+  const keep = { type: base.type, x: base.x, z: base.z, v: base.v | 0 };
+  for (const k of ['open', 'locked', 'id', 'look', 'target', 'name', 'preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'def', 'uid', 'state', 'level', 'side']) if (k in base) keep[k] = base[k];
+  // Ruling R1: def/uid/state/level/side salen de la pieza ORIGINAL (cleanWallProp los quita; el uid se regeneraría en cada guardado)
+  for (const k of ['def', 'uid', 'state', 'level', 'side']) if (k in p) keep[k] = p[k]; else delete keep[k];
+  return Catalogo.complete(keep, board);
+}
 
 /* Techos: rectángulo de al menos 2×2 dentro del mapa, material (teja roja, pizarra, paja, tablillas, cobre con verdín)
    y forma (a dos aguas, a cuatro aguas, plano con almenas, cónico, a un agua); `rot` 0–3 gira la cumbrera (sin él, a lo
@@ -164,17 +178,19 @@ const cleanZoneCells = (s, n) => (typeof s === 'string' && s.length === n && /^[
 
 /* Mapa 3D serializado por el cliente (función `serialize` del tablero). Se comprueba la forma
    y el tamaño; el cliente vuelve a sanear todo al cargarlo (`deserialize`). */
-function cleanMap(o) {
+function cleanMap(o, board) {
   if (!plainObject(o)) return null;
   const w = o.w, d = o.d;
   if (!Number.isInteger(w) || !Number.isInteger(d) || w < MAP_MIN || d < MAP_MIN || w > MAP_MAX || d > MAP_MAX) return null;
   const n = w * d;
   if (typeof o.h !== 'string' || o.h.length !== n || !/^[0-9a-c]+$/.test(o.h)) return null;
   if (typeof o.t !== 'string' || o.t.length !== n || [...o.t].some((c) => !TERRAIN.includes(c))) return null;
-  const map = { v: 1, name: str(o.name, 40).trim() || 'Escena', w, d, h: o.h, t: o.t };
+  const map = { v: 2, name: str(o.name, 40).trim() || 'Escena', w, d, h: o.h, t: o.t };
   if (typeof o.wsrc === 'string' && o.wsrc.length === n && /^[012]+$/.test(o.wsrc)) map.wsrc = o.wsrc;
   if (typeof o.seen === 'string' && o.seen.length === n && /^[01]+$/.test(o.seen)) map.seen = o.seen;
-  map.props = fixPortalIds(Array.isArray(o.props) ? o.props.filter(plainObject).slice(0, 5000).map(cleanProp).filter(Boolean) : []);
+  map.props = fixPortalIds(Array.isArray(o.props) ? o.props.filter(plainObject).slice(0, 5000).map((p) => cleanProp(p, w, d, board)).filter(Boolean) : []);
+  const uids = new Set();
+  for (const p of map.props) { while (uids.has(p.uid)) p.uid = Catalogo.newUid(); uids.add(p.uid); }
   map.minis = Array.isArray(o.minis) ? o.minis.filter(plainObject).slice(0, 500).map((m) => (plainObject(m.sheet) ? Object.assign({}, m, { sheet: cleanSheet(m.sheet) }) : m)) : [];
   map.roofs = Array.isArray(o.roofs) ? o.roofs.filter(plainObject).map((r) => cleanRoof(r, w, d)).filter(Boolean).slice(0, 300) : [];
   if (Array.isArray(o.start) && o.start.length === 2 && o.start.every(Number.isInteger)) map.start = o.start;
@@ -227,8 +243,9 @@ function gridOf(m) {
     for (let j = 0; j < sd; j++) for (let k = 0; k < sw; k++) { const X = x + k, Z = z + j; if (X >= 0 && Z >= 0 && X < w && Z < d) open[Z * w + X] = 0; }
   };
   for (const p of m.props || []) {
-    if (PASSABLE_PROPS.includes(p.type) || !Number.isInteger(p.x) || !Number.isInteger(p.z)) continue;
-    const s = PROP_SPANS[p.type] || [1, 1], [sw, sd] = (p.v | 0) % 2 ? [s[1], s[0]] : s;
+    if (!Catalogo.blocksMove(p) && !Catalogo.isDoor(p)) continue;
+    if (!Number.isInteger(p.x) || !Number.isInteger(p.z)) continue;
+    const [sw, sd] = Catalogo.span(p);
     off(p.x, p.z, sw, sd);
   }
   for (const q of m.minis || []) if (Number.isInteger(q.x) && Number.isInteger(q.z)) { const s = sizeOfMini(q); off(q.x, q.z, s, s); }
@@ -481,10 +498,13 @@ function tokensFor(doc, member, settings) {
 /* una escena (mapa saneado) tal como la ve este miembro */
 function sceneFor(map, member, settings) {
   if (isGm(member) || !map) return map;
+  const S = cleanSettings(settings);
   const out = Object.assign({}, map);
-  out.minis = (map.minis || []).map((m) => tokenFor(Object.assign({}, m, { owner: typeof m.owner === 'string' ? m.owner : null, sheet: m.sheet || {} }), member, settings)).filter(Boolean);
+  out.minis = (map.minis || []).map((m) => tokenFor(Object.assign({}, m, { owner: typeof m.owner === 'string' ? m.owner : null, sheet: m.sheet || {} }), member, S)).filter(Boolean);
   if (map.notes) out.notes = map.notes.filter((n) => !n.gmOnly);
   if (map.plans) out.plans = map.plansReleased ? map.plans : map.plans.filter((p) => p.owner != null);
+  // lo que sólo ve el director (barreras; mañana, secretas) no sale del servidor
+  if (Array.isArray(map.props)) out.props = map.props.filter((p) => !Catalogo.gmOnly(p));
   return out;
 }
 function combatFor(doc, member, tokens, settings) {
@@ -693,7 +713,7 @@ function playerDoors(doc, current, ctx) {
   for (const [k, v] of Object.entries(doc.d)) {
     if ((current.d && current.d[k] ? 1 : 0) === v) continue;
     const [x, z] = k.split('_').map(Number);
-    const door = board && (board.props || []).find((p) => DOOR_PROPS.includes(p.type) && p.x === x && p.z === z);
+    const door = board && (board.props || []).find((p) => Catalogo.isDoor(p) && p.x === x && p.z === z);
     if (!door) return 'Ahí no hay ninguna puerta';
     if (!settings.playersDoors) return 'El director no deja a los jugadores abrir puertas';
     if (door.locked) return 'Esa puerta está cerrada con llave';
@@ -753,6 +773,6 @@ module.exports = {
   travelPlan, clearPortalsTo, tokensToMinis, minisToTokens, HP_VISIBILITY, BOARD_KEYS, DEFAULT_SETTINGS, cleanSettings, HOST_SETTINGS, settingsParts,
   SCENE_MAX_BYTES, CAMPAIGN_MAX_BYTES, LAYER_MAX_BYTES, MAX_LAYERS, BODY_LIMITS, docBytes: bytes,
   SCENE_FLAGS, cleanSceneFlags, PLAN_SHAPES, MAX_PLAYER_PLANS, cleanPlan, cleanNote, cleanInitiative, cleanCombat, playerCombat,
-  sheetFor, tokenFor, tokensFor, sceneFor, combatFor, liveDocFor, campaignFor,
+  sheetFor, tokenFor, tokensFor, sceneFor, combatFor, liveDocFor, campaignFor, playerDoors,
   LIVE_KEYS, MAP_MAX, CHAR_SIZES, ROOF_MATS, ROOF_SHAPES, cleanRoof, LIGHT_PRESETS, ANIMS, TOKEN_LIGHTS, TOKEN_LIGHT_DEFS, CONDITION_IDS, cleanSheet, cleanLightProp, str, docId, cleanMap, cleanCampaign, cleanDrawing, drawingRecord, cleanLiveDoc, cleanTokens, liveChange, merge,
 };
