@@ -293,7 +293,9 @@ ambiente, fichas, personajes) y `test/cliente-armonia.test.js` (ajustes, dados).
 iniciales (manda el `state` del servidor), `icon(nombre)` (por defecto `window.svgIcon`),
 `showTab(nombre, reveal)` (gancho de pestañas del anfitrión) y `onDom(root)` (el marcado ya está
 puesto y el motor aún no arrancó: el anfitrión recuerda las secciones plegadas y elige la pestaña
-guardada). Devuelve `{ ready, unmount, probe }`.
+guardada). Devuelve `{ ready, unmount, status, ping, probe }`. `status()` da la conexión del 3D y el
+rendimiento del motor (`{ connected, sent, recv, render: { fps, ms, calls, triangles } }`) y `ping()` una promesa con la
+ida y vuelta en ms por `/t3d/ws` (JA-VTT los usa en Mesa → Conexión, 2026-09-26).
 
 `probe` es de sólo lectura y sólo para las pruebas visuales (ningún anfitrión lo usa): `'tokens'`
 (fichas con tamaño, escala, peana, estados y si se ven); `'route', id, x, z` (coste o null);

@@ -50,11 +50,15 @@
      el mismo contrato que usa el adaptador de la mesa, con reconexión como la del Net del anfitrión. */
   function ownNet(boardId){
     const msgs=new Set(),changes=new Set();let ws=null,closed=false,retry=0,timer=0;
+    // contadores y «Probar conexión»: el servidor contesta { t:'pong', at } al { t:'ping', at } de este cliente
+    const stats={sent:0,recv:0},pings=new Map();
     const url=()=>{const u=new URL('ws',BASE);u.protocol=u.protocol==='https:'?'wss:':'ws:';u.searchParams.set('board',boardId);return u.href};
     function open(){
       const s=new WebSocket(url());ws=s;
       s.onopen=()=>{retry=0};
-      s.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}msgs.forEach(f=>{try{f(m)}catch(x){}})};
+      s.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}stats.recv++;
+        if(m&&m.t==='pong'){const p=pings.get(m.at);if(p){pings.delete(m.at);p(Date.now()-m.at)}return}
+        msgs.forEach(f=>{try{f(m)}catch(x){}})};
       s.onclose=e=>{
         if(ws!==s)return;ws=null;changes.forEach(f=>{try{f('status','closed')}catch(x){}});
         if(!closed&&e.code!==4403&&e.code!==4404)timer=setTimeout(open,Math.min(8000,800*2**retry++));
@@ -62,8 +66,16 @@
     }
     open();
     return{onMessage(f){msgs.add(f);return()=>msgs.delete(f)},onChange(f){changes.add(f);return()=>changes.delete(f)},
-      sendRaw(o){if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));return true}return false},
+      sendRaw(o){if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));stats.sent++;return true}return false},
       get connected(){return !!ws&&ws.readyState===1},
+      get stats(){return{...stats}},
+      /* ida y vuelta al servidor en ms; falla sin conexión o si no contesta en 5 s */
+      ping(){return new Promise((ok,bad)=>{
+        if(!ws||ws.readyState!==1)return bad(new Error('Sin conexión con el tablero 3D'));
+        let at=Date.now();while(pings.has(at))at++;
+        pings.set(at,ok);ws.send(JSON.stringify({t:'ping',at}));stats.sent++;
+        setTimeout(()=>{if(pings.delete(at))bad(new Error('El tablero 3D no respondió'))},5000);
+      })},
       close(){closed=true;clearTimeout(timer);if(ws){const s=ws;ws=null;s.close()}}};
   }
 
@@ -106,8 +118,10 @@
    * mostrar una con `opts.showTab(name, reveal)`; la pestaña del hueco `live` es el `data-pane` de su
    * sección o, si no lo tiene, su id sin `tab-` (JA-VTT: `#tab-live` → 'live').
    *
-   * @returns {{ready: Promise<void>, unmount: function(): void, probe: function}} `ready` se cumple con el motor en
-   *   marcha (o falla si no cargó). `probe(consulta, ...)` es de sólo lectura y sólo para pruebas
+   * @returns {{ready: Promise<void>, unmount: function(): void, status: function, ping: function, probe: function}} `ready`
+   *   se cumple con el motor en marcha (o falla si no cargó). `status()` da `{ connected, sent, recv, render: { fps, ms,
+   *   calls, triangles } }` (conexión del 3D y rendimiento del motor, para la pestaña Mesa → Conexión del anfitrión);
+   *   `ping()` → Promise con la ida y vuelta en ms por la conexión propia `/t3d/ws`. `probe(consulta, ...)` es de sólo lectura y sólo para pruebas
    *   (`'tokens'`: las fichas con su tamaño; `'route', id, x, z`: coste del camino o null). `unmount()` para el motor (bucle, escuchas de ventana, WebGL),
    *   quita el marcado y suelta el `Net`; el anfitrión de este repo, aun así, recarga la página al
    *   cambiar de tablero, porque three.js y el motor dejan temporizadores sueltos y cachés que no se liberan del todo.
@@ -151,7 +165,10 @@
       const pending=queue.splice(0);sink=e=>mesa.feed(e[0],e[1]);pending.forEach(e=>mesa.feed(e[0],e[1]));
       engine=T._engine({root,mesa:mesa.api,icon,reveal,$:id=>document.getElementById('t3d-'+id)});
     });
-    return{ready,probe:(...a)=>engine&&engine.probe?engine.probe(...a):null,unmount(){
+    /* Mesa → Conexión del anfitrión: estado de la conexión del 3D y del render; ping() sólo con la conexión propia */
+    const status=()=>Object.assign({connected:!!net.connected},net.stats||{},engine&&engine.stats?{render:engine.stats()}:{});
+    const ping=()=>net.ping?net.ping():Promise.reject(new Error('Este anfitrión no mide la conexión del tablero 3D'));
+    return{ready,status,ping,probe:(...a)=>engine&&engine.probe?engine.probe(...a):null,unmount(){
       if(dead)return;dead=true;
       offs.forEach(f=>{try{f()}catch(e){}});
       if(engine&&engine.destroy)engine.destroy();

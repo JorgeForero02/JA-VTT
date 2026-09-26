@@ -54,6 +54,18 @@ try {
   await gm.waitForTimeout(1500);
   const colors = await drawn(gm);
   step('3D: el motor pinta dentro de JA-VTT', colors > 8, `${colors} colores`);
+  // guardado automático, como el 2D: abrir no guarda nada; un cambio del director se guarda solo y sobrevive a recargar
+  const scenesOf = () => gm.evaluate(async (id) => (await (await fetch(`/api/t3d/boards/${id}/scenes`)).json()).scenes.map((x) => x.name), boardId);
+  await gm.waitForTimeout(3000);
+  const untouched = await scenesOf();
+  step('guardado automático: abrir una mesa 3D nueva no guarda nada', untouched.length === 0, JSON.stringify(untouched));
+  await gm.fill('#t3d-bname', 'Claro autoguardado');
+  const autoTxt = await gm.waitForFunction(() => { const t = document.getElementById('t3d-autosave')?.textContent || ''; return /^Guardado/.test(t) ? t : false; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => gm.evaluate(() => document.getElementById('t3d-autosave')?.textContent || ''));
+  const saved = (await scenesOf()).includes('Claro autoguardado');
+  step('guardado automático: un cambio del director se guarda solo en el tablero', saved && /^Guardado/.test(autoTxt), `${JSON.stringify(await scenesOf())} · «${autoTxt}»`);
+  await gm.reload();
+  const reopened = await gm.waitForFunction(() => /Claro autoguardado/.test(document.getElementById('t3d-mapName')?.textContent || ''), null, { timeout: 20000 }).then(() => true, () => false);
+  step('guardado automático: al recargar vuelve la escena guardada sola', reopened, await gm.evaluate(() => document.getElementById('t3d-mapName')?.textContent || ''));
   const lay = await gm.evaluate(() => ({ rail2d: getComputedStyle(document.getElementById('rail')).display, rail3d: getComputedStyle(document.getElementById('t3d-rail')).display, stage: document.getElementById('t3d-stage').getBoundingClientRect().width | 0, tabs: [...document.querySelectorAll('#panel .tabs [data-tab]')].filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.dataset.tab).join() }));
   step('3D: se esconde lo 2D y el raíl/lienzo del módulo ocupan su sitio', lay.rail2d === 'none' && lay.rail3d !== 'none' && lay.stage > 600, JSON.stringify(lay));
   await gm.click('#panel .tabs [data-tab="t3d-tokens"]');
@@ -87,6 +99,17 @@ try {
   // T6d: la tirada llega al chat de JA-VTT como tirada (kind roll, cuerpo de su dice.js: fórmula, dados y total), no como texto
   const chat = await pl.waitForFunction(() => { const m = document.querySelector('#chatLog .chatMsg.roll'); return !!m && /1d20/.test(m.textContent) && !!m.querySelector('.total') && !!m.querySelector('.pips .pip'); }, null, { timeout: 10000 }).then(() => true, () => false);
   step('tirada: llega al jugador y al chat de JA-VTT como tirada (fórmula, dados y total)', got && chat, await pl.evaluate(() => document.getElementById('chatLog').textContent.slice(-80)));
+  // Conexión en una mesa 3D: el estado y «Probar conexión» cuentan las dos conexiones (chat de JA-VTT y tablero 3D) y el render 3D
+  await pl.click('#panel .tabs [data-tab="live"]');
+  await pl.evaluate(() => { document.querySelector('#tab-live > [data-fold="conexion"]').open = true; });
+  await pl.waitForTimeout(1300);
+  const conn = await pl.evaluate(() => document.getElementById('liveStatus').textContent);
+  step('conexión: el estado muestra el chat, el tablero 3D y su render', /Chat/.test(conn) && /Tablero 3D: conectado/.test(conn) && /\d+ fps/.test(conn), conn);
+  await pl.click('#pingBtn');
+  const pong = await pl.waitForFunction(() => { const t = document.getElementById('toast'); return t && t.style.display !== 'none' && /Tablero 3D: \d+ ms/.test(t.textContent) && /Chat: \d+ ms/.test(t.textContent) ? t.textContent : false; }, null, { timeout: 6000 }).then((h) => h.jsonValue(), () => pl.evaluate(() => document.getElementById('toast').textContent));
+  step('conexión: «Probar conexión» mide las dos conexiones', /Tablero 3D: \d+ ms/.test(pong) && /Chat: \d+ ms/.test(pong), pong);
+  const twoD = await pl.evaluate(() => ['vista', 'atajos'].map((f) => getComputedStyle(document.querySelector(`#tab-live > [data-fold="${f}"]`)).display));
+  step('pestaña Mesa: sin «Vista» ni «Atajos de teclado» del 2D en una mesa 3D', twoD.every((d) => d === 'none'), JSON.stringify(twoD));
   // T6d: en la pestaña Mesa de una mesa 3D, los ajustes del tablero 3D (con los textos de JA-VTT) sustituyen a los de la escena 2D
   await gm.click('#panel .tabs [data-tab="live"]');
   const rules = await gm.evaluate(() => ({ ja: ['reglas', 'mesa'].map((f) => getComputedStyle(document.querySelector(`#tab-live > [data-fold="${f}"]`)).display), t3d: ['t3d-reglas', 't3d-mesa-fichas'].map((f) => getComputedStyle(document.querySelector(`[data-fold="${f}"]`)).display), hp: !!document.getElementById('t3d-hpVisibility') }));
@@ -108,7 +131,8 @@ try {
   // y al revés: el «Chat de texto» del 3D apaga el chat de JA-VTT (P-06); volver a encenderlo desde el 3D
   await gm.click('#t3d-chatEnabled');
   const chatOff = await pl.waitForFunction(() => getComputedStyle(document.getElementById('chatForm')).display === 'none', null, { timeout: 10000 }).then(() => true, () => false);
-  const jaBox = await gm.evaluate(() => document.getElementById('chatEnabled').checked);
+  // la casilla de JA-VTT del director se actualiza por su propio Net: se espera a que llegue (sin esperar, a veces se leía antes)
+  const jaBox = await gm.waitForFunction(() => !document.getElementById('chatEnabled').checked, null, { timeout: 5000 }).then(() => false, () => true);
   await gm.click('#t3d-chatEnabled'); await gm.click('#t3d-diceEnabled');
   const back = await pl.waitForFunction(() => getComputedStyle(document.getElementById('chatForm')).display !== 'none' && !/desactivados/.test(document.getElementById('t3d-gDice').textContent), null, { timeout: 10000 }).then(() => true, () => false);
   step('ajustes del 3D: su «Chat de texto» apaga el chat de JA-VTT y sus casillas siguen a las de JA-VTT', chatOff && !jaBox && back && (await rawRoll()) === 'ok', JSON.stringify({ chatOff, jaBox, back }));

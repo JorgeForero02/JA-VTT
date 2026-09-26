@@ -211,6 +211,19 @@ function show3dTab(name,reveal){
 }
 $('#panel .tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab^="t3d-"]');if(b)show3dTab(b.dataset.tab)});
 $('#newBoardTypeField').hidden=!window.Tablero3D;
+/* t3d: Mesa → Conexión en una mesa 3D: el chat va por el Net de JA-VTT y la mesa por la conexión propia del 3D */
+function t3dStatusText(){
+  const s=t3dView.status(),r=s.render,n=v=>v.toLocaleString('es');
+  return (Net.connected?`Chat de la mesa (JA-VTT): conectado, mensajes enviados ${n(Net.stats.sent)}, recibidos ${n(Net.stats.recv)}.`:'Chat de la mesa (JA-VTT): sin conexión.')+
+    (s.connected?` Tablero 3D: conectado, mensajes enviados ${n(s.sent||0)}, recibidos ${n(s.recv||0)}.`:' Tablero 3D: sin conexión.')+
+    (r&&r.fps?` Render 3D: ${r.fps} fps, ${String(r.ms).replace('.',',')} ms de CPU por fotograma, ${n(r.calls)} llamadas, ${n(r.triangles)} triángulos.`:'');
+}
+const jaPing=$('#pingBtn').onclick;
+$('#pingBtn').onclick=()=>{
+  if(!t3dView)return jaPing();
+  const chat=new Promise(ok=>{const t=setTimeout(()=>{Net.onPong=null;ok(null)},5000);Net.onPong=ms=>{clearTimeout(t);Net.onPong=null;ok(ms)};if(!Net.connected){clearTimeout(t);Net.onPong=null;ok(null)}else Net.ping()});
+  Promise.all([chat,t3dView.ping().catch(()=>null)]).then(([a,b])=>toast(`Chat: ${a==null?'sin respuesta':a+' ms'} · Tablero 3D: ${b==null?'sin respuesta':b+' ms'}`,3200));
+};
 /* ---------- arranque ---------- */
 (async function boot(){
   hydrate();

@@ -1101,6 +1101,7 @@ function renderLive(){
   }
   if(gm&&UI.board){$('#inviteCode').textContent=UI.board.invite_code||'';}
   $('#liveStatus').textContent=(Net.connected?`Conectado al servidor. Mensajes enviados: ${Net.stats.sent}, recibidos: ${Net.stats.recv}.`:'Sin conexión con el servidor.')+(PERF.ms?` Render de luz: ${PERF.ms.toFixed(1)} ms por fotograma (pantalla ${(1000/PERF.frameMs).toFixed(0)} Hz), capas de luz a ${PERF.scale}×.`:'');
+  if(typeof t3dView!=='undefined'&&t3dView)$('#liveStatus').textContent=t3dStatusText(); // t3d: las dos conexiones y el render 3D
 }
 const inviteLink=()=>`${location.origin}/?invitar=${UI.board?UI.board.invite_code:''}`;
 $('#copyInvite').onclick=async()=>{

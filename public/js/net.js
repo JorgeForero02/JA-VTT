@@ -39,7 +39,7 @@ const Net=(()=>{
       case 'cursor':if(d.x==null)N.cursors.delete(d.uid);else{const prev=N.cursors.get(d.uid);N.cursors.set(d.uid,{x:d.x,y:d.y,s:prev&&prev.s?prev.s:{x:d.x,y:d.y,last:performance.now()}})}requestRender();break;
       case 'board':if(UI.board){UI.board.name=d.name;syncBoardName()}break;
       case 'images':Store.refresh();break;
-      case 'pong':toast(`El servidor respondió en ${Date.now()-d.at} ms`);break;
+      case 'pong':(Net.onPong||(ms=>toast(`El servidor respondió en ${ms} ms`)))(Date.now()-d.at);break; // t3d: la mesa 3D junta esta medida con la suya
       case 'kicked':onKicked(!!d.deleted);break;
       case 'error':toast(d.error||'Error del servidor',2600);break;
     }
