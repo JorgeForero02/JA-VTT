@@ -134,16 +134,31 @@ function fixPortalIds(props) {
   }
   return props;
 }
-/* Una pieza de la escena: tiene que existir su definición (fábrica, dibujo antiguo o del tablero), estar en el mapa y tener
-   giro 0–3. Las luces y los muros conservan su saneado propio; luego se completa def, uid y state (Catalogo.complete). */
+/* Una pieza de la escena: tiene que existir su definición (fábrica, dibujo antiguo o del tablero) y estar en el mapa con
+   giro 0–3. Cada pieza guarda sólo lo suyo (§3.5, §6, ronda de arreglos 1): puertas open/locked (espejo por
+   Catalogo.complete), luces sus campos de cleanLightProp, portales id/look/target/name; nada más — un cofre con
+   name/target/color… los pierde. `level`/`side` (reservados, fase 4) se sanean aparte. */
 function cleanProp(p, w, d, board) {
   if (!intIn(p.x, 0, w - 1) || !intIn(p.z, 0, d - 1)) return null;
   const base = p.type === 'light' ? cleanLightProp(p) : isWallProp(p) ? cleanWallProp(p) : Object.assign({}, p, { v: intIn(p.v, 0, 3) ? p.v : 0 });
-  if (!base || !Catalogo.defOf(base, board)) return null;
+  if (!base) return null;
   const keep = { type: base.type, x: base.x, z: base.z, v: base.v | 0 };
-  for (const k of ['open', 'locked', 'id', 'look', 'target', 'name', 'preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'def', 'uid', 'state', 'level', 'side']) if (k in base) keep[k] = base[k];
-  // Ruling R1: def/uid/state/level/side salen de la pieza ORIGINAL (cleanWallProp los quita; el uid se regeneraría en cada guardado)
-  for (const k of ['def', 'uid', 'state', 'level', 'side']) if (k in p) keep[k] = p[k]; else delete keep[k];
+  // Ruling R1: def/uid salen de la pieza ORIGINAL (cleanWallProp los quita; el uid se regeneraría en cada guardado)
+  if (typeof p.def === 'string') keep.def = p.def;
+  if (typeof p.uid === 'string') keep.uid = p.uid;
+  // Arreglo 1 (ronda 1): el `def` restaurado tiene que resolver una definición real (la del catálogo si es ajeno o no
+  // existe con el tablero a mano) o una barrera/puerta con un `def: 'p:zzzz'` pasaría validada sin serlo.
+  const finalDef = Catalogo.defOf(keep, board);
+  if (!finalDef) return null;
+  // Arreglo 2 (ronda 1): sólo se guardan los campos propios de lo que es esta pieza, según su definición final.
+  const own = base.type === 'light' ? ['preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'name']
+    : Catalogo.isDoor(keep, board) ? ['open', 'locked']
+    : Catalogo.wallKind(keep, board) === 'portal' ? ['id', 'look', 'target', 'name'] : [];
+  for (const k of own) if (k in base) keep[k] = base[k];
+  if (intIn(p.level, 0, 15)) keep.level = p.level;
+  if (typeof p.side === 'string' && ['N', 'E', 'S', 'W'].includes(p.side)) keep.side = p.side;
+  // `state` sólo si la definición final tiene estados (si no, Catalogo.complete podría copiarlo tal cual sin validar)
+  if (finalDef.states && plainObject(p.state)) keep.state = p.state;
   return Catalogo.complete(keep, board);
 }
 
@@ -207,13 +222,14 @@ function cleanMap(o, board) {
   return map;
 }
 
-/* Campaña: escenas unidas por portales (las escaleras de antes) y notas del director por escena */
-function cleanCampaign(o) {
+/* Campaña: escenas unidas por portales (las escaleras de antes) y notas del director por escena. `board` (Ruling
+   R3b): Map de definiciones `p:` del tablero, para que cada escena se valide igual que si se guardara sola. */
+function cleanCampaign(o, board) {
   if (!plainObject(o) || !docId(o.id) || !plainObject(o.boards)) return null;
   const boards = {};
   for (const [k, v] of Object.entries(o.boards).slice(0, 64)) {
     if (!/^[a-z0-9]{2,16}$/.test(k) || !plainObject(v)) continue;
-    const data = cleanMap(v.data);
+    const data = cleanMap(v.data, board);
     if (data) boards[k] = { name: str(v.name, 40) || data.name, data };
   }
   const ids = Object.keys(boards);
@@ -231,8 +247,9 @@ function cleanCampaign(o) {
 
 /* ---- portales: llegada, viaje entre escenas y limpieza (la idea de arrivalPoints, moveUser y gather de JA-VTT, por casillas) ---- */
 /* Rejilla de una escena saneada: se pisa si no es muro, lava ni agua, no la ocupa un objeto (salvo los que se pisan) ni una ficha.
-   Igual que Muros.gridOf del cliente. */
-function gridOf(m) {
+   Igual que Muros.gridOf del cliente. `board` (Ruling R3b): Map de definiciones `p:`, para que una pieza del tablero
+   bloquee igual que una de fábrica. */
+function gridOf(m, board) {
   const w = m.w, d = m.d, n = w * d, open = new Uint8Array(n), h = new Int8Array(n);
   for (let i = 0; i < n; i++) {
     const tt = m.t[i], water = typeof m.wsrc === 'string' && m.wsrc.length === n && m.wsrc[i] !== '0';
@@ -243,9 +260,9 @@ function gridOf(m) {
     for (let j = 0; j < sd; j++) for (let k = 0; k < sw; k++) { const X = x + k, Z = z + j; if (X >= 0 && Z >= 0 && X < w && Z < d) open[Z * w + X] = 0; }
   };
   for (const p of m.props || []) {
-    if (!Catalogo.blocksMove(p) && !Catalogo.isDoor(p)) continue;
+    if (!Catalogo.blocksMove(p, board) && !Catalogo.isDoor(p, board)) continue;
     if (!Number.isInteger(p.x) || !Number.isInteger(p.z)) continue;
-    const [sw, sd] = Catalogo.span(p);
+    const [sw, sd] = Catalogo.span(p, board);
     off(p.x, p.z, sw, sd);
   }
   for (const q of m.minis || []) if (Number.isInteger(q.x) && Number.isInteger(q.z)) { const s = sizeOfMini(q); off(q.x, q.z, s, s); }
@@ -301,7 +318,7 @@ function nearPortal(t, p) {
 /* Mueve fichas de la escena `src` a `dst` (ya saneadas; pueden ser la misma). opts: portal (id del portal de llegada en dst o
    null: junto al punto de entrada), ids (las fichas que cruzan) o players (todas las del grupo: kind 'player'). Devuelve las
    escenas nuevas, las que llegaron y las que no cupieron (se quedan donde estaban). */
-function travelPlan(src, dst, opts) {
+function travelPlan(src, dst, opts, board) {
   const same = src === dst;
   const S = JSON.parse(JSON.stringify(src)), D = same ? S : JSON.parse(JSON.stringify(dst));
   const goes = (m) => (opts.players ? !!(m.sheet && m.sheet.kind === 'player') : (opts.ids || []).includes(m.id));
@@ -309,7 +326,7 @@ function travelPlan(src, dst, opts) {
   if (same) S.minis = S.minis.filter((m) => !goes(m));
   const target = opts.portal != null ? portalIn(D, opts.portal) : null;
   const at = target ? [target.x, target.z] : (Array.isArray(D.start) ? D.start : [D.w >> 1, D.d >> 1]);
-  const cells = arrival(gridOf(D), at[0], at[1], travellers.map(sizeOfMini), D.start || at);
+  const cells = arrival(gridOf(D, board), at[0], at[1], travellers.map(sizeOfMini), D.start || at);
   const moved = [], left = [];
   travellers.forEach((m, i) => {
     const c = cells[i];
@@ -495,8 +512,10 @@ function tokensFor(doc, member, settings) {
   for (const [id, t] of Object.entries(doc.tokens || {})) { const v = tokenFor(t, member, settings); if (v) tokens[id] = v; }
   return Object.assign({}, doc, { tokens });
 }
-/* una escena (mapa saneado) tal como la ve este miembro */
-function sceneFor(map, member, settings) {
+/* una escena (mapa saneado) tal como la ve este miembro. `board` (Ruling R3b): Map de definiciones `p:`, para que una
+   pieza del tablero con gmOnly se esconda igual que una de fábrica (si no, con una `p:` la Tarea 5 la mandaría al
+   jugador por no saber consultar su definición). */
+function sceneFor(map, member, settings, board) {
   if (isGm(member) || !map) return map;
   const S = cleanSettings(settings);
   const out = Object.assign({}, map);
@@ -504,7 +523,7 @@ function sceneFor(map, member, settings) {
   if (map.notes) out.notes = map.notes.filter((n) => !n.gmOnly);
   if (map.plans) out.plans = map.plansReleased ? map.plans : map.plans.filter((p) => p.owner != null);
   // lo que sólo ve el director (barreras; mañana, secretas) no sale del servidor
-  if (Array.isArray(map.props)) out.props = map.props.filter((p) => !Catalogo.gmOnly(p));
+  if (Array.isArray(map.props)) out.props = map.props.filter((p) => !Catalogo.gmOnly(p, board));
   return out;
 }
 function combatFor(doc, member, tokens, settings) {
@@ -520,20 +539,22 @@ function combatFor(doc, member, tokens, settings) {
   const initiative = settings.initiativeShown ? { entries, turn: Math.max(0, entries.indexOf(cur)), round: ini.round } : null;
   return { initiative, active, round: ini.round, current, left: doc.left, dashed: doc.dashed };
 }
-/* Documento de la mesa en vivo tal como lo recibe este miembro. docs: los documentos de la mesa (para el combate, las fichas). */
-function liveDocFor(key, doc, member, settings, docs) {
+/* Documento de la mesa en vivo tal como lo recibe este miembro. docs: los documentos de la mesa (para el combate, las
+   fichas). `board` (Ruling R3b): Map de definiciones `p:` del tablero, para sceneFor. */
+function liveDocFor(key, doc, member, settings, docs, board) {
   if (doc == null) return doc;
   const S = cleanSettings(settings);
   if (key === 'tokens') return tokensFor(doc, member, S);
   if (key === 'combat') return combatFor(doc, member, docs && docs.tokens ? docs.tokens.tokens : {}, S);
-  if (key === 'board' && doc.board && !isGm(member)) return Object.assign({}, doc, { board: sceneFor(doc.board, member, S) });
+  if (key === 'board' && doc.board && !isGm(member)) return Object.assign({}, doc, { board: sceneFor(doc.board, member, S, board) });
   return doc;
 }
-/* Una campaña tal como la ve este miembro: el jugador, sin las notas del director y con cada escena filtrada */
-function campaignFor(c, member, settings) {
+/* Una campaña tal como la ve este miembro: el jugador, sin las notas del director y con cada escena filtrada.
+   `board` (Ruling R3b): Map de definiciones `p:` del tablero, para sceneFor. */
+function campaignFor(c, member, settings, board) {
   if (isGm(member)) return c;
   const boards = {};
-  for (const [k, v] of Object.entries(c.boards || {})) boards[k] = Object.assign({}, v, { data: sceneFor(v.data, member, cleanSettings(settings)) });
+  for (const [k, v] of Object.entries(c.boards || {})) boards[k] = Object.assign({}, v, { data: sceneFor(v.data, member, cleanSettings(settings), board) });
   return Object.assign({}, c, { boards, notes: {} });
 }
 
@@ -669,14 +690,14 @@ function cleanTokens(map) {
 }
 
 /* Documento de la mesa en vivo tal como se guarda. `tokens` (opcional): las fichas de la mesa, para nombrar las entradas de
-   un combate de antes. */
-function cleanLiveDoc(key, data, tokens) {
+   un combate de antes. `board` (Ruling R3b): Map de definiciones `p:` del tablero, para cleanMap. */
+function cleanLiveDoc(key, data, tokens, board) {
   if (!LIVE_KEYS.includes(key) || !plainObject(data)) return null;
   let doc;
   if (key === 'board') {
     doc = { open: !!data.open, rev: Number.isInteger(data.rev) ? data.rev : 0 };
     if (docId(data.scene)) doc.scene = data.scene; // la escena guardada que muestra la mesa (para cruzar portales)
-    if ('board' in data) { const map = cleanMap(data.board); if (!map) return null; doc.board = map; }
+    if ('board' in data) { const map = cleanMap(data.board, board); if (!map) return null; doc.board = map; }
   } else if (key === 'tokens') {
     doc = { tokens: cleanTokens(data.tokens) };
   } else if (key === 'doors') {
@@ -706,14 +727,17 @@ function merge(a, b) {
 }
 
 /* Puertas que un jugador quiere abrir o cerrar: las que cambian tienen que ser puertas de la escena de la mesa, sin llave, y
-   el tablero tiene que dejar a los jugadores abrirlas (playersDoors, como JA-VTT). Devuelve un texto de error o null. */
+   el tablero tiene que dejar a los jugadores abrirlas (playersDoors, como JA-VTT). Devuelve un texto de error o null.
+   `ctx.pieces` (Ruling R3b, si viene): Map de definiciones `p:` del tablero, para que una puerta `p:` se reconozca igual
+   que una de fábrica. */
 function playerDoors(doc, current, ctx) {
   const settings = cleanSettings(ctx && ctx.settings);
   const board = ctx && ctx.board && plainObject(ctx.board.board) ? ctx.board.board : null;
+  const pieces = ctx && ctx.pieces;
   for (const [k, v] of Object.entries(doc.d)) {
     if ((current.d && current.d[k] ? 1 : 0) === v) continue;
     const [x, z] = k.split('_').map(Number);
-    const door = board && (board.props || []).find((p) => Catalogo.isDoor(p) && p.x === x && p.z === z);
+    const door = board && (board.props || []).find((p) => Catalogo.isDoor(p, pieces) && p.x === x && p.z === z);
     if (!door) return 'Ahí no hay ninguna puerta';
     if (!settings.playersDoors) return 'El director no deja a los jugadores abrir puertas';
     if (door.locked) return 'Esa puerta está cerrada con llave';
@@ -723,8 +747,8 @@ function playerDoors(doc, current, ctx) {
 
 /* ¿Puede este miembro aplicar este cambio a la mesa en vivo? Devuelve el documento nuevo
    (ya saneado) o un texto de error. `current` es el documento actual (o null); `ctx` = { board: el documento
-   live/board, settings: los ajustes del tablero, tokens: las fichas de live/tokens } para las puertas, el combate y los
-   planos del jugador. */
+   live/board, settings: los ajustes del tablero, tokens: las fichas de live/tokens, pieces: Map de definiciones `p:`
+   del tablero (Ruling R3b) } para las puertas, el combate y los planos del jugador. */
 function liveChange(member, key, op, data, current, ctx) {
   if (!LIVE_KEYS.includes(key) || !['set', 'update', 'delete'].includes(op)) return { error: 'Operación no válida' };
   const gm = member.role === 'gm';
@@ -734,9 +758,10 @@ function liveChange(member, key, op, data, current, ctx) {
     current = { plans: {} }; // una mesa abierta antes de que hubiera planos
   }
   const tokens = ctx && ctx.tokens ? ctx.tokens : {};
+  const pieces = ctx && ctx.pieces;
   if (!gm && key === 'combat' && op === 'update') return playerCombat(String(member.user_id), current, plainObject(data) ? data : {}, tokens);
   const next = op === 'update' ? merge(JSON.parse(JSON.stringify(current)), plainObject(data) ? data : {}) : data;
-  const doc = cleanLiveDoc(key, next, tokens);
+  const doc = cleanLiveDoc(key, next, tokens, pieces);
   if (!doc) return { error: 'Datos no válidos' };
   if (gm) return { doc };
   if (key === 'doors' && op === 'update') { const err = playerDoors(doc, current, ctx); return err ? { error: err } : { doc }; }

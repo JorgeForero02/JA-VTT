@@ -37,6 +37,26 @@ test('cleanMap: un campo ajeno en cada pieza (relleno) ya no infla la escena: se
   assert.ok(R.docBytes(m) < R.SCENE_MAX_BYTES / 4, 'sin el relleno el tamaño real se queda muy por debajo del tope');
 });
 
+test('cleanProp: cada pieza guarda sólo lo suyo — un cofre pierde los campos ajenos; luz y portal conservan los suyos; level/side inválidos, fuera (ronda de arreglos 1)', () => {
+  const m = R.cleanMap(F.map(8, { props: [
+    { type: 'chest', x: 1, z: 1, name: 'Cofre del tesoro', target: { scene: 'x', portal: 1 }, color: '#ff0000', open: true, level: 3, side: 'N' },
+    { type: 'light', x: 2, z: 1, preset: 'torch', r: 6, h: 1, color: '#ff9c50', intensity: 1, anim: 'flicker', angle: 10, rot: 20, darkness: true, on: false, name: 'Farol', hack: 1 },
+    { type: 'portal', x: 3, z: 1, id: 5, look: 'cave', target: { scene: 'b1', portal: 2 }, name: 'Cueva', color: 'no', preset: 'no' },
+    { type: 'chest', x: 4, z: 1, level: 99, side: 'X' },
+    { type: 'chest', x: 5, z: 1, level: 3.5, side: 'NE' },
+  ] }));
+  const by = (x) => m.props.find((p) => p.x === x);
+  assert.deepEqual(Object.keys(by(1)).sort(), ['def', 'level', 'side', 'type', 'uid', 'v', 'x', 'z'].sort(), 'un cofre no es puerta/luz/portal: pierde name/target/color/open, conserva level/side válidos');
+  assert.equal(by(1).level, 3);
+  assert.equal(by(1).side, 'N');
+  assert.deepEqual(Object.keys(by(2)).sort(), ['angle', 'anim', 'color', 'darkness', 'def', 'h', 'intensity', 'name', 'on', 'preset', 'r', 'rot', 'type', 'uid', 'v', 'x', 'z'].sort(), 'la luz conserva sus propios campos (y nada de `hack`)');
+  assert.deepEqual(Object.keys(by(3)).sort(), ['def', 'id', 'look', 'name', 'target', 'type', 'uid', 'v', 'x', 'z'].sort(), 'el portal conserva id/look/target/name (no color/preset, que no son suyos)');
+  assert.equal(by(4).level, undefined, 'level fuera de 0–15 se quita');
+  assert.equal(by(4).side, undefined, 'side que no es N/E/S/W se quita');
+  assert.equal(by(5).level, undefined, 'level no entero se quita');
+  assert.equal(by(5).side, undefined, '"NE" no es un lado válido');
+});
+
 test('cleanCampaign: conserva escenas válidas, notas y la escena actual', () => {
   const raw = F.campaign();
   raw.boards.MAL = { name: 'x', data: F.map(8) };
@@ -296,8 +316,9 @@ test('muros: los objetos de muro se sanean (puerta con llave, ventana, velo, mal
     { type: 'door', x: 1, z: 1, v: 1, open: true, locked: true, state: { open: true, locked: true } },
     { type: 'gate', x: 2, z: 1, v: 0, open: false, state: { open: false, locked: false } },
     { type: 'window', x: 3, z: 1, v: 1 }, { type: 'veil', x: 4, z: 1, v: 0 }, { type: 'cover', x: 5, z: 1, v: 2 }, { type: 'barrier', x: 6, z: 1, v: 3 },
-    { type: 'tree', x: 1, z: 2, v: 0, open: false },
-  ], 'una casilla que no es entera se descarta; los demás objetos pasan como antes (Tarea 4: def/uid/state completos; un campo ajeno como `extra` ya no se guarda sin validar)');
+    { type: 'tree', x: 1, z: 2, v: 0 },
+  ], 'una casilla que no es entera se descarta; los demás objetos pasan como antes (Tarea 4: def/uid/state completos; ' +
+    'un campo ajeno como `extra` ya no se guarda sin validar; ronda de arreglos 1: un `open` que no es de una puerta tampoco)');
   assert.deepEqual(R.WALL_KINDS, ['wall', 'door', 'window', 'veil', 'cover', 'barrier', 'portal']);
 });
 
