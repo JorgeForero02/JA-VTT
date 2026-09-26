@@ -394,6 +394,44 @@ try {
   step('M4/M5: con /pieces caído la escena se abre (p: opacas); al cargar en un reintento, vista y luz se recalculan solas',
     opened && failing && failing.velo.every((v) => v === true) && failing.farol <= failing.dark + 0.02 && healed && after.velo.every((v) => v === false) && after.farol > after.dark + 0.1,
     JSON.stringify({ opened, failing, healed, after }));
+  // P-48 (a): una puerta p: de 2×1 cerrada bloquea en el cliente sus DOS casillas, como el servidor (gridOf); abierta, ninguna.
+  // Hilera de muro en z=4 con el hueco (3,4)–(4,4) tapado por la puerta; todo se toca en (4,4), la casilla que no es su esquina.
+  // (b): WALLAT con varias piezas por casilla — una p: que tapa la vista puesta ANTES que una ventana de fábrica en la misma
+  // casilla la tapa (antes la ventana la pisaba); quitando la p:, se vuelve a ver a través de la ventana.
+  const pzPut2 = await gm.evaluate(async ([id, defs]) => { const out = [];
+    for (const d of defs) out.push((await fetch(`/api/t3d/boards/${id}/pieces/${d.id.slice(2)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })).status);
+    return out; }, [pzBoard, [pdef('puerta02', { door: {}, move: { block: true }, sight: 'block', light: 'block' }), pdef('tapa01', { move: { block: false }, sight: 'block', light: 'none' }, { w: 1 })]]);
+  const dT = []; for (let z = 0; z < 8; z++) for (let x = 0; x < 8; x++) dT.push(z === 4 && x !== 3 && x !== 4 ? 'w' : 'g');
+  const tapa = { type: 'obj:o_tapa01', def: 'p:tapa01', x: 5, z: 1, v: 0 };
+  const puertaScene = { v: 2, name: 'Puerta p', w: 8, d: 8, h: flat16(64, '2'), t: dT.join(''), wsrc: flat16(64, '0'), roofs: [], start: [0, 0], env: 'day', fog: false, animate: false, seen: '',
+    props: [{ type: 'obj:o_puerta02', def: 'p:puerta02', x: 3, z: 4, v: 0, open: false }, tapa, { type: 'window', x: 5, z: 1, v: 0 }, { type: 'window', x: 1, z: 1, v: 0 }, Object.assign({}, tapa, { x: 1 })],
+    minis: [{ kind: 'knight', x: 0, z: 0, fx: 0, fz: 1, id: 'k1' }] };
+  // se abre la última escena guardada: si un autoguardado de «Piezas 2» llega después del PUT, se vuelve a intentar
+  let pzOpen = false;
+  for (let k = 0; k < 3 && !pzOpen; k++) {
+    await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/pz3`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [pzBoard, puertaScene]);
+    await gm.reload();
+    pzOpen = await gm.waitForFunction(() => /^Puerta p/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 5, null, { timeout: 15000 }).then(() => true, () => false);
+  }
+  const doorNow = () => gm.evaluate(() => ({ cells: [t3dView.probe('cell', 3, 4), t3dView.probe('cell', 4, 4)], route: t3dView.probe('route', 'k1', 0, 7),
+    open: !!(t3dView.probe('props').find((p) => p.type === 'obj:o_puerta02') || {}).open }));
+  const menu = async (label) => { const at2 = await gm.evaluate(() => t3dView.probe('screen', 4, 4)); await gm.mouse.click(at2.x, at2.y, { button: 'right' });
+    return gm.click(`#t3d-ctxMenu button:has-text("${label}")`, { timeout: 3000 }).then(() => true, () => gm.keyboard.press('Escape').then(() => false)); };
+  const dShut = await doorNow();
+  const dOpened = await menu('Abrir la puerta'); const dOpen = await doorNow();
+  const dLocked = await menu('Cerrar con llave'); const dLock = await doorNow();
+  const dUnlocked = await menu('Quitar la llave'); const dClosed = await doorNow();
+  const shut = (s, locked) => !s.open && s.cells.every((c) => c && c.blocked && c.shut && c.locked === locked);
+  step('P-48 (a): puerta p: 2×1 — cerrada bloquea sus dos casillas, abierta ninguna; con llave nadie pasa, sin llave el director la cruza; se toca en cualquier casilla',
+    pzOpen && pzPut2.every((x) => x === 200) && shut(dShut, false) && dShut.route !== null && dOpened && dOpen.open && dOpen.cells.every((c) => c && !c.blocked && !c.shut) && dOpen.route !== null &&
+    dLocked && shut(dLock, true) && dLock.route === null && dUnlocked && shut(dClosed, false) && dClosed.route !== null,
+    JSON.stringify({ pzOpen, pzPut2, dShut, dOpened, dOpen, dLocked, dLock, dUnlocked, dClosed }));
+  const winLos = () => gm.evaluate(() => [t3dView.probe('los', 5, 0, 5, 3, 'sight'), t3dView.probe('los', 1, 0, 1, 3, 'sight')]);
+  const tapada = await winLos();
+  await importJson(Object.assign({}, puertaScene, { name: 'Puerta q', props: puertaScene.props.filter((p) => p.def !== 'p:tapa01') }), 'Puerta q');
+  const sinTapa = await winLos();
+  step('P-48 (b): una p: que tapa sobre una ventana de fábrica tapa la vista (esté antes o después en la lista); sin ella, se ve por la ventana',
+    tapada.every((v) => v === false) && sinTapa.every((v) => v === true), JSON.stringify({ tapada, sinTapa }));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

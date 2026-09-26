@@ -665,7 +665,7 @@ test('muros: portal — no se cruza andando; el de pie tapa vista y luz como en 
 });
 
 test('muros: el motor aplica las banderas (vista, luz, paso, ocultar) con muros.js y la ocultación de la maleza', () => {
-  assert.match(engine, /bk:\(i,flag\)=>\{ const p=WALLAT\.get\(i\); return !!p&&Muros\.blocks\(p,flag,PIECES\); \}/, 'Vision.los y lightReaches consultan los muros (con las p: del tablero)');
+  assert.match(engine, /bk:wallBlocks \};/, 'Vision.los y lightReaches consultan los muros (con las p: del tablero)');
   assert.match(engine, /Vision\.los\(GRID,ex,ez,x,z,.*,'hide'\)/, 'la niebla usa la línea que tapa la maleza para las fichas');
   assert.match(engine, /fogVis\(idx\(x,z\)\)===2&&hideOK\(idx\(x,z\)\)/);
   assert.match(engine, /if\(b\.gmOnly&&!gmView\(\)\) show=false;/, 'la barrera sólo la ve el director');
@@ -794,7 +794,7 @@ test('ventanas: una ventana que da fuera deja entrar el ambiente hacia dentro (c
   const dm = Ambiente.interiorMask(9, 5, [{ x: 1, z: 1, w: 7, d: 4 }], '');
   assert.ok(Ambiente.windowLight(D.g, dm, D.openings, D.reach)[2 * 9 + 4] > 0.7);
   // el motor: la luz de las ventanas y las puertas abiertas, sobre la rejilla sin techos abiertos, llega al sombreador y a la niebla
-  assert.match(engine, /const openings=\(\)=>M\.props\.filter\(p=>FT\(p\)==='window'\|\|\(Catalogo\.isDoor\(p,PIECES\)&&p\.open\)\);/);
+  assert.match(engine, /const openings=\(\)=>M\.props\.filter\(p=>FT\(p\)==='window'\|\|\(Catalogo\.isDoor\(p,PIECES\)&&p\.open\)\)\.flatMap\(p=>\{ const cs=propCells\(p\); return cs\.length===1\?\[p\]:cs\.map\(\(\[x,z\]\)=>\(\{x,z\}\)\); \}\);/, 'una puerta de varias casillas abre por cada una (P-48)');
   assert.match(engine, /if\(!ambientLit\(i\)&&d2>\(dark\+0\.5\)\*\*2&&d2>2\)/, 'la niebla aplica la regla de oscuridad en las zonas interiores');
   assert.match(engine, /mix\(uDark, uAmbient, a\)\*shadeTint\(s\)/, 'el sombreador');
 });
@@ -855,7 +855,7 @@ test('I4 cliente: Muros no trata como portal/escalera de fábrica una pieza p: c
 test('motor (ola final): factoryType, WALLAT por componentes, árbol v%3, carga de piezas y lote de puertas', () => {
   assert.match(engine, /const FT=p=>Catalogo\.factoryType\(p\);/);
   assert.doesNotMatch(engine, /\b(p|q|x|b\.prop)\.type==='(portal|light|window|stairs)'/, 'nada decide por p.type de portal/luz/ventana/escalera');
-  assert.match(engine, /else if\(!wk&&D\)\{ const c=senseOf\(D\); if\(c\)\{ for\(const \[cx,cz\] of propCells\(p\)\) if\(inb\(cx,cz\)\) WALLAT\.set\(idx\(cx,cz\),p\); if\(c\.hide\) HAS_COVER=true; \} \}/);
+  assert.match(engine, /else if\(!wk&&D\)\{ const c=senseOf\(D\); if\(c\)\{ for\(const \[cx,cz\] of propCells\(p\)\) if\(inb\(cx,cz\)\) wallAdd\(idx\(cx,cz\),p\); if\(c\.hide\) HAS_COVER=true; \} \}/);
   assert.match(engine, /const st=STACK\[\(opt\.v\|0\)%3\];/);
   assert.match(engine, /PIECES_OK=true; piecesDone\(\); if\(M&&PIECES\.size\)\{ refreshEntities\(\); rebuildRegion\(0,0,M\.w-1,M\.d-1\); lightDirty=true; fogDirty=true; \}/);
   assert.match(engine, /catch\(e\)\{ if\(stopped\) return; piecesDone\(\);/, 'abrir no espera a que carguen las piezas (M4)');
@@ -863,4 +863,16 @@ test('motor (ola final): factoryType, WALLAT por componentes, árbol v%3, carga 
   assert.match(engine, /if\(batch\) batch\.push\(p\); else doorRelight\(p\);/);
   assert.match(engine, /return Catalogo\.complete\(q,PIECES\); \}\)\.slice\(0,5000\);\n\s*Catalogo\.dedupeUids\(props\);/, 'M1: deserialize quita uid repetidos como el servidor');
   assert.match(engine, /if\(typeof p\.def==='string'\) q\.def=p\.def; Object\.assign\(q,levelSide\(p\)\);/, 'M2: deserialize conserva level/side');
+});
+
+/* P-48: (a) una puerta de varias casillas bloquea, se abre, se echa la llave y se toca en toda su huella (como gridOf del
+   servidor); (b) WALLAT guarda varias piezas por casilla y tapa si alguna tapa. Lo prueba de verdad test/e2e/t3d.mjs. */
+test('P-48: puertas por su huella y WALLAT con varias piezas por casilla', () => {
+  assert.equal((engine.match(/WALLAT\.set\(/g) || []).length, 1, 'WALLAT sólo se escribe en wallAdd');
+  assert.match(engine, /function wallAdd\(i,p\)\{ const ps=WALLAT\.get\(i\); if\(ps\) ps\.push\(p\); else WALLAT\.set\(i,\[p\]\); \}/);
+  assert.match(engine, /function wallBlocks\(i,flag\)\{ const ps=WALLAT\.get\(i\); if\(!ps\) return false; for\(const p of ps\) if\(Muros\.blocks\(p,flag,PIECES\)\) return true; return false; \}/);
+  assert.equal((engine.match(/bk:wallBlocks/g) || []).length, 2, 'GRID y AGRID preguntan a wallBlocks');
+  assert.match(engine, /const cs=doorCells\(p\); if\(!p\.open\) for\(const k of cs\)\{ blocked\.add\(k\); doorShut\.add\(k\); \} if\(p\.locked\) for\(const k of cs\) lockedDoors\.add\(k\);/);
+  assert.match(engine, /for\(const i of doorCells\(p\)\)\{ if\(p\.open\)\{ blocked\.delete\(i\); doorShut\.delete\(i\); \} else \{ blocked\.add\(i\); doorShut\.add\(i\); \} \}/);
+  assert.match(engine, /if\(p\.x===x&&p\.z===z\) return p; if\(!hit&&propCovers\(p,x,z\)\) hit=p;/, 'doorAt: la esquina primero, luego la que cubre');
 });
