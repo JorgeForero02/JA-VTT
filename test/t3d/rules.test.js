@@ -471,3 +471,54 @@ test('cleanMap: las zonas interiores pintadas (zoneCells, una letra por casilla)
   const doc = R.cleanLiveDoc('board', { open: true, rev: 2, board: F.map(8, { env: 'night', ambient: 0.3, zoneCells: zc }) });
   assert.deepEqual([doc.board.env, doc.board.ambient, doc.board.zoneCells], ['night', 0.3, zc]);
 });
+
+/* ---- Tarea 5, R12(a): una puerta `p:` sin estados no debe guardar open/locked en crudo ---- */
+// una puerta del tablero (sin `states`: el autor de la definición no los declaró); no pasa por cleanWallProp
+// (que sólo conoce los tipos de fábrica), así que cleanProp tiene que coaccionar open/locked por su cuenta.
+const puertaSinEstados = { schema: 1, id: 'p:puerta1', name: 'Puerta', class: 'wall', art: { base: 'y' },
+  shape: { w: 1, d: 1, height: 1, orient: true, random: false, layer: 'wall', low: false },
+  components: { move: { block: true }, sight: 'block', light: 'block', door: {} }, variants: [], interactions: [], reactions: [] };
+
+test('cleanProp: una puerta `p:` sin estados coacciona open/locked igual que cleanWallProp (R12a)', () => {
+  const board = new Map([[puertaSinEstados.id, puertaSinEstados]]);
+  const m = R.cleanMap(F.map(8, { props: [{ type: 'y', def: 'p:puerta1', x: 1, z: 1, open: 1, locked: 'no' }] }), board);
+  const p = m.props[0];
+  assert.equal(p.open, true, 'open se coacciona a booleano (antes: el 1 crudo)');
+  assert.equal(p.locked, undefined, '"no" es verdadero en JS: sin coacción quedaría cerrada con llave');
+});
+
+/* ---- Tarea 5, R12(b): lo que dejó sin probar la Tarea 4 en los caminos que ahora reciben `board` ---- */
+const cofreDef = { schema: 1, id: 'p:cofre1', name: 'Cofre', class: 'object', art: { base: 'z' },
+  shape: { w: 1, d: 1, height: 1, orient: true, random: false, layer: 'object', low: false },
+  components: { move: { block: true }, sight: 'none', light: 'none' }, variants: [], interactions: [], reactions: [] };
+
+test('cleanCampaign y cleanLiveDoc(board) conservan una pieza `p:` del tablero si reciben sus definiciones (R12b)', () => {
+  const board = new Map([[cofreDef.id, cofreDef]]);
+  const raw = Object.assign({}, F.campaign(), { boards: { tpueblo: { name: 'Pueblo', data: F.map(8, { props: [{ type: 'z', def: 'p:cofre1', x: 1, z: 1 }] }) } } });
+  const camp = R.cleanCampaign(raw, board);
+  assert.deepEqual(camp.boards.tpueblo.data.props.map((p) => p.def), ['p:cofre1'], 'con las definiciones a mano, la pieza no se descarta');
+  assert.deepEqual(R.cleanCampaign(raw).boards.tpueblo.data.props, [], 'sin ellas (como antes de la Tarea 5), se pierde');
+  const doc = R.cleanLiveDoc('board', { open: true, rev: 1, board: F.map(8, { props: [{ type: 'z', def: 'p:cofre1', x: 2, z: 2 }] }) }, null, board);
+  assert.deepEqual(doc.board.props.map((p) => p.def), ['p:cofre1']);
+});
+
+test('playerDoors reconoce una puerta `p:` del tablero por ctx.pieces, igual que una de fábrica (R12b)', () => {
+  const pieces = new Map([[puertaSinEstados.id, puertaSinEstados]]);
+  const board = { open: true, board: { props: [{ type: 'y', def: 'p:puerta1', x: 2, z: 2, open: false }] } };
+  const doc = { d: { '2_2': 1 } };
+  assert.equal(R.playerDoors(doc, { d: {} }, { settings: { playersDoors: true }, board, pieces }), null, 'la reconoce y la deja abrir');
+  assert.match(R.playerDoors(doc, { d: {} }, { settings: { playersDoors: true }, board }), /ninguna puerta/, 'sin ctx.pieces no la reconoce');
+});
+
+test('travelPlan: una pieza `p:` que bloquea cuenta como ocupada al buscar sitio de llegada (R12b)', () => {
+  const muroDef = { schema: 1, id: 'p:muro1', name: 'Muro', class: 'object', art: { base: 'm' },
+    shape: { w: 1, d: 1, height: 1, orient: true, random: false, layer: 'object', low: false },
+    components: { move: { block: true }, sight: 'none', light: 'none' }, variants: [], interactions: [], reactions: [] };
+  const board = new Map([[muroDef.id, muroDef]]);
+  const src = R.cleanMap(F.map(8, { minis: [{ kind: 'knight', x: 0, z: 0, id: 'k1', sheet: { kind: 'player' } }] }));
+  const dst = R.cleanMap(F.map(8, { start: [3, 3], minis: [], props: [{ type: 'm', def: 'p:muro1', x: 3, z: 3 }] }), board);
+  const plan = R.travelPlan(src, dst, { portal: null, players: true }, board);
+  assert.deepEqual(plan.moved, ['k1']);
+  const k1 = plan.dst.minis.find((q) => q.id === 'k1');
+  assert.notDeepEqual([k1.x, k1.z], [3, 3], 'la pieza del tablero bloquea la casilla como si fuera de fábrica');
+});
