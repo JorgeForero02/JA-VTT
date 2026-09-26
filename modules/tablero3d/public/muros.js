@@ -11,6 +11,7 @@
    `normProp` lee igual que `cleanWallProp` del servidor; `arrival` calcula igual que el servidor dónde aparecen las fichas
    que cruzan (otro test los compara). */
 (window.Tablero3D=window.Tablero3D||{}).Muros=(()=>{
+  const C=window.Tablero3D.Catalogo;   // catalogo.js se carga antes (t3d.js)
   const WALL_TYPES={
     wall:{name:'Muro',icon:'brick-wall',sight:1,light:1,move:1,color:'#6FB8A8',desc:'Bloquea vista, luz y paso'},
     door:{name:'Puerta',icon:'door-closed',sight:1,light:1,move:1,color:'#F0B35A',door:1,desc:'Como un muro mientras está cerrada'},
@@ -21,7 +22,8 @@
     portal:{name:'Portal',icon:'log-in',sight:1,light:1,move:1,color:'#E8A0BF',portal:1,desc:'Puerta a otra escena: un clic junto a él lleva al personaje allí'}
   };
   const WALL_KINDS=Object.keys(WALL_TYPES);
-  const DOOR_PROPS=['door','gate'];
+  const FACT=Object.keys(C.FACTORY).filter(k=>C.FACTORY[k].class!=='terrain').map(k=>k.slice(2));
+  const DOOR_PROPS=FACT.filter(t=>C.isDoor({type:t}));
   const PROP_KINDS=['window','veil','cover','barrier','portal'];
   /* Aspectos de un portal: cada uno es un objeto por capas del motor (PROP3D, oculto en la paleta y editable en «Todo el arte»).
      Los de suelo (escalera, trampilla) no tapan la vista ni la luz: se ven por encima; los de pie, sí (como en JA-VTT). */
@@ -37,15 +39,12 @@
   const SCENE_ID=/^[A-Za-z0-9_-]{1,64}$/, CAMP_ID=/^[a-z0-9]{2,16}$/;
   /* Lo que el servidor necesita saber de los objetos para colocar fichas (lo comprueba un test contra PROP3D):
      los que se pisan y los que ocupan varias casillas [ancho, fondo] desde su esquina (girados 90° se cambian). */
-  const PASSABLE=['light','stairs','bridge','bridge2','veil','cover'];
-  const SPANS={stall:[2,1],stall2:[2,1],bridge2:[2,1],windmill:[3,3],cart:[2,1]};
+  const PASSABLE=FACT.filter(t=>!C.blocksMove({type:t})&&!C.isDoor({type:t}));
+  const SPANS=Object.fromEntries(FACT.map(t=>[t,C.span({type:t})]).filter(([,s])=>s[0]>1||s[1]>1));
 
-  const kindOf=p=>!p||typeof p.type!=='string'?null:DOOR_PROPS.includes(p.type)?'door':PROP_KINDS.includes(p.type)?p.type:null;
-  // ¿tapa este objeto (flag: 'sight' | 'light' | 'move' | 'hide')? El blocks() de JA-VTT: una puerta abierta no tapa nada y
-  // 'hide' (lo que esconde fichas) es lo que tapa la vista más la maleza. Un portal de suelo no tapa vista ni luz.
-  function blocks(p,flag){ const k=kindOf(p), T=WALL_TYPES[k]; if(!T) return false; if(T.door&&p.open) return false;
-    if(T.portal&&flag!=='move'&&!(PORTAL_LOOKS[p.look]||PORTAL_LOOKS.door).upright) return false;
-    if(flag==='hide') return !!(T.hide||T.sight); return !!T[flag]; }
+  const kindOf=p=>!p||typeof p.type!=='string'?null:C.wallKind(p);
+  // ¿tapa este objeto (flag: 'sight' | 'light' | 'move' | 'hide')? Lo dice su definición (catalogo.js)
+  function blocks(p,flag){ return C.blocks(p,flag); }
   // id del portal en que se convierte una escalera de campaña de antes: sale de su casilla, así la de ida y la de vuelta se
   // encuentran sin mirar la otra escena (el cliente y el servidor lo calculan igual)
   const stairsId=(x,z)=>1+z*MAP_MAX+x;
@@ -74,14 +73,13 @@
   /* ---- llegada: dónde aparecen las fichas que cruzan un portal (la idea de arrivalPoints de JA-VTT, por casillas) ----
      Rejilla de una escena guardada (`serialize`) o cargada: se pisa si no es muro, lava ni agua, no hay un objeto que ocupe
      la casilla (salvo los que se pisan) ni otra ficha. */
-  function spanOf(p){ const s=SPANS[p.type]||[1,1]; return (p.v|0)%2?[s[1],s[0]]:s; }
   function gridOf(m){
     const w=m.w, d=m.d, n=w*d, open=new Uint8Array(n), h=new Int8Array(n);
     for(let i=0;i<n;i++){ const tt=m.t[i], hv=typeof m.h==='string'?parseInt(m.h[i],36):m.h[i], ws=m.wsrc!=null?m.wsrc:m.src;
       const water=ws!=null&&ws.length===n&&String(ws[i])!=='0';
       h[i]=hv|0; open[i]=tt!=='w'&&tt!=='l'&&tt!=='~'&&!water?1:0; }
     const off=(x,z,sw,sd)=>{ for(let j=0;j<sd;j++) for(let k=0;k<sw;k++){ const X=x+k, Z=z+j; if(X>=0&&Z>=0&&X<w&&Z<d) open[Z*w+X]=0; } };
-    for(const p of m.props||[]) if(p&&!PASSABLE.includes(p.type)&&Number.isInteger(p.x)&&Number.isInteger(p.z)){ const [sw,sd]=spanOf(p); off(p.x,p.z,sw,sd); }
+    for(const p of m.props||[]) if(p&&(C.blocksMove(p)||C.isDoor(p))&&Number.isInteger(p.x)&&Number.isInteger(p.z)){ const [sw,sd]=C.span(p); off(p.x,p.z,sw,sd); }
     for(const q of m.minis||[]) if(q&&Number.isInteger(q.x)&&Number.isInteger(q.z)){ const s=q.sheet&&int(q.sheet.size,1,4)?q.sheet.size:1; off(q.x,q.z,s,s); }
     return {w,d,open:i=>open[i]===1,h:i=>h[i]};
   }

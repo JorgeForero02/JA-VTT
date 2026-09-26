@@ -128,14 +128,14 @@ test('iconos: cada icono del módulo está en JA-VTT o viaja con el módulo (ico
 
 test('nada se carga de internet: scripts, estilos y fuentes son locales', () => {
   const files = [['index.html', html], ['css/app.css', hostCss], ...['js/main.js', 'js/net.js', 'js/store.js', 'js/icons.js'].map((f) => [f, read(f)]),
-    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', 'tablero3d.js'].map((f) => ['t3d/' + f, readMod(f)])];
+    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', 'tablero3d.js'].map((f) => ['t3d/' + f, readMod(f)])];
   for (const [f, text] of files) assert.doesNotMatch(text, /(src|href)=["']https?:|url\(\s*["']?https?:|googleapis|cdnjs|unpkg|jsdelivr|document\.write|import\(/i, f);
   const where = (s) => (s.startsWith('t3d/') ? path.join(MOD, s.slice(4)) : path.join(PUB, s));
   for (const s of [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) assert.ok(fs.existsSync(where(s)), s);
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -145,9 +145,9 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   ctx.window = ctx;
   vm.createContext(ctx);
   const before = new Set(Object.keys(ctx));
-  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', 'tablero3d.js']) vm.runInContext(readMod(f), ctx, { filename: f });
+  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', 'tablero3d.js']) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Dados', 'Fichas', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Catalogo', 'Dados', 'Fichas', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -564,7 +564,7 @@ test('arte por tamaño: los personajes de fábrica se dibujan en el lienzo de su
 });
 
 /* ---- muros y portales (T6b): los tipos de muro de JA-VTT por casilla (muros.js), su efecto en vista, luz, paso y ocultación ---- */
-const Muros = (() => { const ctx = {}; ctx.window = ctx; vm.runInNewContext(readMod('muros.js'), ctx); return ctx.Tablero3D.Muros; })();
+const Muros = (() => { const ctx = {}; ctx.window = ctx; vm.createContext(ctx); for (const f of ['catalogo.js', 'muros.js']) vm.runInContext(readMod(f), ctx); return ctx.Tablero3D.Muros; })();
 const JA_WALLS = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'ja-vtt', 'wall-types.json'), 'utf8'));
 
 test('muros: los tipos son los de JA-VTT (ids, nombres, iconos, colores, trazos, descripciones y banderas) en el cliente y en el servidor', () => {
@@ -804,4 +804,17 @@ test('ambiente: el pueblo tiene ventanas que dan fuera en sus casas; cada planti
   assert.ok((town.match(/win\(\d+,\d+,\d/g) || []).length >= 10, 'ventanas en las casas del pueblo');
   assert.match(engine, /roofs,env:'day',seed:77/); assert.match(engine, /roofs:\[\],env:'night',seed:91/);
   assert.match(engine, /env:'interior', start:\[rooms\[0\]\.cx/, 'la mazmorra, interior'); assert.match(engine, /env:'day', start:\[4,4\]/);
+});
+
+/* ---- T6: muros.js pregunta al catálogo (Tablero3D.Catalogo) en vez de llevar sus propias listas ---- */
+test('Muros por catálogo: kindOf, blocks y gridOf iguales que el servidor para la escena vieja', () => {
+  const ctx = { window: {} }; vm.createContext(ctx);
+  for (const f of ['catalogo.js', 'muros.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public', f), 'utf8'), ctx);
+  const Mu = ctx.window.Tablero3D.Muros, R = require('../../modules/tablero3d/rules');
+  const m = R.cleanMap(F2.escenaVieja());
+  const a = Mu.gridOf(m), b = R.gridOf(m);
+  for (let i = 0; i < m.w * m.d; i++) assert.equal(a.open(i), b.open(i), `casilla ${i}`);
+  assert.equal(Mu.kindOf({ type: 'gate' }), 'door');
+  assert.equal(Mu.blocks({ type: 'door', open: true }, 'sight'), false);
+  assert.deepEqual([...Mu.PASSABLE].sort(), [...R.PASSABLE_PROPS].sort());
 });

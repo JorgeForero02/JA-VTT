@@ -25,6 +25,7 @@
         if(typeof THREE==='undefined')await loadScript(BASE+'vendor/three.min.js');
         if(!T.Vision)await loadScript(BASE+'vision.js');
         if(!T.Fichas)await loadScript(BASE+'fichas.js');
+        if(!T.Catalogo)await loadScript(BASE+'catalogo.js');
         if(!T.Muros)await loadScript(BASE+'muros.js');
         if(!T.Ambiente)await loadScript(BASE+'ambiente.js');
         if(!T.Ajustes)await loadScript(BASE+'ajustes.js');
