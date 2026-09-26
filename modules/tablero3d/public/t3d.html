@@ -72,9 +72,10 @@
       <details class="fold t3d-gm" data-fold="t3d-esta" open>
         <summary><span class="foldTitle">Esta escena</span></summary>
         <div class="foldBody">
-          <p>Guárdala en el tablero para abrirla después desde el menú de escenas o llevarla a la mesa en vivo.</p>
+          <p>Se guarda sola en el tablero mientras la editas, como el 2D. «Guardar como nueva» crea una copia aparte con el nombre de abajo.</p>
           <label class="gateField"><span>Nombre</span><input id="t3d-bname" maxlength="40" aria-label="Nombre de la escena"></label>
-          <div class="row"><button class="btn primary" id="t3d-save" data-ic="save">Guardar en el tablero</button></div>
+          <p class="small muted" id="t3d-autosave" aria-live="polite"></p>
+          <div class="row"><button class="btn" id="t3d-save" data-ic="save">Guardar como nueva</button></div>
         </div>
       </details>
       <details class="fold t3d-gm" data-fold="t3d-luz" open>

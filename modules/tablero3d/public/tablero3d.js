@@ -2297,7 +2297,7 @@ on(window,'keydown',e=>{
   const key=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&key==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if((e.ctrlKey||e.metaKey)&&key==='y'){ e.preventDefault(); redo(); return; }
-  if((e.ctrlKey||e.metaKey)&&key==='s'){ e.preventDefault(); if(!LIVE.on||LIVE.dm) $('save').click(); return; }
+  if((e.ctrlKey||e.metaKey)&&key==='s'){ e.preventDefault(); if(!LIVE.on||LIVE.dm) autoSave(true); return; }
   if(e.ctrlKey||e.metaKey||e.altKey) return;
   keysDown.add(key==='shift'?'shift':key);
   if(key==='q') rotate(1); else if(key==='e') rotate(-1);
@@ -3063,12 +3063,37 @@ async function storeDelete(id){
   if(DB){ try{ await DB.collection('boards').doc(id).delete(); }catch(e){} }
   const all=lsAll(); if(all[id]){ delete all[id]; lsPut(all); }
 }
+const saveErr=e=>e&&e.code==='quota_exceeded'?'Se llenó el almacén del tablero. Borra alguna escena desde el menú de escenas.':e&&e.message?'No se pudo guardar: '+e.message:'No se pudo guardar: el almacenamiento no está disponible aquí.';
+/* «Guardar como nueva»: una copia aparte de la escena abierta, que pasa a ser la que se edita (y se guarda sola) */
 $('save').onclick=async()=>{
-  const obj=serialize(); obj.updated=Date.now();
-  if(!M.boardId) M.boardId=newSceneId();
-  try{ const where=await storeSave(M.boardId,obj); refreshScenes(); showHint(where==='db'?'«'+M.name+'» guardada en el tablero.':'«'+M.name+'» guardada en este navegador.'); }
-  catch(e){ showHint(e&&e.code==='quota_exceeded'?'Se llenó el almacén del tablero. Borra alguna escena desde el menú de escenas.':e&&e.message?'No se pudo guardar: '+e.message:'No se pudo guardar: el almacenamiento no está disponible aquí.',3500); }
+  if(CAMP){ autoSave(true); return; }
+  M.boardId=newSceneId(); AUTO.last=null;
+  await autoSave(true);
+  if(!AUTO.err) showHint('«'+M.name+'» guardada como escena nueva.');
 };
+/* ---- guardado automático, como el 2D: cada AUTO_MS se compara la escena (o la campaña abierta) con lo último guardado
+   y, si cambió, se guarda sola. Sólo el director (fuera de la mesa en vivo, o siendo su DM); abrir una escena no la guarda. ---- */
+const AUTO_MS=2000, AUTO={last:null,busy:false,at:0,err:null,failed:null};
+const autoKey=()=>{ const s=JSON.stringify(serialize()); return CAMP?s+'|'+CAMP.id+'|'+CAMP.cur+'|'+JSON.stringify(CAMP.notes)+'|'+CAMP.name:s; };
+const canAutoSave=()=>!!M&&gmView()&&!ROOT.classList.contains('t3d-player');
+function autoBaseline(){ try{ AUTO.last=autoKey(); }catch(e){ AUTO.last=null; } AUTO.err=null; AUTO.failed=null; renderAutoState(); }
+function renderAutoState(){ const el=$('autosave'); if(!el) return;
+  el.textContent=AUTO.busy?'Guardando…':AUTO.err?AUTO.err:AUTO.at?'Guardado en el tablero a las '+new Date(AUTO.at).toLocaleTimeString('es')+'.':''; }
+async function autoSave(now){
+  if(AUTO.busy||!canAutoSave()) return;
+  let key; try{ key=autoKey(); }catch(e){ return; }
+  if(AUTO.last===null&&!now){ AUTO.last=key; return; }   // primera mirada tras abrir: es lo que ya había
+  if(key===AUTO.last||(key===AUTO.failed&&!now)) return;
+  AUTO.busy=true; renderAutoState();
+  try{
+    if(CAMP){ campStore(); CAMP.updated=Date.now(); const rec=JSON.parse(JSON.stringify(CAMP));
+      if(DB) await DB.collection('campaigns').doc(CAMP.id).set(rec); else { const all=lsGet(LSC); all[CAMP.id]=rec; if(!lsSet(LSC,all)) throw {code:'local'}; } }
+    else { const obj=serialize(); obj.updated=Date.now(); if(!M.boardId) M.boardId=newSceneId(); await storeSave(M.boardId,obj); refreshScenes(); }
+    AUTO.last=key; AUTO.at=Date.now(); AUTO.err=null; AUTO.failed=null;
+  }catch(e){ AUTO.failed=key; AUTO.err=saveErr(e); showHint(AUTO.err,3500); }
+  finally{ AUTO.busy=false; renderAutoState(); }
+}
+every(()=>{ autoSave(false); },AUTO_MS);
 async function renderList(){
   const el=$('list'); el.textContent='Cargando…';
   const items=await storeList(); el.textContent=''; SCN=new Map(items.map(it=>[it.id,{name:it.name||'Escena',data:it}]));
@@ -4824,6 +4849,8 @@ moveMiniTo=function(b,x,z,quiet){
   if(LIVE.on&&!canControl(b)){ if(!quiet) showHint(miniName(b)+' lo controla otra persona.',1600); return false; }
   const okm=_mvCombat(b,x,z,quiet); if(okm&&LIVE.on){ liveTok(b); if(GM.active) liveCombat(); } return okm;
 };
+const _loadMap=loadMap;
+loadMap=function(...a){ const r=_loadMap(...a); AUTO.at=0; autoBaseline(); return r; };   // lo que se abre no se guarda hasta que cambie
 const _start=startCombat, _next=nextTurn, _end=endCombat, _dash=dash, _undo=undo, _redo=redo, _endStroke=endStroke, _setFog=setFog;
 startCombat=function(){ if(LIVE.on&&!LIVE.dm) return; _start(); liveCombat(); };
 nextTurn=function(){ const b=curMini(); if(LIVE.on&&(!b||!canControl(b))){ showHint(b?'Solo el DM o quien controla a '+miniName(b)+' puede pasar el turno.':'No es tu turno.',2000); return; }
@@ -5017,10 +5044,13 @@ function artKey(e){
 on(window,'keyup',e=>{ if(e.key===' ') ART.space=false; });
 
 /* ============ bucle ============ */
-const statsEl=$('stats'); let last=performance.now(), fAcc=0, fN=0, simAcc=0;
+const statsEl=$('stats'); let last=performance.now(), fAcc=0, fN=0, simAcc=0, cpuAcc=0;
+// lo último medido (cada medio segundo), para Mesa → Conexión del anfitrión: fps, ms de CPU por fotograma, llamadas y triángulos
+const RSTATS={fps:0,ms:0,calls:0,triangles:0};
 function ease(t){ return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
 function loop(now){
   if(stopped) return;
+  const t0=performance.now();
   const dt=Math.max(0,Math.min(0.05,(now-last)/1000)); last=now; state.time+=dt;   // el primer cuadro puede llegar marcado antes: nunca retroceder
   if(state.rotT<1){ state.rotT=Math.min(1,state.rotT+dt/0.3); state.yaw=state.yawFrom+(state.yawTarget-state.yawFrom)*ease(state.rotT); }
   // animate (JA-VTT, ajuste de escena) y movimiento reducido: sin él, agua, lava, llamas, halos y fichas quietos
@@ -5056,11 +5086,12 @@ function loop(now){
     renderer.setRenderTarget(rt); renderer.render(scene,camera);
     renderer.setRenderTarget(null); renderer.render(postScene,postCam);
   } else renderer.render(scene,camera);
-  fAcc+=dt; fN++;
+  fAcc+=dt; fN++; cpuAcc+=performance.now()-t0;
   if(fAcc>=0.5){
     const info=renderer.info.render, tri=info.triangles;
     statsEl.textContent=`${Math.round(fN/fAcc)} fps · ${info.calls} llamadas · ${tri>=1000?(tri/1000).toFixed(1)+' mil':tri} triángulos`;
-    fAcc=0; fN=0;
+    Object.assign(RSTATS,{fps:Math.round(fN/fAcc),ms:+(cpuAcc/fN).toFixed(1),calls:info.calls,triangles:tri});
+    fAcc=0; fN=0; cpuAcc=0;
   }
   requestAnimationFrame(loop);
 }
@@ -5100,7 +5131,7 @@ function probe(q,...a){
     for(let i=0;i<d.length;i++) sum=(sum*31+d[i])>>>0; return {custom:!!CUSTOM.chars[a[0]],w:im.width,h:im.height,sum}; }
   return null;
 }
-return {probe,destroy(){
+return {probe,stats:()=>({...RSTATS}),destroy(){
   stopped=true; offs.forEach(f=>{ try{ f(); }catch(e){} }); offs.length=0;
   try{ renderer.dispose(); renderer.forceContextLoss(); }catch(e){}
 }};
