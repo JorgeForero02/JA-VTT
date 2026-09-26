@@ -83,5 +83,5 @@ const Weather=(()=>{
   }
   function resize(){requestRender()}   // el reajuste real ocurre en invalidate(), tras drawScene
   const mounted=()=>!!fx;
-  return{sync,invalidate,resize,mounted,clipPolyRect};
+  return{sync,invalidate,resize,mounted,clipPolyRect,unmount}; // t3d: la mesa 3D quita el clima 2D
 })();

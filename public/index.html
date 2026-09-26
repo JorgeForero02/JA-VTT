@@ -6,6 +6,12 @@
 <title>Just Another VTT</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/app.css">
+<style>/* t3d: en una mesa 3D se esconde lo que es sólo de la escena 2D; etiqueta 2D/3D del panel */
+#app.is3d #rail,#app.is3d #stageWrap,#app.is3d #sceneBtn,#app.is3d #roleSeg,#app.is3d #viewAsWrap,#app.is3d #fogOfWrap,
+#app.is3d #previewBtn,#app.is3d #undoBtn,#app.is3d #redoBtn,#app.is3d #exportBtn,#app.is3d #importBtn,
+#app.is3d .tabs [data-tab="scene"],#app.is3d .tabs [data-tab="lights"],#app.is3d .tabs [data-tab="tokens"],
+#app.is3d #tab-live>[data-fold=reglas],#app.is3d #tab-live>[data-fold=mesa],#app.is3d #tab-chat>[data-fold=iniciativa]{display:none!important}
+.t3dType{margin-left:8px;padding:2px 7px;border:1px solid var(--line);border-radius:99px;font:700 11px/1 var(--sans);color:var(--fog);vertical-align:middle}.t3dType.is3d{border-color:var(--amber);color:var(--amber)}</style>
 </head>
 <body>
 <section id="loginView" class="gate" hidden>
@@ -42,6 +48,7 @@
       <form id="newBoardForm" class="dashCard">
         <h2>Nuevo tablero</h2>
         <label class="gateField"><span>Nombre</span><input id="newBoardName" maxlength="60" placeholder="La cripta del lunes" required></label>
+        <label class="gateField" id="newBoardTypeField" hidden><span>Tipo de mesa (no se cambia después)</span><select id="newBoardType"><option value="2d">Mesa 2D</option><option value="3d">Mesa 3D</option></select></label><!-- t3d -->
         <button class="btn primary" type="submit" data-ic="plus">Crear y abrir</button>
       </form>
       <form id="joinForm" class="dashCard">
@@ -93,6 +100,7 @@
   <span class="brand hideSm">Just Another VTT</span>
   <input id="sceneName" aria-label="Nombre del tablero" value="">
   <button id="sceneBtn" class="sceneBtn" title="Escenas del tablero" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /> <path d="M15 5.764v15" /> <path d="M9 3.236v15" /></svg><span id="sceneBtnName"></span><svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+  <div data-t3d-slot="scene-button" style="display:contents"></div>
   <button id="liveBadge" title="Participantes"><i></i><span></span></button>
   <span class="grow"></span>
   <span id="roleBadge" class="roleBadge" style="display:none">Jugador</span>
@@ -108,6 +116,7 @@
   <button id="redoBtn" class="btn sq ghost" data-ic="redo-2" title="Rehacer (Ctrl+Y)" aria-label="Rehacer"></button>
   <button id="exportBtn" class="btn sq ghost" data-ic="download" title="Exportar escena (.json)" aria-label="Exportar escena"></button>
   <label id="importBtn" class="btn sq ghost fileBtn" title="Importar escena (.json)" aria-label="Importar escena" data-ic="folder-open"><input id="importFile" type="file" accept=".json,application/json"></label>
+  <div data-t3d-slot="actions" style="display:contents"></div>
   <button id="panelToggle" class="btn sq ghost" data-ic="panel-right-close" title="Ocultar panel" aria-label="Ocultar panel" aria-pressed="false"></button>
 </header>
 <main>
@@ -163,14 +172,17 @@
       <div id="edBody" class="edBody"></div>
     </div>
   </div>
+  <div data-t3d-slot="stage" style="display:contents"></div>
   <aside id="panel">
     <div class="tabs" role="tablist">
+      <div data-t3d-slot="tabs" style="display:contents"></div>
       <button role="tab" data-tab="scene" aria-selected="true" data-ic="sun">Escena</button>
       <button role="tab" data-tab="lights" aria-selected="false" data-ic="lightbulb">Luces</button>
       <button role="tab" data-tab="tokens" aria-selected="false" data-ic="users" title="Fichas e imágenes">Fichas</button>
       <button role="tab" data-tab="live" aria-selected="false" data-ic="settings-2" title="Jugadores, invitación, reglas y ajustes">Mesa</button>
       <button role="tab" data-tab="chat" aria-selected="false" data-ic="send">Chat</button>
     </div>
+    <div data-t3d-slot="panes" style="display:contents"></div>
     <section class="tabpane active" id="tab-scene">
       <details class="fold" data-fold="luz" open>
         <summary><span class="foldTitle">Iluminación</span></summary>
@@ -312,6 +324,7 @@
       </details>
     </section>
     <section class="tabpane" id="tab-live">
+      <div data-t3d-slot="live" style="display:contents"></div>
       <details class="fold" data-fold="gente" open>
         <summary><span class="foldTitle">Participantes</span><span class="count" id="onlineCount"></span></summary>
         <div class="foldBody">
@@ -392,6 +405,7 @@
           <p class="small muted" style="margin-top:10px">Como Director mueves fichas a través de muros; como Jugador los muros, ventanas y barreras frenan el movimiento.</p>
         </div>
       </details>
+      <div data-t3d-slot="live-end" style="display:contents"></div>
     </section>
     <section class="tabpane chatPane" id="tab-chat">
       <details class="fold gmSect" data-fold="iniciativa" open>
@@ -432,6 +446,7 @@
 <script src="js/store.js"></script>
 <script src="js/net.js"></script>
 <script src="js/editor.js"></script>
+<script src="t3d/t3d.js"></script>
 <script src="js/main.js"></script>
 <script type="module" src="js/dice3d.js"></script>
 </body>

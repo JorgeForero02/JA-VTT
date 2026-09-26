@@ -122,6 +122,7 @@ function renderDash(){
     for(const b of list){
       const card=document.createElement('article');card.className='boardCard';
       const h=document.createElement('h3');h.textContent=b.name;
+      if(window.Tablero3D){const t=document.createElement('span');t.className='t3dType'+(b.t3d?' is3d':'');t.textContent=b.t3d?'3D':'2D';h.append(t)} // t3d
       const meta=document.createElement('div');meta.className='meta';
       meta.textContent=`${b.members} ${b.members===1?'miembro':'miembros'}, ${b.scenes} ${b.scenes===1?'escena':'escenas'}, actualizado ${ago(b.updated_at)}`+(b.role==='gm'?'':`. Dirige ${b.owner_name}`);
       const row=document.createElement('div');row.className='row';
@@ -146,6 +147,7 @@ $('#newBoardForm').onsubmit=e=>{
     const name=$('#newBoardName').value.trim();
     try{
       const d=await apiJson('/api/boards',{method:'POST',body:JSON.stringify({name})});
+      if($('#newBoardType').value==='3d')await apiJson('/api/t3d/boards/'+d.board.id,{method:'POST'}).catch(err=>toast(err.message,4000)); // t3d
       $('#newBoardName').value='';
       location.hash='#/tablero/'+d.board.id;
     }catch(err){toast(err.message)}
@@ -171,14 +173,16 @@ function openBoardView(id){
   $('#sceneName').value='Conectando…';
   selectTab('scene');
   Store.setBoard(id);
-  Net.connect(id);
+  open3d(id).finally(()=>{if(openBoardId===id)Net.connect(id)}); // t3d: una mesa 3D se monta antes de conectar
   renderLive();
 }
 function onBoardReady(){
+  if($('#app').classList.contains('is3d'))return; // t3d
   if(UI.realRole!=='gm'&&!S.tokens.some(ownsToken))setTimeout(()=>toast('Crea tu personaje en la pestaña Fichas o espera a que el director te asigne uno.',3600),600);
 }
 function leaveBoard(silent){
   if(!openBoardId)return;
+  close3d(); // t3d
   openBoardId=null;
   Net.disconnect();Store.setBoard(null);
   UI.board=null;UI.realRole='player';UI.scene=null;UI.scenes=[];UI.where={};closeScenePop();renderScenes();
@@ -187,6 +191,26 @@ function leaveBoard(silent){
 }
 $('#backBtn').onclick=()=>{location.hash='#/'};
 
+/* ---------- t3d: mesa 3D (modules/tablero3d, servido en /t3d/) ---------- */
+let t3dView=null;
+async function open3d(id){
+  if(!window.Tablero3D)return;
+  let b;try{b=(await apiJson('/api/t3d/boards/'+id)).board}catch(err){return}
+  if(!b.t3d||openBoardId!==id||t3dView)return;
+  $('#app').classList.add('is3d');
+  t3dView=Tablero3D.mount($('#app'),{boardId:id,user:App.user,role:b.role,icon:svgIcon,showTab:show3dTab});
+  t3dView.ready.then(()=>show3dTab('t3d-scene')).catch(err=>toast(err.message,4000));
+}
+function close3d(){if(!t3dView)return;t3dView.unmount();t3dView=null;$('#app').classList.remove('is3d')}
+function show3dTab(name,reveal){
+  UI.tab=name;
+  $$('.tabs [data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x.dataset.tab===name)));
+  $$('.tabpane').forEach(p=>p.classList.toggle('active',(p.dataset.pane||p.id.replace(/^tab-/,''))===name));
+  if(name==='live')renderLive();
+  if(reveal&&narrow())$('#panel').classList.add('open');
+}
+$('#panel .tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab^="t3d-"]');if(b)show3dTab(b.dataset.tab)});
+$('#newBoardTypeField').hidden=!window.Tablero3D;
 /* ---------- arranque ---------- */
 (async function boot(){
   hydrate();

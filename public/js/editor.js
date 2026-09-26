@@ -406,6 +406,7 @@ function rulerAddPoint(){const A=UI.act;if(!A||A.kind!=='ruler')return;const q=A
 /* ---------- Teclado ---------- */
 window.addEventListener('keydown',e=>{
   const tag=(e.target.tagName||'').toLowerCase();
+  if($('#app').classList.contains('is3d'))return; // t3d: el teclado es del tablero 3D
   if(['input','select','textarea'].includes(tag))return;
   if(tag==='button'&&(e.code==='Space'||e.key==='Enter'))return;
   const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;

@@ -74,6 +74,7 @@ function notePerf(ms){
 /* Con calidad reducida se anima uno de cada dos fotogramas de pantalla: cadencia regular */
 function animateThisFrame(){if(PERF.scale>=1)return true;PERF.skip^=1;return PERF.skip===0}
 function loop(ts){
+  if($('#app').classList.contains('is3d')){requestAnimationFrame(loop);Weather.unmount();dirty=true;if(ts-lastNet>40){lastNet=ts;Net.tick()}return} // t3d: con la mesa 3D abierta el 2D no se dibuja
   let anim=false;try{anim=hasAnimated()}catch(e){}
   requestAnimationFrame(loop);
   noteFrame(ts);
