@@ -1,7 +1,8 @@
 # Fase 0 — Cimientos de las piezas con comportamientos (diseño)
 
-Fecha: 2026-09-26. Estado: **diseño aprobado en conversación por partes** (arquitectura, pieza, flujo de
-datos, pruebas); pendiente de revisión escrita del usuario. Hoja de ruta y referentes:
+Fecha: 2026-09-26. Estado: **aprobado** (conversación por partes y revisión escrita del usuario). Enmienda
+del mismo día, aprobada: se mantiene la lista `props` de la escena en vez de una nueva, claves en inglés y
+reglas de durabilidad (§3.2). Hoja de ruta y referentes:
 [investigación](2026-09-26-arte-propio-investigacion.md). Método: [04](../../04-convenciones.md) B.1b.
 
 ## 1. Objetivo y alcance
@@ -76,49 +77,76 @@ comportamiento y referencia el arte por clave.
 
 ### 3.2 Definición y pieza colocada
 
+Esta es **la base de todas las fases**: se diseñó para no tener que migrar datos después (decisión del
+usuario del 2026-09-26: «será la base y será caro de cambiar»). Reglas de durabilidad:
+
+- **Claves de datos en inglés**, como todo el formato guardado (`type`, `open`, `look`…) y como los
+  nombres de JA-VTT/Foundry (`move`, `sight`, `light`, `hide`, `door`, `portal`). Los textos de la
+  interfaz siguen en castellano.
+- **Versionado**: la definición lleva `schema: 1`; una escena guardada con los campos nuevos pasa a `v: 2`
+  (se siguen leyendo las `v: 1`).
+- **Prefijo del id de definición**: `f:` fábrica (`f:chest`, `f:door`, `f:g`), `p:` pieza del tablero
+  (`t3d.pieces`), `d:` definición **calculada** (no guardada) de un dibujo de objeto antiguo (`d:o_xxxx`).
+- **Campos reservados desde ya** para no cambiar el formato después: `level` (pisos, fase 4) y `side`
+  (borde de la casilla, muros finos, fase 4), `interactions` y `reactions` (fases 2 y 5).
+
 ```
-definición {
-  id: 'f:door' | 'p_xxxxxxxx',  nombre, clase: 'terreno'|'objeto'|'pared'|'colgante', plantilla?,
-  arte: { base: clave, porEstado?: { valor: clave } },
-  forma: { w: 1–8, d: 1–8, alto: 0–8 (casillas, admite ¼), orienta: bool, capa: 'suelo'|'objeto'|'pared'|'colgante' },
-  componentes: {
-    paso:       { bloquea: bool, lados?: 'NESO' },              // lados: fase 4 (R13); hoy siempre la casilla entera
-    vista:      'no' | 'limitada' | 'si',                         // limitada: se admite en el esquema, el motor la trata como 'si' hasta la fase 1
-    luz:        'no' | 'limitada' | 'si',                         // qué tapa
-    emiteLuz?:  { tipo, r, color, intensidad, anim, angulo, h, origen?: { px, py, s } },
-    superficie?:{ pisable: bool, altura },                         // puentes (hoy `deck`)
-    coste?:     1 | 2,                                             // terreno difícil (hoy agua poco profunda)
-    oculta?:    bool,                                              // maleza: oculta a quien está dentro
-    soloDirector?: bool,                                           // barrera
-    puerta?:    { abrible: true, llave: bool, levanta?: bool },   // fase 2 la amplía (tipos, quién puede, CD)
-    portal?:    { aspectos: [...] },
-    terreno?:   { liquido?, dañino?, anim?, prio, bordes? }        // sólo clase terreno
+definition {
+  schema: 1, id: 'f:door' | 'p:xxxxxxxx' | 'd:o_xxxx', name, class: 'terrain'|'object'|'wall'|'hanging',
+  template?: string,                                   // la plantilla elegida al crearla (fase 1)
+  art: { base: clave, byState?: { 'open=true': clave } },
+  shape: { w: 1–8, d: 1–8, height: 0–8 (pasos de ¼ de casilla), orient: bool, random: bool,
+           layer: 'ground'|'object'|'wall'|'hanging' },
+  components: {
+    move:       { block: bool, sides?: 'NESW' },        // sides: fase 4 (R13); hoy siempre la casilla entera
+    sight:      'none' | 'limited' | 'block',           // qué tapa; 'limited' se admite y el motor la trata como 'block' hasta su fase
+    light:      'none' | 'limited' | 'block',
+    emitLight?: { preset, r, color, intensity, anim, angle, h, origin?: { px, py, s } },
+    surface?:   { walkable: true, height },              // puentes (hoy `deck`)
+    cost?:      1 | 2,                                   // terreno difícil
+    hide?:      bool,                                    // maleza: oculta a quien está dentro
+    gmOnly?:    bool,                                    // barrera: sólo la ve el director
+    door?:      { lift?: bool },                         // es puerta (fase 2 añade tipos, quién puede, CD)
+    portal?:    { looks: [...] },
+    terrain?:   { liquid?, hazard?, anim?, prio, fringe? }   // sólo class 'terrain'
   },
-  estados?:  { nombre: { valores: [...], inicial } }  (≤ 4 estados, ≤ 4 valores),
-  variantes?: [ { si: { estado: valor }, cambia: { componentes parciales, arte } } ]   (la última que cumple gana),
-  interacciones: [], reacciones: []                   // reservados: fases 2 y 5
+  states?:   { nombre: { values: [...], initial } }     // ≤ 4 estados, ≤ 4 valores cada uno
+  variants?: [ { when: { estado: valor }, set: { componentes parciales, art? } } ]   // en orden; la última que cumple gana
+  interactions: [], reactions: []                        // reservados: fases 2 y 5
 }
-pieza colocada { id (fijo), def, x, z, nivel: 0, giro: 0–3, estados?: {…}, extra?: {…} }
+
+pieza colocada = un elemento de la lista `props` de la escena (se mantiene la lista y su forma de hoy):
+{ type,                    // como hoy: clave de arte y alias de la definición de fábrica ('chest' → 'f:chest')
+  def?,                    // si falta, sale de `type`; 'obj:o_xxxx' → 'd:o_xxxx'; una pieza del tablero → 'p:…'
+  uid,                     // id fijo por pieza ('u' + 8 caracteres base36), único en la escena; lo pone quien la crea
+  x, z, v,                 // casilla y giro (0–3), como hoy
+  level?: 0, side?,        // reservados (fase 4)
+  state?: { … },           // estado propio según la definición (puerta: { open, locked })
+  …campos propios de hoy   // luz: preset, r, h, color…; portal: id (entero), look, target, name
+}
 ```
 
-- **Puerta de fábrica** = `estados: { abierta: [false, true] }` + variante `abierta:true → paso libre, vista
-  'no', luz 'no'`. Así el «tipo + estado» de §2 deja de estar repartido.
-- `extra` lleva lo propio de ciertas piezas que no es comportamiento: luz suelta (`preset`, `r`, `color`…),
-  portal (`id`, `look`, `target`, `name`), `locked` de la puerta (pasa a estado en la fase 2).
+- **Puerta de fábrica** = `states: { open: {values:[false,true]}, locked: {values:[false,true]} }` + variante
+  `when: {open: true} → move: {block:false}, sight: 'none', light: 'none'`. El «tipo + estado» repartido en
+  el código (§2) pasa a vivir en la definición.
+- **Vuelta atrás segura**: durante las fases 0 y 1 las puertas escriben su estado en `state` **y** en los
+  campos de hoy `open`/`locked` (lo que lee la versión anterior). La copia se quita en la fase 2 (anotado).
+- Los datos propios de cada pieza (luz, portal) **se quedan donde están hoy**: nada de cajas nuevas que
+  obliguen a migrar.
 - Los **terrenos** siguen siendo letras de `M.t` en esta fase; cada letra apunta a `f:<letra>`.
 
 ### 3.3 Guardado y API
 
 - Migración `t3d/007-piezas.sql`: tabla `t3d.pieces (board_id, id, name, data jsonb, size, created_at,
   updated_at)`, clave `(board_id, id)`, `ON DELETE CASCADE` a `public.boards`; cuenta en la cuota del tablero.
-- API `GET /api/t3d/boards/:id/pieces` (miembros; al jugador se le omiten las definiciones con
-  `soloDirector`, que nunca se le dibujan) · `PUT/DELETE …/pieces/:pid` (director). Tope: 300 definiciones y
-  64 KB por definición.
-- **Escenas**: al guardar se escribe el formato nuevo (`pieces: [colocadas]`); al leer, una escena vieja con
-  `props` se traduce (`type` → `def`, `v` → `giro`, `open`/`locked`/portal → `estados`/`extra`, id nuevo
-  fijo). `obj:o_xxx` → definición automática `p_o_xxx` con el comportamiento de hoy (sólida, 1×1, giro al
-  azar, su luz). La traducción vive en el catálogo y la usan igual cliente y servidor.
-- **Mesa en vivo**: `live/doors` sigue como está (claves `x_z`); se generaliza en la fase 2.
+- API `GET /api/t3d/boards/:id/pieces` (miembros; al jugador se le omiten las definiciones con `gmOnly`,
+  que nunca se le dibujan) · `PUT/DELETE …/pieces/:pid` (director). Tope: 300 definiciones y 64 KB por
+  definición.
+- **Escenas**: se mantiene la lista `props`. Al leer (cliente y servidor, con la misma función del catálogo)
+  se **completan** los campos que falten: `def` desde `type`, `uid` nuevo si no hay, `state` de las puertas
+  desde `open`/`locked`. Al guardar se escribe `v: 2` con todo completo. Una escena vieja es válida tal cual:
+  no hay traducción que pueda perder datos.
+- **Mesa en vivo**: `live/doors` sigue como está (claves `x_z`); se generaliza a estados por `uid` en la fase 2.
 
 ### 3.4 Motor (cliente)
 
@@ -131,10 +159,11 @@ formato nuevo y la traducción. El arte sigue igual.
 ### 3.5 Servidor
 
 - `cleanMap` valida **cada pieza** contra su definición (fábrica o del tablero): tipo existente, `x`/`z` en
-  rango, `giro`, estados válidos, `extra` saneado según componente (luz, portal). Se acabó el «cualquier otro
+  rango, `v`, `uid` único, `state` válido según la definición, campos propios saneados según componente (luz,
+  portal). Se acabó el «cualquier otro
   pasa tal cual».
-- `sceneFor`/`campaignFor`/`liveDocFor`: al jugador **no se le mandan piezas con `soloDirector`** (hoy las
-  barreras llegan y el cliente las esconde) ni el `extra` que sea sólo del director. Base para las secretas de
+- `sceneFor`/`campaignFor`/`liveDocFor`: al jugador **no se le mandan piezas con `gmOnly`** (hoy las
+  barreras llegan y el cliente las esconde). Base para las secretas de
   la fase 2.
 - `playerDoors` y `gridOf` preguntan al catálogo (componente `puerta`, `paso`, `forma`).
 
