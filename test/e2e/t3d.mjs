@@ -164,6 +164,35 @@ try {
   const labels = await gm.evaluate(() => [...document.querySelectorAll('#gmBoards .boardCard')].map((c) => c.querySelector('h3').textContent).sort().join());
   step('panel: cada tarjeta dice si es 2D o 3D', labels === 'Mesa 2D2D,Mesa 3D3D', labels);
   await gm.screenshot({ path: path.join(OUT, 'ja-vtt-panel.png') });
+  // Tarea 7 (fase 0): el motor decide paso, puertas, tarimas, maleza y luz fija por el catálogo. Misma escena, mismas
+  // respuestas que el motor de antes (medidas con el código de 1dd52c7): caminos, puertas, lo que tapa la maleza y la luz.
+  await gm.fill('#newBoardName', 'Mesa catálogo'); await gm.selectOption('#newBoardType', '3d'); await gm.click('#newBoardForm button[type=submit]');
+  await gm.waitForFunction(() => (document.getElementById('t3d-mapName')?.textContent || '').length > 3, null, { timeout: 20000 });
+  const eqBoard = await gm.evaluate(() => location.hash.split('/').pop());
+  const EW = 16, eh = [], et = [], ews = [];
+  for (let z = 0; z < EW; z++) for (let x = 0; x < EW; x++) { const river = x === 9; eh.push(river ? '0' : '2'); et.push(x === 4 && ![3, 6, 10].includes(z) ? 'w' : x === 4 ? 's' : 'g'); ews.push(river ? '2' : '0'); }
+  const eqProps = [['door', 4, 3, 1, { open: false }], ['door', 4, 10, 1, { open: false, locked: true }], ['gate', 4, 6, 1, { open: true }], ['chest', 2, 6], ['stall', 6, 1], ['bridge', 9, 5, 1], ['bridge2', 9, 8, 1],
+    ['lamp', 6, 8], ['torch', 12, 12], ['brazier', 2, 12], ['cover', 13, 7], ['crates', 14, 7], ['cover', 12, 3], ['barrel', 13, 3], ['veil', 11, 10], ['barrier', 7, 12],
+    ['light', 1, 14, 0, { preset: 'torch', r: 5, h: 1.2, color: '#ffb347', intensity: 1, anim: 'flicker', angle: 360, rot: 0 }], ['tree', 10, 1, 2], ['portal', 14, 14, 0, { id: 1, look: 'magic', target: null }],
+    ['obj:o_test1', 3, 14], ['window', 11, 14], ['light', 12, 5, 0, { preset: 'torch', r: 8, h: 1.2, color: '#ffffff', intensity: 1, anim: 'none', angle: 360, rot: 0 }]]
+    .map(([type, x, z, v, o]) => Object.assign({ type, x, z, v: v || 0 }, o || {}));
+  const eqScene = { v: 1, name: 'Catálogo', w: EW, d: EW, h: eh.join(''), t: et.join(''), wsrc: ews.join(''), props: eqProps, roofs: [], start: [11, 6], env: 'night', fog: true, animate: false, seen: '',
+    minis: [{ kind: 'knight', x: 11, z: 6, fx: 1, fz: 0, id: 'k1' }, { kind: 'knight', x: 1, z: 1, fx: 0, fz: 1, id: 'k2' }] };
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/eq1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [eqBoard, eqScene]);
+  await gm.reload();
+  await gm.waitForFunction(() => /Catálogo/.test(document.getElementById('t3d-mapName')?.textContent || ''), null, { timeout: 20000 });
+  await gm.waitForTimeout(3000);
+  const ROUTES = { '6,3': 5, '6,10': 6, '8,6': 4, '11,5': 1, '11,8': 2, '2,6': null, '7,1': null, '6,1': null, '13,7': 2, '14,7': null, '12,3': 3, '11,10': 4, '7,12': null, '14,14': null, '10,1': null, '6,8': null, '3,14': null, '1,14': 16, '11,14': null, '9,5': 2, '9,2': null };
+  const LIGHT = { '6,9': 1.056, '7,8': 1.222, '12,11': 1.333, '13,12': 1.333, '2,11': 1.111, '3,11': 1.056, '14,13': 1.278, '15,0': 0.667 };
+  const eq = await gm.evaluate(([routes, light]) => {
+    const P = (...a) => t3dView.probe(...a), bad = [];
+    for (const k in routes) { const [x, z] = k.split(',').map(Number), r = P('route', 'k1', x, z); if (r !== routes[k]) bad.push(`camino ${k}: ${r} (antes ${routes[k]})`); }
+    for (const k in light) { const [x, z] = k.split(',').map(Number), l = P('light', x, z); if (Math.abs(l - light[k]) > 0.01) bad.push(`luz ${k}: ${l} (antes ${light[k]})`); }
+    const props = P('props').map((q) => q.type[0] + (q.shown ? 1 : 0) + (q.open ? 'o' : '') + (q.locked ? 'l' : '')).join(' ');
+    if (props !== 'd1 d1l g1o c1 s1 b0 b0 l1 t1 b1 c1 c0 c1 b1 v1 b1 l0 t1 p1 o0 w0 l0') bad.push('objetos ' + props);
+    return bad;
+  }, [ROUTES, LIGHT]);
+  step('motor por catálogo: caminos, puertas, tarimas, maleza y luz fija como antes', eq.length === 0, eq.slice(0, 4).join(' | '));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

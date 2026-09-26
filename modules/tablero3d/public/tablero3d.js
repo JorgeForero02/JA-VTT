@@ -6,7 +6,7 @@
    Devuelve { destroy }, que para el bucle, quita las escuchas de ventana y suelta WebGL. */
 const T3D=window.Tablero3D=window.Tablero3D||{};
 T3D._engine=function(ctx){
-const ROOT=ctx.root, $=ctx.$, Vision=T3D.Vision, Fichas=T3D.Fichas, Muros=T3D.Muros, Personajes=T3D.Personajes, Ambiente=T3D.Ambiente, Ajustes=T3D.Ajustes, Dados=T3D.Dados;
+const ROOT=ctx.root, $=ctx.$, Vision=T3D.Vision, Fichas=T3D.Fichas, Muros=T3D.Muros, Personajes=T3D.Personajes, Ambiente=T3D.Ambiente, Ajustes=T3D.Ajustes, Dados=T3D.Dados, Catalogo=T3D.Catalogo;
 /* escuchas de ventana, temporizadores y observadores que hay que soltar al desmontar */
 const offs=[]; let stopped=false;
 function on(t,ev,fn,o){ t.addEventListener(ev,fn,o); offs.push(()=>t.removeEventListener(ev,fn,o)); }
@@ -1168,8 +1168,14 @@ let SETTINGS=Ajustes.norm(null);
 const hpOn=()=>SETTINGS.hpEnabled!==false, acOn=()=>SETTINGS.acEnabled!==false, condsOn=()=>SETTINGS.conditionsEnabled!==false, diceOn=()=>SETTINGS.diceEnabled!==false;
 // lo que el servidor no le manda al jugador de una ficha ajena (sheet.withheld: 'ac', 'hp'; con 'bar_only', sólo hpBar)
 const withheld=(b,k)=>!!(b&&b.sheet&&Array.isArray(b.sheet.withheld)&&b.sheet.withheld.includes(k));
+// definiciones de piezas del tablero (p:…, Tablero3D.Catalogo las lee junto a las de fábrica); vacías hasta la fase 1.
+// Van aquí arriba (y no junto a CAMP) porque propSpan/isDoorType las usan desde el primer mapa. Las llena loadPieces.
+let PIECES=new Map();
 // objeto por capas con el que se pinta un objeto del mapa: el portal, el de su aspecto
 const propKind=p=>p.type==='portal'?(Muros.PORTAL_LOOKS[p.look]||Muros.PORTAL_LOOKS.door).prop:p.type;
+// clave del dibujo que sustituye a un objeto: los árboles guardan el suyo como tree0–tree2 (así pueden tener luz propia, arreglo §6);
+// un portal, el de su aspecto (el que se pinta, propKind)
+const propArtKey=p=>p.type==='tree'?'tree'+((p.v|0)%3):propKind(p);
 const gmView=()=>!LIVE.on||LIVE.dm;
 // ¿puede quien mira abrir esta puerta? El director, siempre; un jugador, si no tiene llave y el tablero lo deja (playersDoors)
 const canOpenDoor=p=>gmView()||(!p.locked&&SETTINGS.playersDoors!==false);
@@ -1183,10 +1189,10 @@ const topY=(x,z)=>EH[idx(x,z)]*STEP;
 const nOf=b=>b&&b.mini&&b.sheet?Fichas.cellsOf(b.sheet):1;
 function footY(x,z,n){ if(n===1) return standY(x,z); let m=-Infinity; for(let j=0;j<n;j++) for(let k=0;k<n;k++) if(inb(x+k,z+j)) m=Math.max(m,standY(x+k,z+j)); return m===-Infinity?standY(x,z):m; }
 // objetos de varias casillas (`span` [ancho, fondo] en PROP3D; girados 90° se cambian): la esquina es (x, z)
-function propSpan(p){ const P=PROP3D[p.type]; if(!P||!P.span) return [1,1]; const [a,b]=P.span; return ((p.v|0)%2)?[b,a]:[a,b]; }
+function propSpan(p){ return Catalogo.span(p,PIECES); }
 function propCells(p){ const [w,d]=propSpan(p), out=[]; for(let j=0;j<d;j++) for(let i=0;i<w;i++) out.push([p.x+i,p.z+j]); return out; }
 const propCovers=(p,x,z)=>{ const [w,d]=propSpan(p); return x>=p.x&&z>=p.z&&x<p.x+w&&z<p.z+d; };
-const isDoorType=t=>!!(PROP3D[t]&&PROP3D[t].door);
+const isDoorType=t=>Catalogo.isDoor({type:t},PIECES);
 // puentes: DECK guarda por casilla la altura (en pasos) de la tarima que se pisa, o 0
 let DECK=null;
 const standY=(x,z)=>{ const i=idx(x,z); return DECK&&DECK[i]?DECK[i]*STEP:topY(x,z); };
@@ -1735,7 +1741,7 @@ function tokenShown(b){
   return Fichas.footprint(b.x,b.z,nOf(b)).some(([x,z])=>inb(x,z)&&fogVis(idx(x,z))===2&&hideOK(idx(x,z)));
 }
 // objetos que la maleza oculta (los pequeños: mobiliario, decorado y los dibujados); los muros, estructuras y árboles, no
-const hideable=b=>!!b.prop&&b.kind!=='light'&&!Muros.kindOf(b.prop)&&['furniture','decor','mine'].includes(propCat(b.prop.type&&b.prop.type.startsWith('obj:')?{custom:1}:b.prop));
+const hideable=b=>!!b.prop&&b.kind!=='light'&&!Muros.kindOf(b.prop)&&Catalogo.isLow(b.prop,PIECES);
 
 /* ============ mapas ============ */
 function demoMap(){
@@ -1800,12 +1806,12 @@ const undoStack=[], redoStack=[];
 function refreshEntities(){
   clearBills(); blocked=new Set(); M.lights=[];
   doorShut=new Set(); lockedDoors=new Set(); WALLAT=new Map(); HAS_COVER=false;
-  DECK=null; const decks=M.props.filter(p=>PROP3D[p.type]&&PROP3D[p.type].deck); if(decks.length) computeDecks(decks);
+  DECK=null; const decks=M.props.filter(p=>Catalogo.surface(p,PIECES)); if(decks.length) computeDecks(decks);
   for(const p of M.props){ const b=addBill(propKind(p),p.x,p.z,p); const i=idx(p.x,p.z);
     if(isDoorType(p.type)){ if(!p.open){ blocked.add(i); doorShut.add(i); } if(p.locked) lockedDoors.add(i); if(b) doorPose(b); }
-    else if(p.type!=='light'&&!(PROP3D[p.type]&&PROP3D[p.type].walk)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
+    else if(Catalogo.blocksMove(p,PIECES)) for(const [cx,cz] of propCells(p)) if(inb(cx,cz)) blocked.add(idx(cx,cz));
     const wk=Muros.kindOf(p); if(wk&&wk!=='door'){ WALLAT.set(i,p); if(wk==='cover') HAS_COVER=true; }
-    if(b&&PROP3D[b.kind]&&PROP3D[b.kind].gmOnly) b.gmOnly=true;
+    if(b&&Catalogo.gmOnly(p,PIECES)) b.gmOnly=true;
     const l=propLight(p,b); if(l){ M.lights.push(l); b.emissive=p.type!=='light'; b.light=l; } }
   let lava=0; for(let i=0;i<M.t.length&&lava<48;i++) if(M.t[i]==='l'){ const lx=i%M.w, lz=(i/M.w)|0; M.lights.push({x:lx+.5,z:lz+.5,y:0,r:3,c:'#ff5a2a',k:0.8,f:1,lava:true,baseY:()=>topY(lx,lz)+0.3}); lava++; }
   for(const m of M.minis) addBill(m.kind,m.x,m.z,m);
@@ -1836,12 +1842,12 @@ function propLight(p,b){
     const l=mk(0,Math.max(0,Math.min(4,p.h==null?1.2:+p.h)),0,Math.max(1,Math.min(24,p.r||5)),HEX6.test(p.color||'')?p.color:WARM,p.anim==='flicker'?1:0,Number.isFinite(p.intensity)?p.intensity:1);
     return lightExtras(l,p.anim,p.angle,p.rot,p.darkness,T?T.glow!==false:true,p.x*7+p.z*13); }
   if(p.type.startsWith('obj:')) return spec(p.type.slice(4));
-  if(CUSTOM.objs[p.type]&&CUSTOM.objs[p.type].light) return spec(p.type);
-  if(p.type==='brazier') return mk(0,0.8,0,6,WARM,1);
+  // un dibujo que sustituye a un objeto de fábrica manda sobre su luz: con luz, la suya; con light:false, ninguna (arreglo §6)
+  if(CUSTOM.objs[propArtKey(p)]) return CUSTOM.objs[propArtKey(p)].light?spec(propArtKey(p)):null;
   // el portal mágico alumbra con su tipo de luz (Cristal arcano: violeta que late) desde el centro del aro
   if(p.type==='portal'){ const lk=Muros.PORTAL_LOOKS[p.look], T=lk&&LIGHT_TYPES[lk.light]; if(!T) return null;
     return lightExtras(mk(0,1.1,0,T.r,T.color,0,T.intensity),T.anim,360,0,false,true,p.x*7+p.z*13); }
-  const P3=PROP3D[p.type]; if(P3&&P3.light) return mk(0,(P3.lightS||16)/16,0,P3.light,WARM,1);
+  const E=Catalogo.emitLight(p,PIECES); if(E) return mk(0,E.h,0,E.r,WARM,1);
   return null;
 }
 // animación, cono, oscuridad y halo de una fuente (lo que los tipos de luz añaden al motor)
@@ -2566,8 +2572,10 @@ function fillFrom(x,z){
   for(const c of cells) setTerrain(c%M.w,(c/M.w)|0,state.terrain);
 }
 const miniCells=m=>Fichas.cellsOf(m.sheet||defaultSheet(m.kind));
-// forMini: un personaje puede estar sobre lo que se pisa (velo, maleza, escalones)
-function occupied(x,z,forMini){ return M.props.some(p=>p.type!=='light'&&!(forMini&&PROP3D[p.type]&&PROP3D[p.type].walk&&!PROP3D[p.type].deck)&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
+// forMini: un personaje puede estar sobre lo que se pisa (velo, maleza, escalones). «Se pisa» es lo de su definición, no lo de
+// su estado: una puerta abierta sigue ocupando su casilla al colocar (como antes; Muros.gridOf mira igual)
+const walkable=p=>!Catalogo.blocksMove(p,PIECES)&&!Catalogo.isDoor(p,PIECES);
+function occupied(x,z,forMini){ return M.props.some(p=>p.type!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
 function applyTool(x,z,first){
   const t=state.tool, r=(state.brush-1)>>1, cells=[];
   for(let dz=-r;dz<=r;dz++) for(let dx=-r;dx<=r;dx++){ const X=x+dx, Z=z+dz; if(inb(X,Z)) cells.push([X,Z]); }
@@ -2580,12 +2588,12 @@ function applyTool(x,z,first){
   } else if(t==='prop'||t==='mini'){
     if(!first) return;
     // un personaje grande o un objeto de varias casillas las ocupa todas: todas tienen que admitirlo; un puente va sobre el agua
-    const P=t==='prop'?(propOpts()[state.propSel]||PROP_BASE[0]):null, P3=P&&PROP3D[P.type];
+    const P=t==='prop'?(propOpts()[state.propSel]||PROP_BASE[0]):null;
     let ax=x, az=z, cells;
     if(t==='mini'){ const n=Fichas.cellsOf(defaultSheet(state.miniKind)); [ax,az]=Fichas.anchorFor(x,z,n,M.w,M.d); cells=Fichas.footprint(ax,az,n); }
     else { const [sw,sd]=propSpan(P); ax=Math.max(0,Math.min(M.w-sw,x-((sw-1)>>1))); az=Math.max(0,Math.min(M.d-sd,z-((sd-1)>>1))); cells=propCells({type:P.type,v:P.v,x:ax,z:az}); }
-    if(cells.some(([X,Z])=>!inb(X,Z)||M.t[idx(X,Z)]==='w'||(!(P3&&P3.deck)&&isDeep(idx(X,Z)))||occupied(X,Z,t==='mini'))){ showHint('Esa casilla está ocupada o no admite objetos.',1600); return; }
-    if(t==='prop') M.props.push({type:P.type,x:ax,z:az,v:P.v});
+    if(cells.some(([X,Z])=>!inb(X,Z)||M.t[idx(X,Z)]==='w'||(!Catalogo.surface(P,PIECES)&&isDeep(idx(X,Z)))||occupied(X,Z,t==='mini'))){ showHint('Esa casilla está ocupada o no admite objetos.',1600); return; }
+    if(t==='prop') M.props.push({type:P.type,x:ax,z:az,v:P.v,uid:Catalogo.newUid()});
     else M.minis.push({kind:state.miniKind,x:ax,z:az,fx:0,fz:1});
     stroke.ents=true; touch(x,z);
   } else if(t==='roof'){
@@ -2606,7 +2614,7 @@ function applyTool(x,z,first){
     if(!first) return;
     const here=M.props.find(p=>p.type==='light'&&p.x===x&&p.z===z);
     if(here){ state.lightSel=here; renderToolOpts(); showHint(here.angle<360?'Luz elegida: R la gira; el resto, en el panel.':'Luz elegida: cambia su tipo, radio, altura y color en el panel.',1800); return; }
-    const np=Object.assign({type:'light',x,z,v:0},normLight(state.lightDraft));
+    const np=Object.assign({type:'light',x,z,v:0,uid:Catalogo.newUid()},normLight(state.lightDraft));
     M.props.push(np); state.lightSel=np; stroke.ents=true; touchLight(np); renderToolOpts();
   } else if(t==='wall'){
     if(state.wallKind==='wall'){ for(const [X,Z] of cells) setTerrain(X,Z,'w'); }
@@ -2834,7 +2842,7 @@ function placeWall(x,z,k){
   // sobre un muro abre un hueco: la casilla toma el suelo de al lado
   if(M.t[i]==='w'){ let tt='s'; for(const [dx,dz] of DIR4){ const X=x+dx, Z=z+dz; if(inb(X,Z)&&M.t[idx(X,Z)]!=='w'){ tt=M.t[idx(X,Z)]; break; } } setTerrain(x,z,tt); }
   if(isDeep(i)||occupied(x,z)){ showHint('Esa casilla está ocupada o no admite objetos.',1600); return; }
-  const p={type:k,x,z,v:k==='cover'?0:autoV(x,z)};
+  const p={type:k,x,z,v:k==='cover'?0:autoV(x,z),uid:Catalogo.newUid()};
   if(k==='door') p.open=false;
   if(k==='portal') Object.assign(p,{id:Muros.nextPortalId(M.props),look:state.portalLook,target:null});
   M.props.push(p); state.wallSel=p; stroke.ents=true; touch(x,z); touchLight({x,z,r:8}); renderToolOpts();
@@ -2999,8 +3007,10 @@ async function openLatestScene(){
 }
 function serialize(){
   syncMinis();
-  return { v:1, name:M.name, w:M.w, d:M.d, h:Array.from(M.h,n=>n.toString(36)).join(''), t:M.t.join(''), wsrc:Array.from(M.src).join(''),
-    props:M.props.map(p=>({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.type==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})})), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
+  return { v:2, name:M.name, w:M.w, d:M.d, h:Array.from(M.h,n=>n.toString(36)).join(''), t:M.t.join(''), wsrc:Array.from(M.src).join(''),
+    // formato v2: la forma de siempre + def, uid y state (Catalogo.complete); la pieza que no tenía uid se queda con el suyo
+    props:M.props.map(p=>{ const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(p.state?{state:p.state}:{}),
+      ...(p.type==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})},PIECES); if(!p.uid) p.uid=q.uid; return q; }), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
     minis:M.minis.map(m=>({kind:m.kind,x:m.x,z:m.z,fx:m.fx,fz:m.fz,id:m.id,sheet:m.sheet,...(m.owner?{owner:m.owner}:{})})), ...ENV, ...(M.zoneCells?{zoneCells:M.zoneCells}:{}), fog:!!state.fog, seen:M.seen?Array.from(M.seen).join(''):'',
     ...sceneExtras(M) };
 }
@@ -3012,12 +3022,18 @@ function deserialize(o){
   for(let i=0;i<w*d;i++){ const v=parseInt(o.h[i],36); if(!(v>=0&&v<=12)) throw new Error('bad'); h[i]=v; }
   const t=o.t.split(''); if(t.some(c=>!TERR[c])) throw new Error('bad');
   const ok=(x,z)=>Number.isInteger(x)&&Number.isInteger(z)&&x>=0&&z>=0&&x<w&&z<d;
-  const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&(p.type==='tree'||p.type==='brazier'||p.type==='light'||!!PROP3D[p.type]||/^obj:o_[a-z0-9]{4,16}$/.test(p.type))&&ok(p.x,p.z))
-    .map(p=>{ const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:isDoorType(p.type)&&!!p.open};
+  // escenas v1 y v2: cada pieza se lee contra su definición (catálogo; las p: del tablero en PIECES) y se completa (def, uid, state).
+  // Una pieza sin definición se descarta, como en el servidor; un terreno (f:g…) no es una pieza que se coloque.
+  const isPiece=p=>{ const D=Catalogo.defOf(p,PIECES); return !!D&&D.class!=='terrain'; };
+  const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&isPiece(p)&&ok(p.x,p.z))
+    .map(p=>{ const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:isDoorType(p.type)&&!!(p.state&&'open' in p.state?p.state.open:p.open)};
+      if(typeof p.uid==='string') q.uid=p.uid; if(typeof p.def==='string') q.def=p.def;
+      if(p.state&&typeof p.state==='object') q.state=Object.assign({},p.state);
       if(p.type==='light') Object.assign(q,normLight(p));
       // muros de JA-VTT: puertas con llave, portales; las escaleras de campaña de antes pasan a portales (Muros.normProp, como el servidor)
-      const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:isDoorType(wp.type)&&!!wp.open});
-      return q; }).slice(0,5000);
+      const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:isDoorType(wp.type)&&!!q.open});
+      if(p.state&&p.state.locked) q.locked=true;
+      return Catalogo.complete(q,PIECES); }).slice(0,5000);
   Muros.fixPortalIds(props);
   const minis=(Array.isArray(o.minis)?o.minis:[]).filter(m=>m&&typeof m.kind==='string'&&(MINI_KINDS.includes(m.kind)||/^c_[a-z0-9]{4,16}$/.test(m.kind))&&ok(m.x,m.z))
     .map(m=>{ const fx=Math.sign(m.fx|0), fz=fx?0:(Math.sign(m.fz|0)||1); return {kind:m.kind,x:m.x,z:m.z,fx,fz,id:typeof m.id==='string'&&/^[a-z0-9]{2,12}$/.test(m.id)?m.id:undefined,sheet:normSheet(m.sheet,m.kind),
@@ -3046,8 +3062,10 @@ let DB=null, DL=null, BOARD=null;
     setTimeout(()=>liveInit(c),0);
   }
   $('export').hidden=!DL; $('artExp').hidden=!DL; layout();
-  setTimeout(loadAllAssets,0); setTimeout(openLatestScene,0);
+  setTimeout(loadAllAssets,0); setTimeout(()=>loadPieces().then(openLatestScene),0);   // la escena, cuando ya están sus piezas
 })();
+// definiciones de piezas del tablero (p:…); vacías hasta la fase 1. Se cargan antes que las escenas para poder leerlas
+async function loadPieces(){ if(!DB) return; try{ const q=await DB.collection('pieces').get(); PIECES=new Map(q.docs.map(d=>{ const x=d.data(); return [x.id,x]; })); }catch(e){} }
 const LS='tablero:boards';
 function lsAll(){ try{ return JSON.parse(localStorage.getItem(LS)||'{}')||{}; }catch(e){ return {}; } }
 function lsPut(all){ try{ localStorage.setItem(LS,JSON.stringify(all)); return true; }catch(e){ return false; } }
@@ -4483,13 +4501,13 @@ function roofTick(){
 }
 $('roofsBtn').onclick=()=>{ const o=['auto','show','hide']; state.roofMode=o[(o.indexOf(state.roofMode)+1)%3]; $('roofsBtn').textContent=ROOF_NAMES[state.roofMode]; roofKey=null; };
 // --- puertas ---
-function doorPose(b){ const base=((b.prop&&b.prop.v)|0)*HALF_PI, open=!!(b.prop&&b.prop.open), P=PROP3D[b.kind];
-  if(P&&P.lift){ b.mesh.rotation.y=base; b.ox=0; b.oz=0; b.oy=open?P.lift:0; return; }   // el rastrillo sube dentro del arco
+function doorPose(b){ const base=((b.prop&&b.prop.v)|0)*HALF_PI, open=!!(b.prop&&b.prop.open), D=b.prop&&Catalogo.defOf(b.prop,PIECES), lift=(D&&D.components.door&&D.components.door.lift)||0;
+  if(lift){ b.mesh.rotation.y=base; b.ox=0; b.oz=0; b.oy=open?lift:0; return; }   // el rastrillo sube dentro del arco
   b.mesh.rotation.y=base+(open?HALF_PI:0); const c=Math.cos(base), s2=Math.sin(base);
   const lx=open?-0.42:0, lz=open?-0.42:0; b.ox=lx*c+lz*s2; b.oz=-lx*s2+lz*c; }
 function toggleDoor(p,remote){
   if(!remote&&!canOpenDoor(p)){ showHint(p.locked?'Esa puerta está cerrada con llave.':'El director no deja a los jugadores abrir puertas.',1800); return false; }
-  p.open=!p.open; const i=idx(p.x,p.z);
+  p.open=!p.open; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}); const i=idx(p.x,p.z);
   if(p.open){ blocked.delete(i); doorShut.delete(i); } else { blocked.add(i); doorShut.add(i); }
   const b=bills.find(q=>isDoorType(q.kind)&&q.x===p.x&&q.z===p.z); if(b) doorPose(b);
   fogDirty=true; rangeKey=''; computeAmbient();   // por una puerta abierta entra la luz de fuera
@@ -4497,7 +4515,7 @@ function toggleDoor(p,remote){
   return true;
 }
 // el director echa o quita la llave (cerrar con llave también cierra), con deshacer; en la mesa en vivo se reparte con la escena
-function lockDoor(p,on){ beginStroke(); if(on&&p.open) toggleDoor(p); p.locked=!!on; if(!on) delete p.locked; stroke.ents=true; stroke.changed=true; flushEdit(); endStroke();
+function lockDoor(p,on){ beginStroke(); if(on&&p.open) toggleDoor(p); p.locked=!!on; if(!on) delete p.locked; p.state=Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}); stroke.ents=true; stroke.changed=true; flushEdit(); endStroke();
   if(LIVE.on&&LIVE.dm) liveBoardNow(); showHint(on?'Puerta cerrada con llave: los jugadores no la abren.':'Puerta sin llave.',1600); }
 function doorAt(x,z){ return M.props.find(p=>isDoorType(p.type)&&p.x===x&&p.z===z); }
 // --- el pueblo de ejemplo: muralla al norte con puerta y torres, atalaya con techo cónico, plaza de mercado con puestos,
@@ -4669,8 +4687,9 @@ function campLink(x,z,toId){
   // en el tablero destino, la vuelta va en una casilla libre cercana
   const free=(xx,zz)=>xx>=0&&zz>=0&&xx<tgt.w&&zz<tgt.d&&tgt.t[zz*tgt.w+xx]!=='w'&&tgt.t[zz*tgt.w+xx]!=='l'&&!tgt.props.some(p=>p.x===xx&&p.z===zz)&&!(tgt.minis||[]).some(q=>q.x===xx&&q.z===zz);
   outer: for(let r=0;r<6;r++) for(let dz=-r;dz<=r;dz++) for(let dx=-r;dx<=r;dx++){ if(free(tx+dx,tz+dz)){ tx+=dx; tz+=dz; break outer; } }
-  tgt.props=Muros.fixPortalIds(tgt.props.filter(p=>!(p.x===tx&&p.z===tz)).map(p=>Muros.normProp(p)||p));
-  const here={type:'portal',x,z,v:0,id:Muros.nextPortalId(M.props),look:'stairs'}, back={type:'portal',x:tx,z:tz,v:0,id:Muros.nextPortalId(tgt.props),look:'stairs',target:{scene:CAMP.cur,portal:here.id}};
+  // normProp deja sólo lo del muro: el uid de cada pieza se conserva (es su id fijo en la escena)
+  tgt.props=Muros.fixPortalIds(tgt.props.filter(p=>!(p.x===tx&&p.z===tz)).map(p=>{ const w=Muros.normProp(p); return w?Object.assign(w,typeof p.uid==='string'?{uid:p.uid}:{}):p; }));
+  const here={type:'portal',x,z,v:0,uid:Catalogo.newUid(),id:Muros.nextPortalId(M.props),look:'stairs'}, back={type:'portal',x:tx,z:tz,v:0,uid:Catalogo.newUid(),id:Muros.nextPortalId(tgt.props),look:'stairs',target:{scene:CAMP.cur,portal:here.id}};
   here.target={scene:toId,portal:back.id};
   M.props=M.props.filter(p=>!(p.x===x&&p.z===z)); M.props.push(here); tgt.props.push(back);
   refreshEntities(); showHint('Portal creado, con su vuelta en '+CAMP.boards[toId].name+'.',2200); renderGame();
@@ -4705,8 +4724,8 @@ function campOpen(o){ const c=campValid(o); if(!c){ showHint('Esa campaña está
 function campNew(){ syncMinis(); const id=newCid(); CAMP={id:'c'+Math.random().toString(36).slice(2,9),name:'Campaña nueva',boards:{[id]:{name:M.name,data:JSON.parse(JSON.stringify(serialize()))}},notes:{[id]:[]},cur:id}; drawNotes(); renderGame(); }
 function campAddBoard(m){ if(!CAMP) return; campStore(); const id=newCid(); CAMP.boards[id]={name:m.name,data:JSON.parse(JSON.stringify((()=>{ const keep=M; M=m; const o=serializeOf(m); M=keep; return o; })()))}; CAMP.notes[id]=[]; renderGame(); return id; }
 // serializar un mapa que no es el actual (para añadirlo a la campaña)
-function serializeOf(m){ return {v:1,name:m.name,w:m.w,d:m.d,h:Array.from(m.h,n=>n.toString(36)).join(''),t:m.t.join(''),wsrc:m.src?Array.from(m.src).join(''):Array.from(m.t,c=>c==='~'?'2':'0').join(''),
-  start:m.start,props:m.props.map(p=>({...p})),minis:(m.minis||[]).map(q=>({...q,sheet:normSheet(q.sheet,q.kind),id:q.id||('m'+Math.random().toString(36).slice(2,9))})),roofs:(m.roofs||[]).map(r=>({...r})),...Ambiente.norm(m),...(m.zoneCells?{zoneCells:m.zoneCells}:{}),fog:false,seen:'',...sceneExtras(m)}; }
+function serializeOf(m){ return {v:2,name:m.name,w:m.w,d:m.d,h:Array.from(m.h,n=>n.toString(36)).join(''),t:m.t.join(''),wsrc:m.src?Array.from(m.src).join(''):Array.from(m.t,c=>c==='~'?'2':'0').join(''),
+  start:m.start,props:m.props.map(p=>Catalogo.complete(p,PIECES)),minis:(m.minis||[]).map(q=>({...q,sheet:normSheet(q.sheet,q.kind),id:q.id||('m'+Math.random().toString(36).slice(2,9))})),roofs:(m.roofs||[]).map(r=>({...r})),...Ambiente.norm(m),...(m.zoneCells?{zoneCells:m.zoneCells}:{}),fog:false,seen:'',...sceneExtras(m)}; }
 function campExample(){
   const town=townMap(), dung=dungeonMap(40,4242); dung.name='Catacumbas bajo el pozo';
   const tId='tbrezo', dId='tcatac'; CAMP={id:'cbrezo',name:'Campaña de Brezo',boards:{},notes:{},cur:tId};

@@ -2,14 +2,14 @@
 /* Adaptador de la mesa: la interfaz de documentos que usa el motor 3D (`mesa.use('db' | 'room' |
    'user' | 'downloads')`) montada sobre el Net del anfitrión. Lo crea Tablero3D.mount; nada aquí
    es global salvo `Tablero3D.createMesa`.
-   - collection('boards' | 'assets' | 'campaigns') → REST /api/t3d/boards/:id/scenes | drawings | campaigns
+   - collection('boards' | 'assets' | 'campaigns' | 'pieces') → REST /api/t3d/boards/:id/scenes | drawings | campaigns | pieces
    - doc('live/<clave>') → mensajes `live` por WebSocket (con `ack`) y `doc` del servidor
    - room → mensajes `emit`, `presence` y `roll` (tiradas que hace el servidor); `peers` llega del servidor
    - board → ajustes del tablero 3D (los de JA-VTT: `state`, mensaje `settings`, REST …/settings) y portales: cruzar y
      reunir al grupo en la mesa en vivo (mensajes `travel`/`gather` con `ack`) o fuera de ella (REST …/travel, …/portals) */
 (function(){
   const T=window.Tablero3D=window.Tablero3D||{};
-  const COLLECTIONS={boards:'scenes',assets:'drawings',campaigns:'campaigns'};
+  const COLLECTIONS={boards:'scenes',assets:'drawings',campaigns:'campaigns',pieces:'pieces'};
 
   T.createMesa=function(net,o){
     const boardId=o.boardId;
