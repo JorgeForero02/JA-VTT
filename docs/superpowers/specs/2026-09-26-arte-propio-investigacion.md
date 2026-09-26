@@ -1,6 +1,6 @@
 # Arte propio con comportamientos — investigación
 
-Fecha: 2026-09-26. Estado: **investigación** (no es diseño aprobado). Pide el usuario: crear arte propio
+Fecha: 2026-09-26. Estado: **investigación cerrada; enfoque B y fases aprobados** (ver «Decisiones tomadas» al final). Pide el usuario: crear arte propio
 —terrenos, objetos, personajes, muebles, elementos con luz, más pisos, más tipos de puerta…— y que **no sea
 sólo textura**: cada pieza con «todos los comportamientos posibles». Lo más largo: terrenos y objetos propios.
 
@@ -219,3 +219,17 @@ catálogo.
 5. **Pisos**: ¿niveles con nombre (como Foundry V14) o alturas libres (como TaleSpire)?
 6. **Terrenos por escena**: ¿cuántos distintos como máximo en una escena (tamaño de la paleta)?
 7. **Interoperar con Universal VTT** (`.dd2vtt`): ¿importar mapas de Dungeondraft y otros? (sería otra fase)
+
+## Decisiones tomadas (2026-09-26, usuario)
+
+- **Enfoque B** y **fases en el orden propuesto** (0 → 6).
+- **Pregunta 1 — alcance:** las piezas son **del tablero** (como los dibujos), con «traer piezas de otro
+  tablero mío» (copia). Una biblioteca personal podría llegar después sin rehacer nada.
+- **Pregunta 5 — pisos:** **niveles con nombre** apilados, vistos en 3D completo (los de arriba se
+  desvanecen o cortan al trabajar abajo), con visión y luz entre niveles. Se diseña en la fase 4; el esquema
+  reserva `nivel` desde la fase 0.
+- Todo dentro de `modules/tablero3d`, **sin tocar el 2D** (sólo tests y su configuración fuera del módulo).
+- Método: cada fase con los 4 pasos (investigar a fondo, catálogo, enfoques, diseño/plan) y documentada
+  ([04](../../04-convenciones.md) B.1b).
+- Pendientes de decidir en su fase: 2 (jugadores creando piezas), 3 (grados de vista y luz), 4 (alcance de
+  las reacciones automáticas), 6 (tope de terrenos por escena), 7 (Universal VTT).

@@ -50,6 +50,11 @@ renumerar documentos.
 - Cambios de su cliente: `npm run test:ui` **y** `npm run test:t3d` verdes antes de desplegar.
 - Documentación de cómo se construyó y hoja de ruta: `modules/tablero3d/docs/` (no se reescribe; lo
   vigente va en estos `docs/`).
+- **Método por fase** (hoja de ruta del arte propio, decisión del usuario del 2026-09-26): cada fase pasa
+  por **4 pasos** antes de programar: (1) **investigar a fondo** —inventario del código que se toca y cómo
+  lo resuelven otros, con fuentes—, (2) catálogo de lo que hay que cubrir, (3) enfoques con recomendación,
+  (4) diseño por partes aprobado → spec en `superpowers/specs/` → plan en `superpowers/plans/`. Todo
+  queda escrito; las decisiones del usuario, una a una y anotadas en la spec.
 
 ## B.2 Ramas
 
