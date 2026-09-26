@@ -36,6 +36,14 @@ async function mesa(prefix) {
 const waitFlush = () => new Promise((r) => setTimeout(r, 700));
 let reqId = 0;
 const liveMsg = (key, op, data) => ({ t: 'live', req: ++reqId, key, op, data });
+/* Manda un cambio de la mesa en vivo y devuelve la espera de SU ack (por `req`): un ack sin emparejar
+   se come el de un envío anterior que sigue en la cola, y entonces el test avanza sin que el servidor
+   haya atendido este (entre dos conexiones no hay orden de llegada garantizado). */
+function sendLive(ws, key, op, data) {
+  const msg = liveMsg(key, op, data);
+  ws.send(msg);
+  return ws.next((m) => m.t === 'ack' && m.req === msg.req);
+}
 
 test('sin sesión el WebSocket se rechaza; un ajeno al tablero recibe error y cierre', async () => {
   const anon = connect(base, 'x', '', '/t3d/ws');
@@ -74,28 +82,24 @@ test('mesa en vivo: el director abre la mesa y el jugador la recibe; el jugador 
   const { gm, pl, b } = await mesa('L');
   const g = connect(base, b.id, gm.cookie, '/t3d/ws'); await g.opened; await g.next((m) => m.t === 'state');
   const p = connect(base, b.id, pl.cookie, '/t3d/ws'); await p.opened; await p.next((m) => m.t === 'state');
-  g.send(liveMsg('board', 'set', { open: true, rev: 1, board: F.map(8, { props: [{ type: 'door', x: 2, z: 3, v: 0, open: false }] }) }));
-  assert.equal((await g.next((m) => m.t === 'ack')).ok, true);
+  assert.equal((await sendLive(g, 'board', 'set', { open: true, rev: 1, board: F.map(8, { props: [{ type: 'door', x: 2, z: 3, v: 0, open: false }] }) })).ok, true);
   await g.next((m) => m.t === 'doc' && m.key === 'board'); // el eco también llega a quien lo manda
   assert.equal((await p.next((m) => m.t === 'doc' && m.key === 'board')).data.board.w, 8);
   const tokens = { tokens: { k1: F.token(pl.user.id), g1: F.token(null, { kind: 'goblin' }) } };
-  g.send(liveMsg('tokens', 'set', tokens));
+  assert.equal((await sendLive(g, 'tokens', 'set', tokens)).ok, true);
   await p.next((m) => m.t === 'doc' && m.key === 'tokens');
   // el jugador mueve su caballero
-  p.send(liveMsg('tokens', 'update', { tokens: { k1: F.token(pl.user.id, { x: 6 }) } }));
-  assert.equal((await p.next((m) => m.t === 'ack')).ok, true);
+  assert.equal((await sendLive(p, 'tokens', 'update', { tokens: { k1: F.token(pl.user.id, { x: 6 }) } })).ok, true);
   const seen = await g.next((m) => m.t === 'doc' && m.key === 'tokens' && m.data.tokens.k1.x === 6);
   assert.equal(seen.data.tokens.g1.kind, 'goblin');
   // pero no el goblin del director, ni la escena
-  p.send(liveMsg('tokens', 'update', { tokens: { g1: F.token(null, { kind: 'goblin', x: 1 }) } }));
-  const nope = await p.next((m) => m.t === 'ack');
+  const nope = await sendLive(p, 'tokens', 'update', { tokens: { g1: F.token(null, { kind: 'goblin', x: 1 }) } });
   assert.equal(nope.ok, false);
   assert.match(nope.error, /propios/);
-  p.send(liveMsg('board', 'set', { open: false }));
-  assert.equal((await p.next((m) => m.t === 'ack')).ok, false);
+  assert.equal((await sendLive(p, 'board', 'set', { open: false })).ok, false);
   assert.ok(await g.silence((m) => m.t === 'doc' && m.key === 'board'), 'nada llega al director');
   // puertas: cualquiera, si son puertas de la escena, sin llave y el tablero lo deja (ver test de portales y puertas)
-  g.send(liveMsg('doors', 'set', { d: {} })); await g.next((m) => m.t === 'ack');
+  assert.equal((await sendLive(g, 'doors', 'set', { d: {} })).ok, true);
   p.send(liveMsg('doors', 'update', { d: { '2_3': 1 } }));
   assert.deepEqual((await g.next((m) => m.t === 'doc' && m.key === 'doors' && m.data.d['2_3'])).data, { d: { '2_3': 1 } });
   await p.close(); await g.close();
