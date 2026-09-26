@@ -1,0 +1,1052 @@
+{
+ "window": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": "window",
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "veil": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": true,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": "veil",
+  "sight": true,
+  "lightBlock": true,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": null,
+   "door": false
+  }
+ },
+ "cover": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": true,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": "cover",
+  "sight": false,
+  "lightBlock": false,
+  "hide": true,
+  "portal": false,
+  "emit": null,
+  "cat": "nature",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": null,
+   "door": false
+  }
+ },
+ "barrier": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": true,
+  "rand": false,
+  "wallKind": "barrier",
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "portal": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": "portal",
+  "sight": true,
+  "lightBlock": true,
+  "hide": false,
+  "portal": true,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "portal_stairs": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "portal_cave": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "portal_trap": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "portal_magic": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "door": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": true,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": "door",
+  "sight": true,
+  "lightBlock": true,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": true
+  }
+ },
+ "chest": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "barrel": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "table": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "bed": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "shelf": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "fence": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "well": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "lamp": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": {
+   "r": 5,
+   "h": 2.125
+  },
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "stairs": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": true,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": null,
+   "door": false
+  }
+ },
+ "torch": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": {
+   "r": 4,
+   "h": 1.125
+  },
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "bridge": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": true,
+  "deck": 16,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": null,
+   "door": false
+  }
+ },
+ "bridge2": {
+  "span": [
+   2,
+   1
+  ],
+  "orient": true,
+  "walk": true,
+  "deck": 16,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": [
+    2,
+    1
+   ],
+   "door": false
+  }
+ },
+ "gate": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": true,
+  "lift": 1.5,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": "door",
+  "sight": true,
+  "lightBlock": true,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": true
+  }
+ },
+ "gatearch": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": true,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "stall": {
+  "span": [
+   2,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": [
+    2,
+    1
+   ],
+   "door": false
+  }
+ },
+ "stall2": {
+  "span": [
+   2,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": [
+    2,
+    1
+   ],
+   "door": false
+  }
+ },
+ "windmill": {
+  "span": [
+   3,
+   3
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": [
+    3,
+    3
+   ],
+   "door": false
+  }
+ },
+ "belfry": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "post": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "build",
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "cart": {
+  "span": [
+   2,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "decor",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": [
+    2,
+    1
+   ],
+   "door": false
+  }
+ },
+ "crates": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "decor",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "bench": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "furniture",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "picket": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "decor",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "stonewall": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "decor",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "sign": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": true,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": "decor",
+  "hidden": false,
+  "low": true,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "tree": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": true,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "brazier": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": false,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": {
+   "r": 6,
+   "h": 0.8
+  },
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": false,
+   "span": null,
+   "door": false
+  }
+ },
+ "light": {
+  "span": [
+   1,
+   1
+  ],
+  "orient": false,
+  "walk": true,
+  "deck": 0,
+  "door": false,
+  "lift": 0,
+  "gmOnly": false,
+  "rand": false,
+  "wallKind": null,
+  "sight": false,
+  "lightBlock": false,
+  "hide": false,
+  "portal": false,
+  "emit": null,
+  "cat": null,
+  "hidden": false,
+  "low": false,
+  "server": {
+   "passable": true,
+   "span": null,
+   "door": false
+  }
+ }
+}
