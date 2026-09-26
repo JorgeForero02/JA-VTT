@@ -2,6 +2,19 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Despliegue de main @ d69bd08 (fase 0 del arte propio + arreglo de caída del upgrade)
+
+- **Antes:** ensayo de sólo lectura con los datos reales (`cleanMap`/`cleanCampaign` nuevos sobre la escena y la campaña de
+  producción): 1 escena idéntica; campaña «cbrezo» 218→218 y 27→27 piezas con los mismos tipos, fichas y techos; sólo cae
+  `open:false` en objetos que no son puertas (sin efecto); ningún farol/antorcha/brasero redibujado (el cambio de luz de los
+  dibujos no afecta a nada existente). Copia: `vps1new:/root/backups/ja-vtt-predeploy/jav-2026-09-26-2331-pre-fase0.sql.gz`.
+- **Qué:** `fase0-piezas` → `main` (avance rápido) y deploy `bylfgv5smpaofhrgxoimnri1`.
+- **Verificado desde el servidor:** `finished` en `d69bd08`; app/db healthy; log `t3d/007-piezas.sql`; `/`, `/api/health`,
+  `/t3d/t3d.js`, `/t3d/catalogo.js` 200; el cliente servido carga `catalogo.js`; datos intactos (4 usuarios, 6 tableros, 1 mesa
+  3D, 1 escena, 1 campaña; `t3d.pieces` vacía). No se corrió `test:t3d` contra producción (crearía cuentas de prueba).
+- **Revertir:** redeploy de `0b12ed4` en Coolify; la migración 007 es aditiva (`DROP TABLE t3d.pieces` si hiciera falta) y las
+  escenas v2 las lee la versión anterior (espejo `open`/`locked`); o restaurar la copia.
+
 ## 2026-09-26 — El servidor sobrevive a un RST antes de que ws.js escuche 'error' (excepción puntual al anfitrión 2D, rama `fase0-piezas`)
 
 - **Qué:** primera línea de `server.on('upgrade', ...)` en `server/app.js`: `sock.on('error', () => {})`.
