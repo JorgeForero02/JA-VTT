@@ -47,9 +47,19 @@ test('contrato: tipos de muro, luces y momentos del cliente de JA-VTT', () => {
   assert.deepEqual(Object.keys(C.ENVS), fx('envs.json').ids);
 });
 
+// M8 (ola final): «dos veces igual» mira también el esquema t3d: la lista de sus tablas y cuántas filas tiene cada una
+async function t3dEstado() {
+  const tablas = (await db.pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 't3d' ORDER BY 1")).rows.map((r) => r.table_name);
+  const filas = {};
+  for (const t of tablas) filas[t] = (await db.pool.query(`SELECT COUNT(*)::int AS n FROM t3d."${t}"`)).rows[0].n;
+  return { tablas, filas };
+}
 test('contrato: el módulo migra sobre la base de JA-VTT sin tocar sus tablas, y dos veces igual', async () => {
   const antes = (await db.pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")).rows;
+  const t3dAntes = await t3dEstado();
+  assert.ok(t3dAntes.tablas.includes('pieces') && t3dAntes.tablas.includes('scenes'), JSON.stringify(t3dAntes.tablas));
   assert.deepEqual(await t3dDb.migrate(), []);
   const despues = (await db.pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")).rows;
   assert.deepEqual(despues, antes);
+  assert.deepEqual(await t3dEstado(), t3dAntes, 'la segunda migración no crea tablas ni filas en t3d');
 });
