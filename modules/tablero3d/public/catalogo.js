@@ -19,7 +19,10 @@
   // `complete()`/`stateOf` no sabrían si leen el estado o el campo propio de la pieza.
   const RESERVED = new Set(['type', 'def', 'uid', 'x', 'z', 'v', 'level', 'side', 'state', 'id', 'look', 'target', 'name',
     'preset', 'r', 'h', 'color', 'intensity', 'anim', 'angle', 'rot', 'darkness', 'on', 'open', 'locked']);
-  const plain = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+  // la puerta de fábrica (§3.2): sus dos estados y cómo queda abierta; una puerta p: los recibe igual (Ruling R20)
+  const DOOR_STATES = { open: { values: [false, true], initial: false }, locked: { values: [false, true], initial: false } };
+  const DOOR_OPEN_VARIANT = { when: { open: true }, set: { move: { block: false }, sight: 'none', light: 'none' } };
+  const plain = (o) =>!!o && typeof o === 'object' && !Array.isArray(o);
   const deepFreeze = (o) => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); } return o; };
 
   /* ---- fábrica ---- una línea por tipo: [casillas, banderas]. Banderas: o orienta · W se pisa · r giro al azar ·
@@ -56,8 +59,8 @@
     };
     if (wallKind) def.wallKind = wallKind;   // sólo lo llevan los muros de JA-VTT de fábrica (§3.2); validateDef no lo escribe
     if (has('D')) {
-      def.states = { open: { values: [false, true], initial: false }, locked: { values: [false, true], initial: false } };
-      def.variants = [{ when: { open: true }, set: { move: { block: false }, sight: 'none', light: 'none' } }];
+      def.states = JSON.parse(JSON.stringify(DOOR_STATES));
+      def.variants = [JSON.parse(JSON.stringify(DOOR_OPEN_VARIANT))];
     }
     return def;
   }
@@ -149,8 +152,13 @@
   function span(p, board) {
     const d = defOf(p, board);
     const s = d ? [d.shape.w, d.shape.d] : [1, 1];
-    return (p.v | 0) % 2 ? [s[1], s[0]] : s;
+    // Ruling R21: `v` es el giro sólo en las piezas con shape.orient; en las de shape.random es la variante del dibujo
+    return d && d.shape.orient && (p.v | 0) % 2 ? [s[1], s[0]] : s;
   }
+  // I4 (ola final): el tipo de fábrica de una pieza, sólo si ES de fábrica (su definición es f:…); si no, null. Lo que decide
+  // comportamiento o campos por `type` ('portal', 'light', 'door'…) pregunta esto: una pieza p: con type:'portal' no es un
+  // portal de fábrica. El arte sigue usando `type` como clave.
+  const factoryType = (p) => { const id = defIdOf(p); return id && id.startsWith('f:') ? p.type : null; };
   const emitLight = (p, board) => { const e = eff(p, board, 'emitLight'); return e ? { r: e.r, h: e.h } : null; };
   const isLow = (p, board) => { const d = defOf(p, board); return !!(d && d.shape.low); };
   const gmOnly = (p, board) => !!eff(p, board, 'gmOnly');
@@ -172,6 +180,21 @@
     }
     if (plain(p.target)) q.target = Object.assign({}, p.target);        // copia propia del destino del portal
     return q;
+  }
+  /* M1 (ola final): uid únicos en la escena, igual en cliente y servidor y sin azar — el primero que lo lleva lo conserva; los
+     siguientes reciben uno derivado del uid, su posición en la lista y su casilla (así guardar dos veces da los mismos). */
+  const h32 = (s, seed) => { let h = seed >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; };
+  function dedupeUids(props) {
+    const seen = new Set();
+    props.forEach((p, i) => {
+      if (!p || typeof p.uid !== 'string') return;
+      for (let k = 0; seen.has(p.uid); k++) {
+        const s = p.uid + '|' + i + '|' + p.x + '|' + p.z + '|' + k;
+        p.uid = 'u' + (h32(s, 2166136261).toString(36) + h32(s, 5381).toString(36) + '00000000').slice(0, 8);
+      }
+      seen.add(p.uid);
+    });
+    return props;
   }
 
   /* ---- validar una definición del tablero (p:), saneando todos los campos de §3.2 ---- */
@@ -245,7 +268,11 @@
     const height = Number.isFinite(sh.height) && sh.height >= 0 && sh.height <= 8 ? Math.round(sh.height * 4) / 4 : 1;
     const c = plain(o.components) ? o.components : {};
     const states = {};
+    const isDoorDef = plain(c.door);
     for (const [k, s] of Object.entries(plain(o.states) ? o.states : {})) {
+      // Ruling R20: una puerta p: tiene los estados open/locked de la puerta de fábrica, que se sintetizan abajo. El autor
+      // no puede declararlos a mano; sólo se admite la forma exacta sintetizada (así validar dos veces da lo mismo).
+      if (isDoorDef && DOOR_STATES[k]) { if (JSON.stringify(s) === JSON.stringify(DOOR_STATES[k])) continue; return null; }
       if (RESERVED.has(k)) return null;
       if (!/^[a-z][a-zA-Z0-9]{0,15}$/.test(k) || !plain(s) || !Array.isArray(s.values) || s.values.length < 2 || s.values.length > 4) return null;
       if (!s.values.every((v) => ['boolean', 'number', 'string'].includes(typeof v))) return null;
@@ -253,7 +280,8 @@
       if (new Set(s.values).size !== s.values.length) return null;                            // valores duplicados
       states[k] = { values: s.values.slice(), initial: s.values.includes(s.initial) ? s.initial : s.values[0] };
     }
-    if (Object.keys(states).length > 4) return null;
+    if (isDoorDef) for (const [k, s] of Object.entries(DOOR_STATES)) states[k] = { values: s.values.slice(), initial: s.initial };
+    if (Object.keys(states).length > 4) return null;   // ≤ 4 en total: una puerta deja sitio a 2 estados propios
     const components = { move: sanitizeMove(c.move), sight: sense(c.sight), light: sense(c.light) };
     if (c.hide) components.hide = true;
     if (c.gmOnly) components.gmOnly = true;
@@ -285,11 +313,15 @@
       if (typeof v.set.art === 'string') set.art = v.set.art.slice(0, 40);
       def.variants.push({ when: Object.assign({}, v.when), set });
     }
+    // Ruling R20: sin ninguna variante propia con open:true, la puerta p: se abre como la de fábrica (la primera, para que
+    // las variantes del autor que vienen detrás manden sobre ella)
+    if (isDoorDef && !def.variants.some((v) => v.when.open === true)) def.variants.unshift(JSON.parse(JSON.stringify(DOOR_OPEN_VARIANT)));
+    if (def.variants.length > 16) return null;
     return new TextEncoder().encode(JSON.stringify(def)).length <= 64 * 1024 ? def : null;
   }
 
   const Catalogo = { SCHEMA, FACTORY, TERRAIN, PORTAL_LOOKS, WALL_PROP_KINDS, defIdOf, defOf, stateOf, comp, blocks, blocksMove, wallKind,
-    isDoor, span, emitLight, isLow, gmOnly, surface, complete, newUid, validateDef };
+    isDoor, span, factoryType, emitLight, isLow, gmOnly, surface, complete, newUid, dedupeUids, validateDef };
   if (typeof module === 'object' && module.exports) module.exports = Catalogo;
   else (root.Tablero3D = root.Tablero3D || {}).Catalogo = Catalogo;
 })(typeof window !== 'undefined' ? window : globalThis);

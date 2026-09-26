@@ -239,8 +239,9 @@ test('catálogo: validateDef — sanea y devuelve todos los campos de §3.2 (red
   assert.deepEqual(d.components.door, { lift: 1.5 });
   assert.deepEqual(d.components.portal, { looks: ['door', 'cave'] });
   assert.deepEqual(d.components.terrain, { liquid: true, hazard: false, anim: true, prio: 3, fringe: 'edge' });
-  assert.deepEqual(d.states, { lit: { values: [false, true], initial: false } });
-  assert.deepEqual(d.variants, [{ when: { lit: true }, set: { sight: 'none' } }]);
+  // con componente door, el catálogo añade los estados y la variante abierta de la puerta de fábrica (Ruling R20)
+  assert.deepEqual(d.states, { lit: { values: [false, true], initial: false }, open: { values: [false, true], initial: false }, locked: { values: [false, true], initial: false } });
+  assert.deepEqual(d.variants, [{ when: { open: true }, set: { move: { block: false }, sight: 'none', light: 'none' } }, { when: { lit: true }, set: { sight: 'none' } }]);
   assert.equal(d.wallKind, undefined, 'validateDef no escribe wallKind: sólo lo llevan los muros de fábrica');
 });
 
@@ -249,4 +250,67 @@ test('catálogo: validateDef — el componente terrain sólo se guarda con class
     shape: { w: 1, d: 1, height: 1, orient: false, random: false, layer: 'object' },
     components: { move: { block: true }, sight: 'none', light: 'none', terrain: { liquid: true } }, variants: [], interactions: [], reactions: [] });
   assert.equal(d.components.terrain, undefined);
+});
+
+/* Ola final, I3 (Ruling R20): una puerta p: tiene los estados open/locked y la variante abierta de la puerta de fábrica. */
+const puertaP = (extra = {}) => Object.assign({ schema: 1, id: 'p:puerta01', name: 'Puerta', class: 'wall', art: { base: 'o_puerta' },
+  shape: { w: 1, d: 1, height: 1, orient: true, random: false, layer: 'wall' },
+  components: { move: { block: true }, sight: 'block', light: 'block', door: {} } }, extra);
+
+test('catálogo: puerta p: — abierta no bloquea ni tapa; cerrada sí; con llave sigue cerrada', () => {
+  const def = C.validateDef(puertaP()), board = new Map([[def.id, def]]);
+  assert.deepEqual(def.states, { open: { values: [false, true], initial: false }, locked: { values: [false, true], initial: false } });
+  const pz = (o) => Object.assign({ type: 'o_puerta', def: def.id, x: 0, z: 0 }, o);
+  const cerrada = pz({ state: { open: false, locked: false } }), abierta = pz({ state: { open: true, locked: false } });
+  const llave = pz({ state: { open: false, locked: true } });
+  assert.equal(C.blocksMove(cerrada, board), true);
+  assert.equal(C.blocks(cerrada, 'sight', board), true);
+  assert.equal(C.blocksMove(abierta, board), false, 'abierta se cruza');
+  assert.equal(C.blocks(abierta, 'sight', board), false, 'abierta no tapa la vista');
+  assert.equal(C.blocks(abierta, 'light', board), false, 'abierta no tapa la luz');
+  assert.equal(C.blocksMove(llave, board), true, 'con llave sigue cerrada');
+  assert.equal(C.blocksMove(pz({ open: true }), board), false, 'también desde la raíz (formato de antes)');
+  const c = C.complete(abierta, board);
+  assert.deepEqual([c.state, c.open], [{ open: true, locked: false }, true], 'espejo open/locked como la de fábrica');
+});
+
+test('catálogo: puerta p: — el autor no declara open/locked a mano, sí variantes con ellos; validar dos veces da lo mismo', () => {
+  assert.equal(C.validateDef(puertaP({ states: { open: { values: [false, true], initial: true } } })), null, 'open a mano (distinto): no');
+  assert.equal(C.validateDef(Object.assign(puertaP(), { components: { move: { block: true }, sight: 'none', light: 'none' },
+    states: { open: { values: [false, true], initial: false } } })), null, 'sin door, open sigue reservado');
+  const propia = C.validateDef(puertaP({ variants: [{ when: { open: true }, set: { move: { block: false }, sight: 'block' } }, { when: { locked: true }, set: { art: 'o_puerta_llave' } }] }));
+  assert.ok(propia);
+  assert.equal(propia.variants.length, 2, 'con una variante open:true propia no se añade la de fábrica');
+  const board = new Map([[propia.id, propia]]);
+  assert.equal(C.blocks({ type: 'o_puerta', def: propia.id, x: 0, z: 0, state: { open: true } }, 'sight', board), true, 'manda la del autor');
+  const d = C.validateDef(puertaP());
+  assert.deepEqual(C.validateDef(d), d, 'idempotente');
+  assert.equal(C.validateDef(puertaP({ states: { a: { values: [1, 2] }, b: { values: [1, 2] }, c: { values: [1, 2] } } })), null, '≤ 4 estados en total');
+});
+
+test('catálogo: factoryType — el tipo sólo cuenta si la pieza es de fábrica', () => {
+  assert.equal(C.factoryType({ type: 'portal', x: 0, z: 0 }), 'portal');
+  assert.equal(C.factoryType({ type: 'portal', def: 'p:falso01', x: 0, z: 0 }), null);
+  assert.equal(C.factoryType({ type: 'light', def: 'p:falso01', x: 0, z: 0 }), null);
+  assert.equal(C.factoryType({ type: 'obj:o_abcd1234', x: 0, z: 0 }), null, 'un dibujo (d:) tampoco');
+  assert.equal(C.factoryType({ type: 'nave', x: 0, z: 0 }), null);
+});
+
+test('catálogo: span — sólo gira con v%2 si la pieza orienta (en las random, v es la variante)', () => {
+  const mk = (sh) => C.validateDef({ schema: 1, id: 'p:ancho01', name: 'Ancho', class: 'object', art: { base: 'o_a' },
+    shape: Object.assign({ w: 2, d: 1, height: 1, layer: 'object' }, sh), components: { move: { block: true } } });
+  const orient = mk({ orient: true }), rand = mk({ random: true });
+  assert.deepEqual(C.span({ type: 'a', def: 'p:ancho01', x: 0, z: 0, v: 1 }, new Map([['p:ancho01', orient]])), [1, 2]);
+  assert.deepEqual(C.span({ type: 'a', def: 'p:ancho01', x: 0, z: 0, v: 1 }, new Map([['p:ancho01', rand]])), [2, 1]);
+  assert.deepEqual(C.span({ type: 'bridge2', x: 0, z: 0, v: 3 }), [1, 2], 'fábrica con orient: igual que antes');
+});
+
+test('catálogo: dedupeUids — el primero conserva el suyo; los demás, uno derivado estable y único', () => {
+  const lista = () => [{ uid: 'uaaaaaaaa', x: 1, z: 1 }, { uid: 'uaaaaaaaa', x: 2, z: 1 }, { uid: 'ubbbbbbbb', x: 3, z: 1 }, { uid: 'uaaaaaaaa', x: 4, z: 1 }];
+  const a = C.dedupeUids(lista()), b = C.dedupeUids(lista());
+  assert.equal(a[0].uid, 'uaaaaaaaa');
+  assert.equal(a[2].uid, 'ubbbbbbbb');
+  assert.deepEqual(a.map((p) => p.uid), b.map((p) => p.uid), 'determinista');
+  assert.equal(new Set(a.map((p) => p.uid)).size, 4, 'sin repetidos');
+  for (const p of a) assert.match(p.uid, /^u[a-z0-9]{8}$/);
 });
