@@ -2,7 +2,19 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
-## 2026-09-26 — Integración del tablero 3D (rama `integracion-tablero-3d`, sin desplegar)
+## 2026-09-26 — Despliegue de main @ f3e5f68 (tablero 3D, módulo activo)
+
+- **Qué:** copia `pg_dump` de la base en `vps1new:/root/backups/ja-vtt-predeploy/jav-2026-09-26-1527-pre-t3d.sql.gz`
+  (4 usuarios, 5 tableros, 441 objetos); `integracion-tablero-3d` → `main` (avance rápido, rama borrada) y
+  `POST /api/v1/deploy` (deployment `b3yoctn983f9fy6fizeu7ibs`).
+- **Verificado desde el servidor:** `finished` en `f3e5f68`; `app`/`db` healthy; log con `t3d/001…006`;
+  `/api/health`, `/`, `/t3d/t3d.js` y `/t3d/t3d.css` en 200; HTML y `render.js` servidos con las líneas `t3d`;
+  datos intactos (4/5/441) y `t3d.boards` vacía: los tableros existentes siguen 2D. No se corrió `test:ja-vtt`
+  contra producción (crearía cuentas de prueba).
+- **Revertir:** sin borrar nada, `T3D=off` en las variables de la app en Coolify + redeploy; o redeploy de
+  `be83c7e` y `DROP SCHEMA t3d CASCADE`; o restaurar la copia.
+
+## 2026-09-26 — Integración del tablero 3D (rama `integracion-tablero-3d`)
 
 - **Qué:** `modules/tablero3d` copiado tal cual de `3d-tablero@403d6a5` y montado con su guía
   (`docs/08-integracion-ja-vtt.md` de ese repo, versión T8): 78 líneas añadidas y 7 sustituidas en 7

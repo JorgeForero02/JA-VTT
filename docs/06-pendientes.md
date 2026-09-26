@@ -4,7 +4,6 @@ Actualizado: 2026-09-26. Prioridad: P0 bloquea · P1 próxima sesión · P2 cuan
 
 | ID | P | Tarea | Evidencia para cerrar |
 |---|---|---|---|
-| P-31 | P1 | Llevar la integración del tablero 3D (rama `integracion-tablero-3d`) a `main` y desplegar, con aprobación del usuario. Decidir antes si producción arranca con el módulo activo (crea el esquema `t3d` y todos ven el selector) o con `T3D=off` | Deploy verificado desde el servidor: `t3d/001…006` en el log y `/t3d/t3d.js` 200 |
 | P-32 | P2 | Tablero 3D: no hay escena por jugador; la mesa en vivo 3D es la escena del director (hoja de ruta R15 del módulo; se resuelve en `3d-tablero`) | Nueva versión del módulo copiada |
 | P-33 | P2 | Tablero 3D: muros y zonas por casilla, no segmentos finos entre casillas; un portal 2D no lleva a una escena 3D (R13 del módulo) | Nueva versión del módulo copiada |
 | P-34 | P2 | Tablero 3D: el tipo de mesa se marca con una segunda petición tras crear el tablero (si falla queda 2D con aviso; 10 min para repetirla) y JA-VTT crea igual su «Escena 1» 2D, oculta, que la tarjeta cuenta («1 escena») | Decisión del usuario: aceptarlo o crear el tipo en la misma petición |
