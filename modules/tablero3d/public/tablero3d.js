@@ -1928,8 +1928,11 @@ function loadMap(def,keepCam){
 
 /* ============ movimiento ============ */
 // caminos: Fichas.route/paths (fichas.js) sobre esta rejilla; una ficha grande necesita todas sus casillas libres
+// Ruling R18: casillas que tapan el paso piezas que este cliente no tiene (las gmOnly del director; el servidor sólo manda
+// sus índices en `blockCells`). No se dibujan ni se guardan: sólo bloquean caminos, llegadas y colocación.
+const blockCell=i=>!!(M.blockCells&&M.blockCells.has(i));
 const PATHG={ get w(){ return M.w; }, get d(){ return M.d; }, h:i=>DECK&&DECK[i]?DECK[i]:M.h[i],
-  open:i=>{ if(DECK&&DECK[i]) return true; const tt=M.t[i]; return !(tt==='w'||tt==='l'||isDeep(i)||(blocked.has(i)&&!(doorShut.has(i)&&passDoor(i)))); },   // una puerta cerrada se abre al pasar (si se puede); un puente se pisa
+  open:i=>{ if(DECK&&DECK[i]) return true; const tt=M.t[i]; return !(tt==='w'||tt==='l'||isDeep(i)||blockCell(i)||(blocked.has(i)&&!(doorShut.has(i)&&passDoor(i)))); },   // una puerta cerrada se abre al pasar (si se puede); un puente se pisa
   hard:i=>!(DECK&&DECK[i])&&!!(WS&&WS[i]&&!isDeep(i)) };
 // una puerta cerrada se cruza si quien mueve puede abrirla; con llave, nadie pasa (el director la abre a mano)
 function passDoor(i){ return !lockedDoors.has(i)&&(gmView()||SETTINGS.playersDoors!==false); }
@@ -2594,7 +2597,7 @@ const miniCells=m=>Fichas.cellsOf(m.sheet||defaultSheet(m.kind));
 // forMini: un personaje puede estar sobre lo que se pisa (velo, maleza, escalones). «Se pisa» es lo de su definición, no lo de
 // su estado: una puerta abierta sigue ocupando su casilla al colocar (como antes; Muros.gridOf mira igual)
 const walkable=p=>!opaque(p)&&!Catalogo.blocksMove(p,PIECES)&&!Catalogo.isDoor(p,PIECES);
-function occupied(x,z,forMini){ return M.props.some(p=>p.type!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
+function occupied(x,z,forMini){ return (inb(x,z)&&blockCell(idx(x,z)))||M.props.some(p=>p.type!=='light'&&!(forMini&&walkable(p)&&!Catalogo.surface(p,PIECES))&&propCovers(p,x,z))||M.minis.some(m=>Fichas.covers(m.x,m.z,miniCells(m),x,z)); }
 function applyTool(x,z,first){
   const t=state.tool, r=(state.brush-1)>>1, cells=[];
   for(let dz=-r;dz<=r;dz++) for(let dx=-r;dx<=r;dx++){ const X=x+dx, Z=z+dz; if(inb(X,Z)) cells.push([X,Z]); }
@@ -3069,7 +3072,9 @@ function deserialize(o){
   const st0=Array.isArray(o.start)&&Number.isInteger(o.start[0])&&Number.isInteger(o.start[1])&&o.start[0]>=0&&o.start[1]>=0&&o.start[0]<w&&o.start[1]<d?o.start:null;
   const roofs=(Array.isArray(o.roofs)?o.roofs:[]).map(r=>normRoof(r,w,d)).filter(Boolean).slice(0,300);
   const zoneCells=Ambiente.cleanCells(o.zoneCells,w*d);   // zonas interiores pintadas (las de los techos salen de los techos)
-  return {roofs,seen,fog:!!o.fog,src,name:String(o.name||'Tablero').slice(0,40),w,d,h,t,props,minis,...Ambiente.norm(o),...(zoneCells?{zoneCells}:{}),seed:(Math.random()*1e9)|0,start:st0||(k?[k.x,k.z]:[w>>1,d>>1]),
+  // R18: casillas que bloquean piezas del director que al jugador no le llegan (derivado del servidor: no se serializa)
+  const blockCells=new Set((Array.isArray(o.blockCells)?o.blockCells:[]).slice(0,w*d).filter(i=>Number.isInteger(i)&&i>=0&&i<w*d));
+  return {roofs,seen,fog:!!o.fog,src,name:String(o.name||'Tablero').slice(0,40),w,d,h,t,props,minis,...Ambiente.norm(o),...(zoneCells?{zoneCells}:{}),...(blockCells.size?{blockCells}:{}),seed:(Math.random()*1e9)|0,start:st0||(k?[k.x,k.z]:[w>>1,d>>1]),
     ...readExtras(o,w,d)};
 }
 /* ajustes de escena de JA-VTT (grid, snap, animate, plansReleased), planos del director y anotaciones: como cleanMap del servidor */

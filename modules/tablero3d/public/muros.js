@@ -81,6 +81,7 @@
     const off=(x,z,sw,sd)=>{ for(let j=0;j<sd;j++) for(let k=0;k<sw;k++){ const X=x+k, Z=z+j; if(X>=0&&Z>=0&&X<w&&Z<d) open[Z*w+X]=0; } };
     for(const p of m.props||[]) if(p&&(C.blocksMove(p)||C.isDoor(p))&&Number.isInteger(p.x)&&Number.isInteger(p.z)){ const [sw,sd]=C.span(p); off(p.x,p.z,sw,sd); }
     for(const q of m.minis||[]) if(q&&Number.isInteger(q.x)&&Number.isInteger(q.z)){ const s=q.sheet&&int(q.sheet.size,1,4)?q.sheet.size:1; off(q.x,q.z,s,s); }
+    for(const i of m.blockCells||[]) if(Number.isInteger(i)&&i>=0&&i<n) open[i]=0;   // R18: lo que tapan piezas del director que este cliente no tiene
     return {w,d,open:i=>open[i]===1,h:i=>h[i]};
   }
   const D4=[[1,0],[-1,0],[0,1],[0,-1]], D8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];

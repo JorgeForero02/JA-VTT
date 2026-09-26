@@ -168,3 +168,50 @@ test('cleanProp: una pieza cuyo tipo es un terreno (f:g, f:w o p: de clase terra
   ] }), board);
   assert.deepEqual(m.props.map((p) => p.type), ['chest'], 'sólo queda el cofre');
 });
+
+// Ruling R18: al jugador no le llegan las barreras (gmOnly), pero sí las casillas que bloquean el paso (`blockCells`,
+// índices z*w+x ordenados y sin repetir), sin tipo, arte ni uid; así su cliente sigue sin poder cruzarlas (como antes de T4).
+test('R18: el jugador recibe blockCells con las casillas de la barrera y ninguna pieza barrier; el director no', () => {
+  const m = R.cleanMap(F.map(8, { props: [
+    { type: 'barrier', x: 0, z: 7 }, { type: 'barrier', x: 3, z: 2 }, { type: 'barrier', x: 3, z: 2, v: 1 }, { type: 'chest', x: 5, z: 5 },
+  ] }));
+  const pl = R.sceneFor(m, PL, null);
+  assert.deepEqual(pl.blockCells, [2 * 8 + 3, 7 * 8 + 0], 'ordenadas y sin repetir; el cofre (no gmOnly) no cuenta');
+  assert.ok(!pl.props.some((p) => p.type === 'barrier'));
+  assert.ok(!JSON.stringify(pl).includes('barrier'), 'ni el tipo ni nada de la barrera');
+  assert.equal(R.sceneFor(m, GM, null).blockCells, undefined, 'el director tiene las piezas: sin blockCells');
+  assert.equal(R.sceneFor(R.cleanMap(F.map(8, { props: [{ type: 'chest', x: 5, z: 5 }] })), PL, null).blockCells, undefined, 'sin barreras: sin campo');
+  const camp = R.campaignFor({ id: 'c1', name: 'C', boards: { a: { name: 'A', data: m } }, notes: {}, cur: 'a' }, PL, null);
+  assert.deepEqual(camp.boards.a.data.blockCells, pl.blockCells, 'también en campañas');
+  const live = R.liveDocFor('board', { open: true, rev: 1, board: m }, PL, null, {});
+  assert.deepEqual(live.board.blockCells, pl.blockCells, 'y en la mesa en vivo');
+});
+
+test('R18: una p: gmOnly que bloquea (con su tamaño y giro) sale en blockCells; una gmOnly que no bloquea, no', () => {
+  const board = boardConDosPiezas();
+  board.set('p:valla02', Catalogo.validateDef({
+    id: 'p:valla02', schema: 1, class: 'wall', art: { base: 'valla02' },
+    shape: { w: 2, d: 1, height: 1, orient: true, random: false, layer: 'wall', low: false },
+    components: { move: { block: true }, sight: 'none', light: 'none', gmOnly: true },
+  }));
+  board.set('p:marca01', Catalogo.validateDef({
+    id: 'p:marca01', schema: 1, class: 'object', art: { base: 'marca01' },
+    shape: { w: 1, d: 1, height: 1, orient: false, random: false, layer: 'object', low: false },
+    components: { move: { block: false }, sight: 'none', light: 'none', gmOnly: true },
+  }));
+  const m = R.cleanMap(F.map(8, { props: [
+    { type: 'muro01', def: 'p:muro01', x: 1, z: 1 }, { type: 'cofre01', def: 'p:cofre01', x: 2, z: 1 },
+    { type: 'valla02', def: 'p:valla02', x: 4, z: 4 }, { type: 'valla02', def: 'p:valla02', x: 6, z: 5, v: 1 },
+    { type: 'marca01', def: 'p:marca01', x: 0, z: 0 },
+  ] }), board);
+  assert.equal(m.props.length, 5);
+  const pl = R.sceneFor(m, PL, null, board);
+  assert.deepEqual(pl.blockCells, [1 * 8 + 1, 4 * 8 + 4, 4 * 8 + 5, 5 * 8 + 6, 6 * 8 + 6], 'muro01 1×1; valla 2×1 y girada 1×2; ni el cofre ni la marca');
+  assert.deepEqual(pl.props.map((p) => p.def), ['p:cofre01']);
+});
+
+test('R18: blockCells es derivado: cleanMap no lo conserva', () => {
+  const m = R.cleanMap(Object.assign(F.map(8, { props: [{ type: 'barrier', x: 1, z: 1 }] }), { blockCells: [0, 1, 2] }));
+  assert.equal(m.blockCells, undefined);
+  assert.equal(R.cleanMap(R.sceneFor(m, PL, null)).blockCells, undefined, 'ni aunque vuelva la vista del jugador');
+});

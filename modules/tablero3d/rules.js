@@ -523,6 +523,17 @@ function tokensFor(doc, member, settings) {
    jugador por no saber consultar su definición). Ronda de arreglos 1, «Importante 1a» (fallar cerrado): si la
    definición de una pieza ya no resuelve (p. ej. se borró de t3d.pieces mientras seguía colocada), Catalogo.gmOnly
    da `false` sin poder consultarla — así que además de las gmOnly se descarta toda pieza sin definición. */
+/* Ruling R18: casillas (z*w+x, ordenadas y sin repetir) que tapan el paso las piezas gmOnly que bloquean, con su tamaño y giro */
+function gmOnlyBlockCells(map, board) {
+  const w = map.w, d = map.d, set = new Set();
+  if (!Number.isInteger(w) || !Number.isInteger(d)) return [];
+  for (const p of map.props) {
+    if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.z) || !Catalogo.gmOnly(p, board) || !Catalogo.blocksMove(p, board)) continue;
+    const [sw, sd] = Catalogo.span(p, board);
+    for (let j = 0; j < sd; j++) for (let k = 0; k < sw; k++) { const X = p.x + k, Z = p.z + j; if (X >= 0 && Z >= 0 && X < w && Z < d) set.add(Z * w + X); }
+  }
+  return [...set].sort((a, b) => a - b);
+}
 function sceneFor(map, member, settings, board) {
   if (isGm(member) || !map) return map;
   const S = cleanSettings(settings);
@@ -531,7 +542,13 @@ function sceneFor(map, member, settings, board) {
   if (map.notes) out.notes = map.notes.filter((n) => !n.gmOnly);
   if (map.plans) out.plans = map.plansReleased ? map.plans : map.plans.filter((p) => p.owner != null);
   // lo que sólo ve el director (barreras; mañana, secretas; sin definición) no sale del servidor
-  if (Array.isArray(map.props)) out.props = map.props.filter((p) => Catalogo.defOf(p, board) && !Catalogo.gmOnly(p, board));
+  if (Array.isArray(map.props)) {
+    out.props = map.props.filter((p) => Catalogo.defOf(p, board) && !Catalogo.gmOnly(p, board));
+    // Ruling R18: de lo que sólo ve el director, al jugador le llegan únicamente las casillas que no se pueden pisar
+    // (índices z*w+x), sin tipo, arte ni uid; su cliente las bloquea como antes (el servidor no valida caminos)
+    const cells = gmOnlyBlockCells(map, board);
+    if (cells.length) out.blockCells = cells;
+  }
   return out;
 }
 function combatFor(doc, member, tokens, settings) {

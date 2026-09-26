@@ -320,6 +320,34 @@ try {
   step('pieza p: sin definición: se conserva opaca (se dibuja, ocupa su casilla) y se exporta tal cual',
     gp.props.length === 1 && gp.props[0].shown && gp.route === null && gp.beside !== null && JSON.stringify(gOut) === JSON.stringify(ghost),
     JSON.stringify({ gp, gOut }));
+  // Tarea 8 / Ruling R18: una columna de barreras (gmOnly) en x=6 y la ficha del jugador en (3,8). En la mesa en vivo el
+  // jugador no tiene las barreras en sus datos (sólo `blockCells`), y su camino al otro lado sale bloqueado (como en main).
+  await gm.evaluate(() => { location.hash = '#/'; });
+  await gm.waitForSelector('#dashView:not([hidden]) .boardCard', { timeout: 10000 });
+  await gm.fill('#newBoardName', 'Mesa barrera'); await gm.selectOption('#newBoardType', '3d'); await gm.click('#newBoardForm button[type=submit]');
+  await gm.waitForFunction(() => (document.getElementById('t3d-mapName')?.textContent || '').length > 3, null, { timeout: 20000 });
+  const barBoard = await gm.evaluate(() => location.hash.split('/').pop());
+  const barMembers = await gm.evaluate(async ([id, n]) => (await (await fetch(`/api/boards/${id}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n }) })).json()).members, [barBoard, `jug-${sfx}`]);
+  const plUid = String(barMembers.find((m) => m.role !== 'gm').id);
+  const barProps = []; for (let z = 0; z < 16; z++) barProps.push({ type: 'barrier', x: 6, z, v: 1 });
+  const barScene = { v: 1, name: 'Barrera', w: 16, d: 16, h: flat16(256, '2'), t: flat16(256, 'g'), wsrc: flat16(256, '0'), roofs: [], start: [6, 8], env: 'day', fog: false, animate: false, seen: '', props: barProps,
+    minis: [{ kind: 'knight', x: 3, z: 8, fx: 1, fz: 0, id: 'k1', owner: plUid }] };
+  await gm.evaluate(async ([id, sc]) => { await fetch(`/api/t3d/boards/${id}/scenes/bar1`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sc) }); }, [barBoard, barScene]);
+  await gm.reload();
+  await gm.waitForFunction(() => /^Barrera/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('props') || []).length === 16, null, { timeout: 20000 });
+  await gm.click('#panel .tabs [data-tab="live"]');
+  await gm.click('#t3d-gTable button:has-text("Abrir mesa con este tablero")');
+  await pl.goto(`${BASE}/#/tablero/${barBoard}`);
+  await pl.waitForFunction(() => !!document.getElementById('t3d-mapName'), null, { timeout: 20000 });
+  await pl.click('#panel .tabs [data-tab="live"]');
+  await pl.waitForSelector('#t3d-gTable button:has-text("Unirse a la mesa")', { timeout: 10000 });
+  await pl.click('#t3d-gTable button:has-text("Unirse a la mesa")');
+  await pl.waitForFunction(() => /en vivo/.test(document.getElementById('t3d-mapName')?.textContent || '') && (t3dView.probe('tokens') || []).length === 1, null, { timeout: 15000 });
+  const bar = await pl.evaluate(() => { const id = t3dView.probe('tokens')[0].id; return { barriers: t3dView.probe('props').filter((p) => p.type === 'barrier').length, props: t3dView.probe('props').length,
+    across: t3dView.probe('route', id, 9, 8), same: t3dView.probe('route', id, 5, 8) }; });
+  bar.gmAcross = await gm.evaluate(() => t3dView.probe('route', t3dView.probe('tokens')[0].id, 9, 8));
+  step('barrera (R18): el jugador en la mesa en vivo no la tiene en sus datos y su camino a través de ella sale bloqueado',
+    bar.barriers === 0 && bar.props === 0 && bar.across === null && bar.same !== null && bar.gmAcross === null, JSON.stringify(bar));
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

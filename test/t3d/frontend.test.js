@@ -818,3 +818,15 @@ test('Muros por catálogo: kindOf, blocks y gridOf iguales que el servidor para 
   assert.equal(Mu.blocks({ type: 'door', open: true }, 'sight'), false);
   assert.deepEqual([...Mu.PASSABLE].sort(), [...R.PASSABLE_PROPS].sort());
 });
+
+/* ---- Ruling R18: la rejilla de llegada del cliente (Muros.gridOf) cierra las casillas de blockCells igual que el servidor
+   las cierra con la barrera: la vista del jugador da la misma rejilla que la escena completa del director ---- */
+test('R18: Muros.gridOf de la vista del jugador (sin barreras, con blockCells) = R.gridOf de la escena completa', () => {
+  const ctx = { window: {} }; vm.createContext(ctx);
+  for (const f of ['catalogo.js', 'muros.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public', f), 'utf8'), ctx);
+  const Mu = ctx.window.Tablero3D.Muros;
+  const m = R.cleanMap(F2.escenaVieja()), pl = R.sceneFor(m, { role: 'player', user_id: '2' }, null);
+  assert.ok(pl.blockCells && pl.blockCells.length > 0 && !pl.props.some((p) => p.type === 'barrier'));
+  const a = Mu.gridOf(Object.assign({}, pl, { blockCells: new Set(pl.blockCells) })), b = R.gridOf(m);
+  for (let i = 0; i < m.w * m.d; i++) assert.equal(a.open(i), b.open(i), `casilla ${i}`);
+});
