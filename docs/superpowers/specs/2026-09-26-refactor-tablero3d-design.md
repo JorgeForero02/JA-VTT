@@ -146,6 +146,6 @@ navegador (sin `?v=`, `no-cache`) → sin cambio.
 
 ## 8. Hecho cuando
 - `tablero3d.js` ≤ ~2600 líneas, cero reasignaciones de función, ESLint con trinquete activo.
-- Los 7 módulos nuevos existen con su interfaz documentada; los puros con pruebas en node y en cobertura.
+- Los 9 módulos nuevos existen con su interfaz documentada; los puros con pruebas en node y en cobertura.
 - Fotos doradas y los pasos nuevos y viejos de `test:t3d` en verde **sin cambiarlos** tras el refactor.
 - Pasada completa verde; docs 01, 04, 05 y 07 al día.
