@@ -9,6 +9,7 @@ T3D._engine=function(ctx){
 const ROOT=ctx.root, $=ctx.$, Vision=T3D.Vision, Fichas=T3D.Fichas, Muros=T3D.Muros, Personajes=T3D.Personajes, Ambiente=T3D.Ambiente, Ajustes=T3D.Ajustes, Dados=T3D.Dados, Catalogo=T3D.Catalogo;
 const {mulberry32,hash,pick,hexRGB}=T3D.Base; const {WARM,HEX6,LIGHT_TYPES,LIGHT_IDS,OBJ_LIGHT_IDS,LIGHT_ANIMS,TOKEN_LIGHTS,normLight,lightOfType,lightName,lightRGB}=T3D.Luces;
 const {G,D,S,B,W,SA,WA,SL,TH,SH,CU,Grgb,Drgb,Srgb,PROP3D}=T3D.Objetos3D;
+const Escena=T3D.Escena.make({Catalogo,Muros,Ambiente,Ajustes}); const {ROOF_MAT_IDS,ROOF_SHAPE_IDS,normRoof,sceneExtras}=Escena;
 /* escuchas de ventana, temporizadores y observadores que hay que soltar al desmontar */
 const offs=[]; let stopped=false;
 function on(t,ev,fn,o){ t.addEventListener(ev,fn,o); offs.push(()=>t.removeEventListener(ev,fn,o)); }
@@ -199,16 +200,12 @@ paint(43,148,(P,F,r)=>{ F(CU[2]); for(let i=0;i<50;i++) P(r()*16|0,r()*16|0,r()<
   for(let k=0;k<5;k++){ const x=2+((r()*4|0)*4), y=r()*16|0; for(let j=0;j<3+(r()*3|0);j++) P(x,y+j,CU[4]); }
   for(let x0=0;x0<16;x0+=4) for(let y=0;y<16;y++){ P(x0,y,CU[4]); P(x0+1,y,CU[1]); }
   for(const [y,off] of [[7,0],[15,2]]) for(let x=0;x<16;x++) if(((x+off)%4)>1) P(x,y,CU[1]); });
-// materiales de techo: casilla del atlas y clave del arte que la sustituye; formas; y cómo lee un techo guardado el cliente
+// materiales de techo: casilla del atlas y clave del arte que la sustituye; formas (ROOF_MAT_IDS, ROOF_SHAPE_IDS y normRoof, en escena.js)
 const ROOF_MATS={tile:{name:'Teja roja',slot:27,key:'roof:top',end:'o',mini:'#a33b3b'},slate:{name:'Pizarra',slot:31,key:'roof:slate',end:'w',mini:'#526079'},
   thatch:{name:'Paja',slot:41,key:'roof:thatch',end:'o',mini:'#b38f45'},shingle:{name:'Tablillas de madera',slot:42,key:'roof:shingle',end:'o',mini:'#8f6a4b'},
   copper:{name:'Cobre con verdín',slot:43,key:'roof:copper',end:'w',mini:'#4f9c82'}};
 const ROOF_KEY=Object.fromEntries(Object.values(ROOF_MATS).map(m=>[m.key,m.slot]));
 const ROOF_SHAPES={gable:'A dos aguas',hip:'A cuatro aguas',flat:'Plano con almenas',cone:'Cónico',shed:'A un agua'};
-const ROOF_MAT_IDS=['tile','slate','thatch','shingle','copper'], ROOF_SHAPE_IDS=['gable','hip','flat','cone','shed'];
-function normRoof(r,w,d){ if(!r||typeof r!=='object'||![r.x,r.z,r.w,r.d].every(Number.isInteger)||r.w<2||r.d<2||r.x<0||r.z<0||r.x+r.w>w||r.z+r.d>d) return null;
-  const o={x:r.x,z:r.z,w:r.w,d:r.d,mat:ROOF_MAT_IDS.includes(r.mat)?r.mat:'tile',shape:ROOF_SHAPE_IDS.includes(r.shape)?r.shape:'gable'};
-  if(Number.isInteger(r.rot)&&r.rot>=0&&r.rot<=3) o.rot=r.rot; return o; }
 // nieve (29) y lateral nevado (30)
 paint(29,143,(P,F,r,n)=>{ F('#e4ecf6'); for(let i=0;i<40;i++) P(n(),n(),r()<.5?'#c9d6ea':'#f4f8fc'); for(let i=0;i<6;i++) P(n(),n(),'#ffffff'); });
 paint(30,144,(P,F,r,n)=>{ F(D[2]); for(let i=0;i<50;i++) P(n(),n(),r()<.5?D[1]:D[3]);
@@ -2715,11 +2712,8 @@ for(const k of BOARD_TOGGLES) $(k).onchange=()=>setSetting({[k]:$(k).checked});
 $('hpVisibility').onchange=()=>setSetting({hpVisibility:$('hpVisibility').value});
 
 /* ---- tableros: nuevo, guardar, abrir, exportar, importar ---- */
-// escena vacía: terreno base a elegir y sin personajes; el director la llena desde cero
-function blankMap(n,terr,env){
-  const tt=/^[gapcson]$/.test(terr||'')?terr:'g', h=new Int8Array(n*n).fill(2), t=new Array(n*n).fill(tt), c=n>>1;
-  return {name:'Tablero nuevo '+n+'×'+n,w:n,d:n,h,t,props:[],minis:[],...Ambiente.norm({env}),seed:(Math.random()*1e9)|0,start:[c,c]};
-}
+// escena vacía (escena.js); la semilla al azar la pone el motor
+function blankMap(n,terr,env){ return Escena.blankMap(n,terr,env,(Math.random()*1e9)|0); }
 const NEW_SIZES=[8,16,32,64,128];
 $('newSize').onclick=()=>{ state.newSize=NEW_SIZES[(NEW_SIZES.indexOf(state.newSize)+1)%NEW_SIZES.length]; $('newSize').textContent='Nuevo '+state.newSize+'×'+state.newSize; };
 function clearMapButtons(){ $('sheet').querySelectorAll('[data-map]').forEach(b=>b.setAttribute('aria-pressed','false')); }
@@ -2735,62 +2729,10 @@ async function openLatestScene(){
   const it=items.slice().sort((a,b)=>(b.updated||0)-(a.updated||0))[0];
   try{ const m=deserialize(it); m.boardId=it.id; loadMap(m); clearMapButtons(); if(state.mode==='edit') refreshEntities(); showHint('Abierta la última escena: «'+m.name+'».',2000); }catch(e){}
 }
-// M2 (ola final): los campos reservados level (0–15) y side (N/E/S/W) viajan como en el servidor (cleanProp)
-const levelSide=p=>({...(Number.isInteger(p.level)&&p.level>=0&&p.level<=15?{level:p.level}:{}),...(['N','E','S','W'].includes(p.side)?{side:p.side}:{})});
-function serialize(){
-  syncMinis();
-  return { v:2, name:M.name, w:M.w, d:M.d, h:Array.from(M.h,n=>n.toString(36)).join(''), t:M.t.join(''), wsrc:Array.from(M.src).join(''),
-    // formato v2: la forma de siempre + def, uid y state (Catalogo.complete); la pieza que no tenía uid se queda con el suyo
-    // la puerta escribe su `state` desde la raíz (open/locked, lo que tocan toggleDoor, lockDoor y la mesa en vivo); la opaca, tal cual
-    props:M.props.map(p=>{ if(opaque(p)) return JSON.parse(JSON.stringify(p));
-      const door=Catalogo.isDoor(p,PIECES), st=door?Object.assign({},p.state,{open:!!p.open,locked:!!p.locked}):p.state;
-      const q=Catalogo.complete({type:p.type,x:p.x,z:p.z,v:p.v||0,open:!!p.open,...(p.locked?{locked:true}:{}),...(p.uid?{uid:p.uid}:{}),...(p.def?{def:p.def}:{}),...(st?{state:st}:{}),...levelSide(p),
-      ...(FT(p)==='light'?normLight(p):{}),...(Muros.kindOf(p)?Muros.normProp(p):{})},PIECES); if(!p.uid) p.uid=q.uid; return q; }), roofs:(M.roofs||[]).map(r=>({...r})), start:M.start,
-    minis:M.minis.map(m=>({kind:m.kind,x:m.x,z:m.z,fx:m.fx,fz:m.fz,id:m.id,sheet:m.sheet,...(m.owner?{owner:m.owner}:{})})), ...ENV, ...(M.zoneCells?{zoneCells:M.zoneCells}:{}), fog:!!state.fog, seen:M.seen?Array.from(M.seen).join(''):'',
-    ...sceneExtras(M) };
-}
-function deserialize(o){
-  if(!o||typeof o!=='object') throw new Error('bad');
-  const w=o.w|0, d=o.d|0;
-  if(w<4||d<4||w>160||d>160||typeof o.h!=='string'||typeof o.t!=='string'||o.h.length!==w*d||o.t.length!==w*d) throw new Error('bad');
-  const h=new Int8Array(w*d);
-  for(let i=0;i<w*d;i++){ const v=parseInt(o.h[i],36); if(!(v>=0&&v<=12)) throw new Error('bad'); h[i]=v; }
-  const t=o.t.split(''); if(t.some(c=>!TERR[c])) throw new Error('bad');
-  const ok=(x,z)=>Number.isInteger(x)&&Number.isInteger(z)&&x>=0&&z>=0&&x<w&&z<d;
-  // escenas v1 y v2: cada pieza se lee contra su definición (catálogo; las p: del tablero en PIECES) y se completa (def, uid, state).
-  // Una pieza sin definición se descarta, como en el servidor; un terreno (f:g…) no es una pieza que se coloque. Una p: que
-  // no se conoce aquí se conserva opaca (ronda 1 de la Tarea 7).
-  const isPiece=p=>{ const D=Catalogo.defOf(p,PIECES); return !!D&&D.class!=='terrain'; };
-  const props=(Array.isArray(o.props)?o.props:[]).filter(p=>p&&typeof p.type==='string'&&(isPiece(p)||opaque(p))&&ok(p.x,p.z))
-    .map(p=>{ if(opaque(p)) return Catalogo.complete(JSON.parse(JSON.stringify(p)),PIECES);   // tal cual (con uid)
-      const q={type:p.type,x:p.x,z:p.z,v:Math.max(0,Math.min(3,p.v|0)),open:Catalogo.isDoor(p,PIECES)&&!!(p.state&&'open' in p.state?p.state.open:p.open)};
-      if(typeof p.uid==='string') q.uid=p.uid; if(typeof p.def==='string') q.def=p.def; Object.assign(q,levelSide(p));
-      if(p.state&&typeof p.state==='object') q.state=Object.assign({},p.state);
-      if(FT(p)==='light') Object.assign(q,normLight(p));
-      // muros de JA-VTT: puertas con llave, portales; las escaleras de campaña de antes pasan a portales (Muros.normProp, como el servidor)
-      const wp=Muros.normProp(p); if(wp) Object.assign(q,wp,{open:Catalogo.isDoor(wp,PIECES)&&!!q.open});
-      if(p.state&&p.state.locked) q.locked=true;
-      return Catalogo.complete(q,PIECES); }).slice(0,5000);
-  Catalogo.dedupeUids(props);   // M1: uid repetidos, igual que el servidor (el primero conserva el suyo)
-  Muros.fixPortalIds(props);
-  const minis=(Array.isArray(o.minis)?o.minis:[]).filter(m=>m&&typeof m.kind==='string'&&(MINI_KINDS.includes(m.kind)||/^c_[a-z0-9]{4,16}$/.test(m.kind))&&ok(m.x,m.z))
-    .map(m=>{ const fx=Math.sign(m.fx|0), fz=fx?0:(Math.sign(m.fz|0)||1); return {kind:m.kind,x:m.x,z:m.z,fx,fz,id:typeof m.id==='string'&&/^[a-z0-9]{2,12}$/.test(m.id)?m.id:undefined,sheet:normSheet(m.sheet,m.kind),
-      ...(typeof m.owner==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(m.owner)?{owner:m.owner}:{})}; }).slice(0,500);
-  const src=new Uint8Array(w*d); if(typeof o.wsrc==='string'&&o.wsrc.length===w*d) for(let i=0;i<w*d;i++) src[i]=o.wsrc[i]==='1'?1:o.wsrc[i]==='2'?2:0;
-  const k=minis.find(m=>m.kind==='knight')||minis[0];
-  const seen=new Uint8Array(w*d); if(typeof o.seen==='string'&&o.seen.length===w*d) for(let i=0;i<w*d;i++) seen[i]=o.seen[i]==='1'?1:0;
-  const st0=Array.isArray(o.start)&&Number.isInteger(o.start[0])&&Number.isInteger(o.start[1])&&o.start[0]>=0&&o.start[1]>=0&&o.start[0]<w&&o.start[1]<d?o.start:null;
-  const roofs=(Array.isArray(o.roofs)?o.roofs:[]).map(r=>normRoof(r,w,d)).filter(Boolean).slice(0,300);
-  const zoneCells=Ambiente.cleanCells(o.zoneCells,w*d);   // zonas interiores pintadas (las de los techos salen de los techos)
-  // R18: casillas que bloquean piezas del director que al jugador no le llegan (derivado del servidor: no se serializa)
-  const blockCells=new Set((Array.isArray(o.blockCells)?o.blockCells:[]).slice(0,w*d).filter(i=>Number.isInteger(i)&&i>=0&&i<w*d));
-  return {roofs,seen,fog:!!o.fog,src,name:String(o.name||'Tablero').slice(0,40),w,d,h,t,props,minis,...Ambiente.norm(o),...(zoneCells?{zoneCells}:{}),...(blockCells.size?{blockCells}:{}),seed:(Math.random()*1e9)|0,start:st0||(k?[k.x,k.z]:[w>>1,d>>1]),
-    ...readExtras(o,w,d)};
-}
-/* ajustes de escena de JA-VTT (grid, snap, animate, plansReleased), planos del director y anotaciones: como cleanMap del servidor */
-function readExtras(o,w,d){ const list=(v,n,f)=>Ajustes.uniq((Array.isArray(v)?v:[]).slice(0,n).map(x=>f(x,w,d)).filter(Boolean));
-  return {...Ajustes.sceneFlags(o),plans:list(o.plans,100,Ajustes.normPlan),notes:list(o.notes,300,Ajustes.normNote)}; }
-function sceneExtras(m){ return {...Ajustes.sceneFlags(m),...(m.plans&&m.plans.length?{plans:m.plans.map(p=>({...p}))}:{}),...(m.notes&&m.notes.length?{notes:m.notes.map(n=>({...n}))}:{})}; }
+// leer y guardar escenas (escena.js); aquí sólo el estado del motor que necesitan y la semilla al azar
+const escenaDeps=()=>({pieces:PIECES,opaque,ft:FT,terr:TERR,miniKinds:MINI_KINDS,normSheet});
+function serialize(){ syncMinis(); return Escena.write(M,{...escenaDeps(),env:ENV,fog:!!state.fog}); }
+function deserialize(o){ return {...Escena.read(o,escenaDeps()),seed:(Math.random()*1e9)|0}; }
 let DB=null, DL=null, BOARD=null;
 (async()=>{
   const c=ctx.mesa;
@@ -4286,7 +4228,6 @@ function doorCells(p){ const out=[]; for(const [x,z] of propCells(p)) if(inb(x,z
 /* ============ fase 8: campañas ============ */
 // Una campaña guarda varios tableros (serializados), los pasos entre ellos y notas del DM por casilla, solo para el DM.
 let CAMP=null;
-const CAMP_ID=/^[a-z0-9]{2,16}$/;
 const newCid=()=>'t'+Math.random().toString(36).slice(2,9);
 function campNotes(){ if(!CAMP) return []; return CAMP.notes[CAMP.cur]||(CAMP.notes[CAMP.cur]=[]); }
 function campStore(){ if(CAMP&&CAMP.cur&&M){ syncMinis(); CAMP.boards[CAMP.cur].data=JSON.parse(JSON.stringify(serialize())); CAMP.boards[CAMP.cur].name=M.name; } }
@@ -4346,11 +4287,7 @@ async function campSave(){ if(!CAMP||!piecesGate()) return; campStore(); CAMP.up
   try{ if(DB){ await DB.collection('campaigns').doc(CAMP.id).set(rec); } else { const all=lsGet(LSC); all[CAMP.id]=rec; if(!lsSet(LSC,all)) throw 0; }
     showHint('Campaña guardada.',1400); }catch(e){ showHint('No se pudo guardar la campaña: puede ser demasiado grande.',2600); } }
 async function campList(){ if(DB){ try{ const q=await DB.collection('campaigns').orderBy('updated','desc').limit(30).get(); return q.docs.map(d=>d.data()); }catch(e){} } return Object.values(lsGet(LSC)); }
-function campValid(o){ if(!o||typeof o!=='object'||!CAMP_ID.test(o.id||'')||!o.boards||typeof o.boards!=='object') return null;
-  const boards={}; for(const [k,v] of Object.entries(o.boards)){ if(!CAMP_ID.test(k)||!v||typeof v!=='object') continue; try{ deserialize(v.data); boards[k]={name:String(v.name||'Tablero').slice(0,40),data:v.data}; }catch(e){} }
-  const ids=Object.keys(boards); if(!ids.length) return null;
-  const notes={}; for(const k of ids){ const arr=o.notes&&Array.isArray(o.notes[k])?o.notes[k]:[]; notes[k]=arr.filter(n=>n&&Number.isInteger(n.x)&&Number.isInteger(n.z)&&typeof n.text==='string').slice(0,300).map(n=>({x:n.x,z:n.z,text:n.text.slice(0,500)})); }
-  return {id:o.id,name:String(o.name||'Campaña').slice(0,40),boards,notes,cur:boards[o.cur]?o.cur:ids[0],updated:o.updated|0}; }
+function campValid(o){ return Escena.campValid(o,escenaDeps()); }
 async function campOpen(o){ await PIECES_READY; const c=campValid(o); if(!c){ showHint('Esa campaña está dañada.'); return; } CAMP=null; CAMP=c; const id=c.cur; const m=deserialize(c.boards[id].data); loadMap(m); drawNotes(); renderGame(); showHint('Campaña "'+c.name+'" abierta.',1600); }
 function campNew(){ syncMinis(); const id=newCid(); CAMP={id:'c'+Math.random().toString(36).slice(2,9),name:'Campaña nueva',boards:{[id]:{name:M.name,data:JSON.parse(JSON.stringify(serialize()))}},notes:{[id]:[]},cur:id}; drawNotes(); renderGame(); }
 function campAddBoard(m){ if(!CAMP) return; campStore(); const id=newCid(); CAMP.boards[id]={name:m.name,data:JSON.parse(JSON.stringify((()=>{ const keep=M; M=m; const o=serializeOf(m); M=keep; return o; })()))}; CAMP.notes[id]=[]; renderGame(); return id; }

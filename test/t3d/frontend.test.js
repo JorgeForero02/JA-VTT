@@ -13,6 +13,8 @@ const { ENGINE_FILES, readEngine } = require('./helpers/engine');
 // generadores de mapas (mapas.js, tarea 4 del refactor): las comprobaciones de su código leen el de cada función del módulo
 const MAPAS = require('./helpers/motor').load('mapas');
 const Objetos3D = require('../../modules/tablero3d/public/objetos3d.js');
+// lectura y escritura de escenas (escena.js, tarea 5): normRoof y las listas de techos
+const ESCENA = require('./helpers/motor').load('escena').Escena;
 
 const PUB = path.join(__dirname, '..', '..', 'public'); // JA-VTT: el público real del anfitrión, no el mock de 3d-tablero
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
@@ -139,7 +141,7 @@ test('nada se carga de internet: scripts, estilos y fuentes son locales', () => 
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'escena.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -151,7 +153,7 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   const before = new Set(Object.keys(ctx));
   for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Escena', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -386,10 +388,11 @@ test('fichas: las plantillas traen fichas de varios tamaños y el motor usa fich
 const between = (a, b) => { const i = engine.indexOf(a), j = engine.indexOf(b, i); assert.ok(i >= 0 && j > i, `${a} … ${b}`); return engine.slice(i, j); };
 const lineOf = (start) => { const i = engine.indexOf(start); assert.ok(i >= 0, start); return engine.slice(i, engine.indexOf('\n', i)); };
 const T6 = (() => {
-  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los techos siguen en el motor
-  const ctx = { PROP3D: Objetos3D.PROP3D };
-  const src = between('const ROOF_MATS=', 'function normRoof(') + between('function normRoof(', 'return o; }') + 'return o; }';
-  vm.runInNewContext(`${src}\nthis.PROP3D=PROP3D;this.ROOF_MATS=ROOF_MATS;this.ROOF_KEY=ROOF_KEY;this.ROOF_SHAPES=ROOF_SHAPES;this.normRoof=normRoof;`, ctx);
+  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los datos de pintado de los techos siguen en el motor y
+  // cómo se lee un techo (normRoof, con ROOF_MAT_IDS y ROOF_SHAPE_IDS) viene de escena.js (tarea 5 del refactor)
+  const { normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS } = ESCENA;
+  const ctx = { PROP3D: Objetos3D.PROP3D, normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS };
+  vm.runInNewContext(`${between('const ROOF_MATS=', '\n// nieve (29)')}\nthis.ROOF_MATS=ROOF_MATS;this.ROOF_KEY=ROOF_KEY;this.ROOF_SHAPES=ROOF_SHAPES;`, ctx);
   return ctx;
 })();
 
@@ -400,6 +403,7 @@ test('techos: el cliente (normRoof) y el servidor (cleanRoof) leen igual un tech
   assert.deepEqual(plain(T6.normRoof(cases[0], 8, 8)), { x: 1, z: 1, w: 3, d: 2, mat: 'tile', shape: 'gable' }, 'un techo de antes: teja a dos aguas');
   assert.deepEqual(Object.keys(T6.ROOF_MATS), R.ROOF_MATS);
   assert.deepEqual(Object.keys(T6.ROOF_SHAPES), R.ROOF_SHAPES);
+  assert.deepEqual([...T6.ROOF_MAT_IDS], R.ROOF_MATS); assert.deepEqual([...T6.ROOF_SHAPE_IDS], R.ROOF_SHAPES);
   assert.match(engine, /map\(r=>normRoof\(r,w,d\)\)/, 'deserialize usa normRoof');
 });
 

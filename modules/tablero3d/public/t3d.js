@@ -34,6 +34,7 @@
         if(!T.Base)await loadScript(BASE+'base.js');
         if(!T.Luces)await loadScript(BASE+'luces.js');
         if(!T.Objetos3D)await loadScript(BASE+'objetos3d.js');
+        if(!T.Escena)await loadScript(BASE+'escena.js');
         if(!T.Mapas)await loadScript(BASE+'mapas.js');
         if(!T.createMesa)await loadScript(BASE+'mesa.js');
         if(!T.icons)await loadScript(BASE+'icons-t3d.js');
