@@ -9,6 +9,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const R = require('../../modules/tablero3d/rules');
 const F2 = require('./helpers/fixtures');
+const { ENGINE_FILES, readEngine } = require('./helpers/engine');
 
 const PUB = path.join(__dirname, '..', '..', 'public'); // JA-VTT: el público real del anfitrión, no el mock de 3d-tablero
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
@@ -16,7 +17,7 @@ const read = (f) => fs.readFileSync(path.join(PUB, f), 'utf8');
 const readMod = (f) => fs.readFileSync(path.join(MOD, f), 'utf8');
 const html = read('index.html');
 const frag = readMod('t3d.html');
-const engine = readMod('tablero3d.js');
+const engine = readEngine();
 const css = readMod('t3d.css');
 const hostCss = read('css/app.css');
 const idsOf = (h) => [...h.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
@@ -128,7 +129,7 @@ test('iconos: cada icono del módulo está en JA-VTT o viaja con el módulo (ico
 
 test('nada se carga de internet: scripts, estilos y fuentes son locales', () => {
   const files = [['index.html', html], ['css/app.css', hostCss], ...['js/main.js', 'js/net.js', 'js/store.js', 'js/icons.js'].map((f) => [f, read(f)]),
-    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', 'tablero3d.js'].map((f) => ['t3d/' + f, readMod(f)])];
+    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', ...ENGINE_FILES].map((f) => ['t3d/' + f, readMod(f)])];
   for (const [f, text] of files) assert.doesNotMatch(text, /(src|href)=["']https?:|url\(\s*["']?https?:|googleapis|cdnjs|unpkg|jsdelivr|document\.write|import\(/i, f);
   const where = (s) => (s.startsWith('t3d/') ? path.join(MOD, s.slice(4)) : path.join(PUB, s));
   for (const s of [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) assert.ok(fs.existsSync(where(s)), s);
@@ -145,7 +146,7 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   ctx.window = ctx;
   vm.createContext(ctx);
   const before = new Set(Object.keys(ctx));
-  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', 'tablero3d.js']) vm.runInContext(readMod(f), ctx, { filename: f });
+  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
   assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Catalogo', 'Dados', 'Fichas', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });

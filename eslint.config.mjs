@@ -35,4 +35,18 @@ export default [
     languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: browserGlobals },
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
+  {
+    // tablero 3D: módulos del cliente (scripts clásicos). Los nuevos se revisan enteros; el núcleo, sin no-undef.
+    files: ['modules/tablero3d/public/*.js'],
+    // personajes.js: módulo anterior al refactor (1161 líneas, por encima de max-lines; no se toca aquí)
+    ignores: ['modules/tablero3d/public/tablero3d.js', 'modules/tablero3d/public/t3d.js', 'modules/tablero3d/public/personajes.js'],
+    ...js.configs.recommended,
+    languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...browserGlobals, THREE: 'readonly', module: 'writable', globalThis: 'readonly' } },
+    rules: { 'no-empty': ['error', { allowEmptyCatch: true }], 'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }], 'max-lines': ['error', { max: 1100 }] },
+  },
+  {
+    files: ['modules/tablero3d/public/tablero3d.js'],
+    languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...browserGlobals, THREE: 'readonly' } },
+    rules: { 'no-func-assign': 'off', 'no-redeclare': 'error', 'no-dupe-keys': 'error', 'max-lines': ['error', { max: 5300 }] },
+  },
 ];
