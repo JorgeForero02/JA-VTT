@@ -249,6 +249,48 @@ try {
   step('jugador en vivo: no puede empezar combate ni cambiar la niebla (el director sigue igual)',
     blockedCtl(ctl.combat) && blockedCtl(ctl.fog) && isDeepStrictEqual(g1, g0) && plCombat === false, JSON.stringify({ ctl, g0, g1, plCombat }));
 
+  // 9. jugador en vivo, sin combate: sólo mueve sus fichas. El servidor no valida el movimiento (P-45): la única guarda es
+  // el permiso de moveMiniTo, que va ANTES de mover. El director le da una ficha (botón «Quién controla a cada personaje»);
+  // el jugador intenta mover la del director (rechazado: no se mueve ni en su pantalla ni en la del director) y luego la
+  // suya (llega al director). Un vigilante en cada página anota cualquier paso de la ficha del director mientras dura.
+  const toksOf = (p) => p.evaluate(() => t3dView.probe('tokens').map((b) => ({ id: b.id, name: b.name, x: b.x, z: b.z, owner: b.owner })));
+  const stillOn = async (p, x, z) => { let a = null;
+    for (let k = 0; k < 40; k++) { const b = await p.evaluate(([cx, cz]) => t3dView.probe('screen', cx, cz), [x, z]);
+      if (a && Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5) return b; a = b; await p.waitForTimeout(150); }
+    return a; };
+  const selOn = (p) => p.evaluate(() => (t3dView.probe('tokens').find((b) => b.selected) || {}).id);
+  const plUid9 = await pl.evaluate(async (id) => String(((await (await fetch(`/api/boards/${id}/members`)).json()).members || []).find((m) => m.role !== 'gm').id), boardId);
+  await gm.click('#panel .tabs [data-tab="live"]');
+  await gm.waitForFunction(() => [...document.querySelectorAll('#t3d-gTable button')].some((b) => /: solo el DM$/.test(b.textContent)) &&
+    /\(DM\)/.test(document.getElementById('t3d-gTable').textContent) && document.querySelectorAll('#t3d-gTable .t3d-peer').length >= 2, null, { timeout: 15000 });
+  const own0 = await toksOf(gm);
+  const mine = own0.find((b) => b.id === 'k1'), dirs = own0.find((b) => b.id === 'w1');
+  // el botón del caballero pasa de «solo el DM» al jugador (el único jugador en la mesa)
+  await gm.evaluate((n) => [...document.querySelectorAll('#t3d-gTable button')].find((b) => b.textContent === n + ': solo el DM').click(), mine.name);
+  await pl.waitForFunction(([id, uid]) => (t3dView.probe('tokens').find((b) => b.id === id) || {}).owner === uid, [mine.id, plUid9], { timeout: 10000 });
+  const owners = { gm: (await toksOf(gm)).map((b) => [b.id, b.owner === plUid9]), pl: (await toksOf(pl)).map((b) => [b.id, b.owner === plUid9]) };
+  const watch = (p, t) => p.evaluate(([id, x, z]) => { window.__moved9 = []; window.__w9 = setInterval(() => {
+    const b = t3dView.probe('tokens').find((q) => q.id === id); if (b && (b.x !== x || b.z !== z)) window.__moved9.push([b.x, b.z]); }, 16); }, [t.id, t.x, t.z]);
+  const unwatch = (p) => p.evaluate(() => { clearInterval(window.__w9); return window.__moved9; });
+  await watch(pl, dirs); await watch(gm, dirs);
+  await pl.evaluate(() => { document.getElementById('t3d-hint').textContent = ''; });
+  const plTapToken = async (b) => { const s = await stillOn(pl, b.x, b.z); await pl.mouse.click(s.x, s.y - 12); };
+  const plTapCell = async (x, z) => { const s = await stillOn(pl, x, z); await pl.mouse.click(s.x, s.y); };
+  // negativo: la ficha del director, una casilla hacia fuera (lejos de la otra)
+  await plTapToken(dirs); const selDir = await selOn(pl); await plTapCell(dirs.x + 1, dirs.z);
+  const hint = await pl.waitForFunction(() => /lo controla otra persona/.test(document.getElementById('t3d-hint').textContent), null, { timeout: 5000 }).then(() => true, () => false);
+  // positivo: la suya, una casilla hacia el otro lado; se espera a que llegue al director (y termine de andar en los dos)
+  await plTapToken(mine); const selMine = await selOn(pl); await plTapCell(mine.x - 1, mine.z);
+  const arrived = await gm.waitForFunction(([id, x]) => (t3dView.probe('tokens').find((b) => b.id === id) || {}).x === x, [mine.id, mine.x - 1], { timeout: 10000 }).then(() => true, () => false);
+  await pl.waitForFunction(([id, x]) => (t3dView.probe('tokens').find((b) => b.id === id) || {}).x === x, [mine.id, mine.x - 1], { timeout: 10000 }).catch(() => {});
+  const movedPl = await unwatch(pl), movedGm = await unwatch(gm);
+  const endGm = (await toksOf(gm)).find((b) => b.id === dirs.id), endPl = (await toksOf(pl)).find((b) => b.id === dirs.id);
+  const same = (b) => !!b && b.x === dirs.x && b.z === dirs.z;
+  step('jugador en vivo: sólo mueve sus fichas (la del director no se mueve en ninguna pantalla; la suya llega al director)',
+    selDir === dirs.id && selMine === mine.id && hint && arrived && movedPl.length === 0 && movedGm.length === 0 && same(endGm) && same(endPl) &&
+    owners.gm.find(([id]) => id === mine.id)[1] && !owners.gm.find(([id]) => id === dirs.id)[1],
+    JSON.stringify({ owners, sel: [selDir, selMine], hint, arrived, movedPl: movedPl.slice(0, 3), movedGm: movedGm.slice(0, 3), endGm, endPl }));
+
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();
