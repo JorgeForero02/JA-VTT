@@ -1,0 +1,438 @@
+{
+ "escenas": [
+  {
+   "v": 1,
+   "name": "Motor v1",
+   "w": 16,
+   "d": 16,
+   "h": "2222222222222333222222222222233322222222222223332222222222222333222222222222233322222222222223336666266666666666222222222222233322222222222223332222222222222333222222222222233322222222222223332222222222222333222222222222233322222222222223332222222222222333",
+   "t": "gggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggssswwwwgwwwwwwwwwwwgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsss",
+   "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "roofs": [],
+   "start": [
+    2,
+    2
+   ],
+   "env": "night",
+   "fog": false,
+   "animate": false,
+   "seen": "",
+   "props": [
+    {
+     "type": "door",
+     "x": 4,
+     "z": 6,
+     "v": 0,
+     "open": false,
+     "locked": true
+    },
+    {
+     "type": "tree",
+     "x": 1,
+     "z": 1,
+     "v": 2
+    },
+    {
+     "type": "brazier",
+     "x": 8,
+     "z": 3
+    },
+    {
+     "type": "light",
+     "x": 10,
+     "z": 10,
+     "r": 6,
+     "h": 1,
+     "c": "#7ab8ff",
+     "f": 0
+    },
+    {
+     "type": "light",
+     "x": 3,
+     "z": 12,
+     "preset": "bullseye",
+     "r": 24,
+     "h": 1.25,
+     "color": "#ffe6b8",
+     "intensity": 1,
+     "anim": "none",
+     "angle": 60,
+     "rot": 90,
+     "name": "Linterna"
+    },
+    {
+     "type": "window",
+     "x": 9,
+     "z": 6,
+     "v": 0
+    },
+    {
+     "type": "chest",
+     "x": 6,
+     "z": 9,
+     "v": 1
+    },
+    {
+     "type": "barrel",
+     "x": 7,
+     "z": 9
+    },
+    {
+     "type": "portal",
+     "x": 12,
+     "z": 12,
+     "v": 0,
+     "id": 3,
+     "look": "magic",
+     "target": null,
+     "name": "Aro"
+    },
+    {
+     "type": "stairs",
+     "x": 14,
+     "z": 2,
+     "to": "cabajo",
+     "tx": 1,
+     "tz": 1
+    },
+    {
+     "type": "table",
+     "x": 2,
+     "z": 9,
+     "v": 0
+    }
+   ],
+   "minis": [
+    {
+     "kind": "knight",
+     "x": 2,
+     "z": 2,
+     "fx": 1,
+     "fz": 0,
+     "id": "k1"
+    },
+    {
+     "kind": "goblin",
+     "x": 10,
+     "z": 12,
+     "fx": -1,
+     "fz": 0,
+     "id": "g1",
+     "sheet": {
+      "name": "Goblin viejo",
+      "hp": 5,
+      "hpMax": 7,
+      "ac": 15,
+      "team": "enemy",
+      "luz": "torch"
+     }
+    }
+   ]
+  },
+  {
+   "v": 2,
+   "name": "Motor v2",
+   "w": 16,
+   "d": 16,
+   "h": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "t": "ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwggwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+   "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "roofs": [],
+   "start": [
+    1,
+    1
+   ],
+   "env": "day",
+   "fog": false,
+   "animate": false,
+   "seen": "",
+   "props": [
+    {
+     "type": "obj:o_mpuerta",
+     "def": "p:mpuerta",
+     "uid": "umpuerta1",
+     "x": 5,
+     "z": 8,
+     "v": 0,
+     "open": false,
+     "locked": true
+    },
+    {
+     "type": "obj:o_mvelo",
+     "def": "p:mvelo",
+     "uid": "umvelo001",
+     "x": 3,
+     "z": 3,
+     "v": 0
+    },
+    {
+     "type": "obj:o_mfarol",
+     "def": "p:mfarol",
+     "uid": "umfarol01",
+     "x": 12,
+     "z": 3,
+     "v": 0
+    },
+    {
+     "type": "door",
+     "def": "f:door",
+     "uid": "ufdoor001",
+     "x": 9,
+     "z": 8,
+     "v": 1,
+     "open": true
+    },
+    {
+     "type": "lamp",
+     "uid": "uflamp001",
+     "x": 14,
+     "z": 14,
+     "v": 0
+    },
+    {
+     "type": "light",
+     "uid": "uflight01",
+     "x": 2,
+     "z": 12,
+     "v": 0,
+     "preset": "crystal",
+     "r": 6,
+     "h": 1,
+     "color": "#a98bff",
+     "intensity": 0.9,
+     "anim": "pulse",
+     "angle": 360,
+     "rot": 0,
+     "darkness": false,
+     "on": true
+    }
+   ],
+   "minis": [
+    {
+     "kind": "knight",
+     "x": 1,
+     "z": 1,
+     "fx": 0,
+     "fz": 1,
+     "id": "k1"
+    },
+    {
+     "kind": "wolf",
+     "x": 8,
+     "z": 12,
+     "fx": 1,
+     "fz": 0,
+     "id": "w1"
+    }
+   ]
+  },
+  {
+   "v": 2,
+   "name": "Motor techos",
+   "w": 16,
+   "d": 16,
+   "h": "2222222222222222222222222222222222666666222222222262222622222222226222262222222222622226222222222266266622222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+   "t": "ggggggggggggggggggggggggggggggggggwwwwwwggggggggggwoooowggggggggggwoooowggggggggggwoooowggggggggggwwowwwgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+   "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "start": [
+    4,
+    8
+   ],
+   "env": "dusk",
+   "fog": false,
+   "animate": true,
+   "seen": "",
+   "roofs": [
+    {
+     "x": 2,
+     "z": 2,
+     "w": 6,
+     "d": 5,
+     "mat": "slate",
+     "shape": "hip"
+    },
+    {
+     "x": 10,
+     "z": 10,
+     "w": 3,
+     "d": 3
+    },
+    {
+     "x": 10,
+     "z": 2,
+     "w": 4,
+     "d": 4,
+     "mat": "copper",
+     "shape": "cone",
+     "rot": 1
+    }
+   ],
+   "notes": [
+    {
+     "id": 1,
+     "x": 4,
+     "z": 4,
+     "text": "Aquí hay una trampilla",
+     "gmOnly": true
+    },
+    {
+     "id": 2,
+     "x": 12,
+     "z": 12,
+     "text": "Pozo",
+     "gmOnly": false
+    }
+   ],
+   "plans": [
+    {
+     "id": 5,
+     "shape": "circle",
+     "a": {
+      "x": 8.5,
+      "z": 8.5
+     },
+     "b": {
+      "x": 10.5,
+      "z": 8.5
+     }
+    },
+    {
+     "id": 6,
+     "shape": "line",
+     "a": {
+      "x": 1,
+      "z": 1
+     },
+     "b": {
+      "x": 5,
+      "z": 14
+     },
+     "area": true
+    }
+   ],
+   "grid": false,
+   "plansReleased": true,
+   "props": [
+    {
+     "type": "door",
+     "uid": "utdoor001",
+     "x": 4,
+     "z": 6,
+     "v": 0,
+     "open": false
+    },
+    {
+     "type": "bed",
+     "uid": "utbed0001",
+     "x": 3,
+     "z": 3,
+     "v": 1
+    },
+    {
+     "type": "well",
+     "uid": "utwell001",
+     "x": 12,
+     "z": 12,
+     "v": 0
+    }
+   ],
+   "minis": [
+    {
+     "kind": "mage",
+     "x": 4,
+     "z": 8,
+     "fx": 0,
+     "fz": -1,
+     "id": "m1",
+     "sheet": {
+      "name": "Maga",
+      "kind": "player",
+      "light": {
+       "preset": "candle",
+       "on": true,
+       "bright": 5,
+       "dim": 5,
+       "color": "#ffc878",
+       "intensity": 0.9,
+       "anim": "flicker"
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "pieces": [
+  {
+   "schema": 1,
+   "id": "p:mpuerta",
+   "name": "Puerta doble",
+   "class": "object",
+   "art": {
+    "base": "o_mpuerta"
+   },
+   "shape": {
+    "w": 2,
+    "d": 1,
+    "height": 1,
+    "orient": true,
+    "layer": "object"
+   },
+   "components": {
+    "door": {},
+    "move": {
+     "block": true
+    },
+    "sight": "block",
+    "light": "block"
+   }
+  },
+  {
+   "schema": 1,
+   "id": "p:mvelo",
+   "name": "Velo",
+   "class": "object",
+   "art": {
+    "base": "o_mvelo"
+   },
+   "shape": {
+    "w": 1,
+    "d": 1,
+    "height": 1,
+    "layer": "object"
+   },
+   "components": {
+    "move": {
+     "block": false
+    },
+    "sight": "block",
+    "light": "none"
+   }
+  },
+  {
+   "schema": 1,
+   "id": "p:mfarol",
+   "name": "Farol",
+   "class": "object",
+   "art": {
+    "base": "o_mfarol"
+   },
+   "shape": {
+    "w": 1,
+    "d": 1,
+    "height": 1,
+    "layer": "object"
+   },
+   "components": {
+    "move": {
+     "block": true
+    },
+    "sight": "none",
+    "light": "none",
+    "emitLight": {
+     "r": 6,
+     "h": 1
+    }
+   }
+  }
+ ]
+}

@@ -5231,6 +5231,10 @@ function probe(q,...a){
   if(q==='light'){ const c=lightAt(a[0],a[1]); return +((c.r+c.g+c.b)/3).toFixed(3); }
   if(q==='sprite'){ const t=SPR[a[0]]&&SPR[a[0]].front, im=t&&t.image; if(!im||!im.getContext) return null; const d=im.getContext('2d').getImageData(0,0,im.width,im.height).data; let sum=0;
     for(let i=0;i<d.length;i++) sum=(sum*31+d[i])>>>0; return {custom:!!CUSTOM.chars[a[0]],w:im.width,h:im.height,sum}; }
+  // refactor (red de seguridad): la escena tal como se guarda (sin la semilla, que es azar) y la suma del atlas de casillas
+  if(q==='serialized'){ const o=JSON.parse(JSON.stringify(serialize())); delete o.seed; return o; }
+  if(q==='atlas'){ const d=atlasCanvas.getContext('2d').getImageData(0,0,atlasCanvas.width,atlasCanvas.height).data; let sum=0;
+    for(let i=0;i<d.length;i++) sum=(sum*31+d[i])>>>0; return {w:atlasCanvas.width,h:atlasCanvas.height,sum}; }
   return null;
 }
 return {probe,stats:()=>({...RSTATS}),destroy(){
