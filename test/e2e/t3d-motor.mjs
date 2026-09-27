@@ -79,7 +79,8 @@ try {
   await gm.waitForFunction(() => (document.getElementById('t3d-mapName')?.textContent || '').length > 3, null, { timeout: 20000 });
   const boardId = await gm.evaluate(() => location.hash.split('/').pop());
   await gm.evaluate(async (n) => { await fetch(`/api/boards/${location.hash.split('/').pop()}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n }) }); }, `jug-${sfx}`);
-  await gm.waitForTimeout(1500);
+  // el motor ha pintado: atlas y sprites de fábrica listos
+  await gm.waitForFunction(() => { const a = t3dView.probe('atlas'), k = t3dView.probe('sprite', 'knight'); return !!(a && a.sum && k && k.sum); }, null, { timeout: 20000 });
 
   // 1. atlas de casillas y sprites de fábrica (lo que pintan paint() y buildArt() al cargar)
   const art0 = await gm.evaluate(() => ({ atlas: t3dView.probe('atlas'), sprites: Object.fromEntries(['knight', 'goblin', 'golem', 'rat'].map((k) => [k, t3dView.probe('sprite', k)])) }));
@@ -153,15 +154,16 @@ try {
   const placed = await gm.waitForFunction(() => (t3dView.probe('props') || []).find((q) => q.x === 5 && q.z === 5 && /^obj:o_/.test(q.type)), null, { timeout: 5000 }).then((h) => h.jsonValue(), () => null);
   await gm.click('#t3d-backToArt');
   await gm.click('#t3d-artSave');
-  const drawings = () => gm.evaluate(async (id) => { const r = await (await fetch(`/api/t3d/boards/${id}/drawings`)).json(); return (r.drawings || r.assets || r.items || []).map((d) => d.name); }, boardId);
+  const drawings = () => gm.evaluate(async (id) => { const r = await (await fetch(`/api/t3d/boards/${id}/drawings`)).json(); return r.drawings.map((d) => d.name); /* GET /drawings → { drawings } (modules/tablero3d/index.js) */ }, boardId);
   let saved = [];
   for (let k = 0; k < 30 && !saved.includes(artName); k++) { saved = await drawings(); if (!saved.includes(artName)) await gm.waitForTimeout(300); }
   await gm.evaluate(() => document.getElementById('t3d-artClose').click());
   await gm.reload();
   await gm.waitForFunction(() => (document.getElementById('t3d-mapName')?.textContent || '').length > 3, null, { timeout: 20000 });
-  await gm.waitForTimeout(1500);
   const after = await drawings();
   await gm.click('#t3d-rail [data-tool="prop"]');
+  // la biblioteca llega por la red tras abrir: se espera a que el dibujo esté en la paleta (o 15 s)
+  await gm.waitForFunction((n) => [...document.querySelectorAll('#t3d-palette .t3d-sw span')].some((s) => s.textContent === n), artName, { timeout: 15000 }).catch(() => {});
   const pal2 = await palette();
   step('editor de arte: nuevo objeto, «Probar» (paleta y se coloca), «Guardar» y al recargar sigue en la biblioteca y en la paleta',
     pal1.includes(artName) && !!placed && saved.includes(artName) && after.includes(artName) && pal2.includes(artName),
@@ -207,7 +209,8 @@ try {
   await tapToken(cur); const selCur = await selectedId(); await tapCell(cur.x + 1, cur.z);
   await gm.waitForFunction((l) => t3dView.probe('combat').left < l, c1.left, { timeout: 5000 }).catch(() => {});
   const c2 = await gm.evaluate(() => t3dView.probe('combat'));
-  await gm.waitForTimeout(800);
+  // la ficha del turno termina su paso antes de pasar turno
+  await gm.waitForFunction(([id, x]) => (t3dView.probe('tokens').find((b) => b.id === id) || {}).x === x, [cur.id, cur.x + 1], { timeout: 5000 }).catch(() => {});
   await gm.click('#t3d-gTurns button:has-text("Siguiente turno")');
   const c3 = await gm.evaluate(() => t3dView.probe('combat'));
   await gm.click('#t3d-gTurns button:has-text("Terminar combate")');
@@ -226,6 +229,7 @@ try {
   await pl.click('#t3d-gTable button:has-text("Unirse a la mesa")');
   await pl.waitForFunction(() => /en vivo/.test(document.getElementById('t3d-mapName')?.textContent || ''), null, { timeout: 15000 });
   await pl.click('#panel .tabs [data-tab="t3d-game"]');
+  await pl.waitForSelector('#t3d-gTurns button', { timeout: 10000 });
   const gmState = () => gm.evaluate(() => ({ combat: t3dView.probe('combat').active, fog: t3dView.probe('serialized').fog }));
   const g0 = await gmState();
   const ctl = await pl.evaluate(() => {
@@ -240,7 +244,8 @@ try {
   await gm.waitForTimeout(1500);
   const g1 = await gmState();
   const plCombat = await pl.evaluate(() => t3dView.probe('combat').active);
-  const blockedCtl = (c) => !c.exists || c.hidden || c.disabled;
+  // hoy (tablero3d.js renderGame, disabled:noDM): los dos controles existen y el jugador los ve desactivados
+  const blockedCtl = (c) => c.exists && c.disabled;
   step('jugador en vivo: no puede empezar combate ni cambiar la niebla (el director sigue igual)',
     blockedCtl(ctl.combat) && blockedCtl(ctl.fog) && isDeepStrictEqual(g1, g0) && plCombat === false, JSON.stringify({ ctl, g0, g1, plCombat }));
 

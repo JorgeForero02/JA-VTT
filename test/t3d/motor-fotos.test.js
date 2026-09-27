@@ -31,6 +31,7 @@ test('mapas: los cuatro generadores dan lo mismo que antes', () => {
   assert.deepEqual(plain(G.demoMap()), FOTO.mapas.demo);
   assert.deepEqual(plain(G.dungeonMap(32, 7)), FOTO.mapas.dungeon32_7);
   assert.deepEqual(plain(G.dungeonMap(48, 12345)), FOTO.mapas.dungeon48_12345);
+  assert.deepEqual(plain(G.dungeonMap(64, 4242)), FOTO.mapas.dungeon64_4242);   // el tamaño del botón «Mazmorra 64×64», con semilla fija
   assert.deepEqual(plain(G.townMap()), FOTO.mapas.town);
   assert.deepEqual(plain(G.lightWorkshopMap()), FOTO.mapas.taller);
 });

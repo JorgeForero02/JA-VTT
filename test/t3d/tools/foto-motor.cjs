@@ -32,7 +32,7 @@ const foto = {
     pick: TRIOS.map(([x, z, s]) => A.pick(['a', 'b', 'c', 'd', 'e'], x, z, s)),
   },
   mapas: {
-    demo: plain(G.demoMap()), dungeon32_7: plain(G.dungeonMap(32, 7)), dungeon48_12345: plain(G.dungeonMap(48, 12345)),
+    demo: plain(G.demoMap()), dungeon32_7: plain(G.dungeonMap(32, 7)), dungeon48_12345: plain(G.dungeonMap(48, 12345)), dungeon64_4242: plain(G.dungeonMap(64, 4242)),
     town: plain(G.townMap()), taller: plain(G.lightWorkshopMap()),
   },
 };
