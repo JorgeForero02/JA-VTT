@@ -149,3 +149,12 @@ navegador (sin `?v=`, `no-cache`) → sin cambio.
 - Los 9 módulos nuevos existen con su interfaz documentada; los puros con pruebas en node y en cobertura.
 - Fotos doradas y los pasos nuevos y viejos de `test:t3d` en verde **sin cambiarlos** tras el refactor.
 - Pasada completa verde; docs 01, 04, 05 y 07 al día.
+
+## 9. Resultado (2026-09-26, tarea 11)
+
+«Hecho cuando» (§8) se cumple **salvo la meta de líneas**: `tablero3d.js` queda en **3055** (5245 en `02ec33f`), no en
+~2600. Todas las extracciones previstas en §2 están hechas; la estimación era optimista. Decisión del controlador
+(R10): se acepta, el trinquete final de `max-lines` es **3100** y se dice tal cual en `docs/07`. Si hiciera falta
+bajar más, el siguiente candidato es la partida (GAME/GAMEUI). El resto: cero reasignaciones de función
+(`no-func-assign`), los 9 módulos con su interfaz documentada en la cabecera, los puros en node y en cobertura,
+fotos doradas sin tocar, D1 arreglado (tarea 10) y pasada completa verde (ver `docs/07`).

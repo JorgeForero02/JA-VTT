@@ -49,9 +49,19 @@ No descarga navegadores: usa `channel: 'msedge'` o `'chrome'`. Contra producció
 
 ## Tests del módulo tablero3d (`test/t3d/`)
 
-- **Sólo los del módulo, en serie, contra `jav-test-pg`**: `node --test --test-concurrency=1 test/t3d/*.test.js`
-  (no hace falta `docker compose`; usa el mismo Postgres de siempre). Entran también en `npm test`/`npm run
-  check` junto con los del núcleo.
+- **Sólo los del módulo, en serie, contra `jav-test-pg`**: `node --test --test-concurrency=1 "test/t3d/*.test.js"`
+  (glob entre comillas; no hace falta `docker compose`; usa el mismo Postgres de siempre). Sin
+  `--test-concurrency=1` chocan en Postgres (`users_name_ci`) y salen ~16 falsos fallos. Entran también en
+  `npm test`/`npm run check` junto con los del núcleo.
+- **Fotos doradas del refactor del cliente 3D** (no se regeneran nunca, [04](04-convenciones.md) B.1c):
+  `test/t3d/fixtures/motor-antes.json` (luces, azar y generadores; la tomó `test/t3d/tools/foto-motor.cjs`, de un
+  solo uso como `foto-fabrica.cjs`), `test/t3d/fixtures/motor-escenas-entrada.json` (escenas de entrada) y
+  `test/e2e/fixtures/motor-escenas.json` (lo que da el motor en el navegador). `test/e2e/t3d-motor.mjs` compara
+  contra esta última; **`FOTO=1` sólo la primera vez que se crea una foto** (se niega a sobrescribir;
+  `FOTO_SALIDA=<ruta>` escribe en otro sitio para comparar dos capturas). Si no cuadra, es un cambio de
+  comportamiento: parar, no recapturar.
+- `npm run test:t3d` = `test/e2e/t3d.mjs` y luego `test/e2e/t3d-motor.mjs` (11 pasos: editor de arte, tablero,
+  deshacer/rehacer, combate, mapas de ejemplo, permisos en vivo), con el servidor en 3999 como `test:ui`.
 - `test/t3d/helpers/fixtures.js` trae `escenaVieja()` (una escena v1 completa: puertas con llave, portales con
   destino, dibujos `obj:o_…`, escaleras de campaña de antes) para los tests de compatibilidad.
 - `test/t3d/tools/foto-fabrica.cjs` **no se vuelve a ejecutar**: fue una herramienta de un solo uso (Tarea 3,

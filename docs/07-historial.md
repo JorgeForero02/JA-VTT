@@ -2,6 +2,53 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
+## 2026-09-26 — Refactor SOLID del cliente 3D: `tablero3d.js` en 9 módulos, sin parches (rama `refactor-t3d`, sin desplegar)
+
+- **Qué** ([spec](superpowers/specs/2026-09-26-refactor-tablero3d-design.md), [plan](superpowers/plans/2026-09-26-refactor-tablero3d.md);
+  11 tareas, `02ec33f..` rama `refactor-t3d`):
+  - **Red de seguridad antes de mover nada** (tareas 1–2): fotos doradas en node (`test/t3d/fixtures/motor-antes.json`:
+    luces, azar y los 4 generadores con semilla fija; `motor-escenas-entrada.json`) y en el navegador
+    (`test/e2e/fixtures/motor-escenas.json`), y `test/e2e/t3d-motor.mjs` (editor de arte, deshacer, combate, mapas de
+    ejemplo, permisos en vivo). `readEngine()` lee todos los ficheros del motor como uno para las regex de cableado.
+  - **9 módulos nuevos** en `modules/tablero3d/public/` (tareas 3–8), movidos literalmente: puros UMD `base.js`,
+    `luces.js`, `objetos3d.js`, `escena.js`, `mapas.js`, `pixel.js` (node + cobertura); fábricas de navegador `ui3d.js`,
+    `arte-procedural.js` y `editor-arte.js` (API cerrada en su cabecera). `tablero3d.js`: **5245 → 3055 líneas**.
+  - **Sin parches** (tarea 9): las 10 reasignaciones de función (`moveMiniTo` ×2, `loadMap`, `startCombat`, `nextTurn`,
+    `endCombat`, `dash`, `undo`, `redo`, `endStroke`, `setFog`) pasan a declaraciones que componen (`…Local` + la
+    pública). `no-func-assign` y `no-redeclare` activos. Paso e2e nuevo: un jugador en vivo sólo mueve sus fichas
+    (la única guarda está en el cliente, P-45; invertirla no la detectaba ninguna prueba).
+  - **D1** (tarea 10, único cambio de comportamiento aprobado): los botones deshacer/rehacer avisan a la mesa en vivo
+    como Ctrl+Z (antes llamaban a la versión sin aviso). Paso «D1» en `t3d-motor.mjs`, rojo antes del arreglo.
+  - **Lint** (tareas 2, 4 y 11): bloques de `eslint.config.mjs` para el módulo — puros (sólo globales UMD: tocar DOM o
+    `THREE` no pasa), navegador (`recommended` entero; ahora también `t3d.js`, el cargador, con `ICONS` del anfitrión
+    como global) y núcleo (`no-func-assign`, `no-redeclare`, `no-dupe-keys`, **`max-lines` 3100 como trinquete**).
+    `ImageData` sale de los globales compartidos con el 2D y queda sólo en los bloques 3D.
+  - Tarea 11: prueba node nueva `test/t3d/editor-arte.test.js` (ida y vuelta `recordToDoc → docToRecord` de un
+    borrador a res 16 y 64, por el camino real de la fábrica con DOM y lienzo de mentira; `helpers/arte.js` gana
+    `toDataURL`/`FakeImage`); comentarios caducados (`escena.js`, cabecera de `editor-arte.js`: `layout` es un no-op
+    que se mantiene por compatibilidad) y sangría de `pixel.js`. Reglas en [04](04-convenciones.md) B.1c, mapa en
+    [01](01-arquitectura.md), fotos en [05](05-runbook.md).
+- **Por qué:** pedido por el usuario antes de la fase 1 («aplicar SOLID… que sea realmente duradero»): 5245 líneas en
+  un cierre con 36 de 39 secciones en un ciclo, 10 parches y ninguna prueba que ejecutase el motor.
+- **Resultado frente a la meta (dicho tal cual):** `tablero3d.js` queda en **3055 líneas, no en ~2600** (estimación de
+  la spec §8). Todas las extracciones previstas están hechas; la estimación era optimista. Se acepta (Ruling R10) y el
+  trinquete final es 3100. Si hace falta bajar más antes de la fase 1, el siguiente candidato es la partida
+  (GAME/GAMEUI).
+- **Decisiones del controlador** (registro en `.superpowers/sdd/2026-09-26-refactor-tablero3d/progress.md`): R1 escenas
+  de entrada en un fichero · R2 trabajo en rama `refactor-t3d` · R3 paso 8 del e2e con control oculto/deshabilitado ·
+  R4 dungeon 64×64 con semilla fija en la foto node (recapturada una vez dentro de la tarea 1) · R5
+  `--test-concurrency=1` obligatorio · R6 bloques ESLint puro/navegador · R7 paleta entera en `objetos3d.js` · R8
+  `Escena.make(...)` como `Mapas` · R9 `ui3d.test.js` antes de mover el editor · R10 3055 líneas aceptadas.
+- **Hallazgos fuera del alcance:** lint del 2D/servidor sin `recommended` (P-49); `t3d-host.test.js` intermitente
+  (P-50); `locked:true` en la raíz de una puerta `p:` v2 se ignora, congelado por la foto (anotado en P-43).
+- **Verificado (la única pasada completa del refactor, tarea 11):** `npm run check` → 1.ª vez 365/366 (falló
+  `test/api.test.js:133` «persistencia: los objetos volcados sobreviven a vaciar la caché», del 2D, sin tocar),
+  2.ª vez **366/366** (lint limpio, cobertura 93,31 % líneas) · `npm run test:ui` → **54/54** · `npm run test:t3d` →
+  **40/40 + 11/11** · `docker compose up -d --build && npm run test:e2e` → **11/11**. Durante las tareas:
+  `node --test --test-concurrency=1 "test/t3d/*.test.js"` y `test:t3d` verdes en cada una, con mutaciones a propósito.
+- **Revertir:** `git revert --no-edit 02ec33f..<último commit de la rama>` (o, ya en `main`, revertir el merge con
+  `git revert -m 1 <merge>`). No hay migraciones ni datos: el formato de escena no cambia (las fotos lo prueban).
+
 ## 2026-09-26 — P-48: puertas `p:` por toda su huella y `WALLAT` con varias piezas por casilla (rama `p48-piezas`, sin desplegar)
 
 - **Qué** (sólo en `modules/tablero3d/public/tablero3d.js`; sólo alcanzable con piezas `p:`, las de fábrica son 1×1):

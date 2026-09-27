@@ -84,7 +84,7 @@ decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
 ## Módulo del tablero 3D (`modules/tablero3d`, desde 2026-09-26)
 
-Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz en
+Traído del repo `3d-tablero` (`403d6a5`); desde el 2026-09-26 se mantiene aquí ([04](04-convenciones.md) B.1b). Interfaz en
 [modules/tablero3d/README.md](../modules/tablero3d/README.md) y guía de montaje en
 `3d-tablero/docs/08-integracion-ja-vtt.md`. Lo que JA-VTT le añade son 78 líneas marcadas
 `// t3d` (o `t3d:` en HTML/CSS) en `Dockerfile`, `server/app.js`, `public/index.html` y
@@ -109,6 +109,28 @@ Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz 
 - **Interruptor**: `T3D=off` apaga el módulo (sin migrar, rutas 404, `/t3d/t3d.js` vacío).
 - Trampa de tests: `resetSchema()` borra `public` en cascada y deja `t3d` sin sus claves
   ajenas; `test/t3d.test.js` borra también `t3d` antes de empezar.
+
+### Cliente 3D: mapa de ficheros (`modules/tablero3d/public`, tras el refactor del 2026-09-26)
+
+`t3d.js` los carga al montar, en este orden (cada uno con su guarda `if(!T.X)`): `three → vision → fichas →
+catalogo → muros → ambiente → ajustes → dados → personajes → base → luces → objetos3d → escena → mapas → pixel →
+mesa → icons-t3d → ui3d → arte-procedural → editor-arte → tablero3d`. Capas y reglas en [04](04-convenciones.md) B.1c.
+
+| Fichero | Líneas | Tipo | Qué tiene |
+|---|---|---|---|
+| `t3d.js` | 190 | cargador | `Tablero3D.mount`: estilos, marcado, scripts en orden, iconos, conexión propia `/t3d/ws` |
+| `base.js` | 12 | puro (UMD) | `mulberry32, hash, pick, clamp, hexRGB, shadeHex, luma` |
+| `luces.js` | 47 | puro (UMD) | tipos de luz, `normLight`, `lightOfType`, `lightName`, `lightRGB` |
+| `objetos3d.js` | 235 | puro (UMD) | `PROP3D` (objetos por rebanadas) y su paleta |
+| `escena.js` | 99 | puro (UMD) | `Escena.make({Catalogo, Muros, Ambiente, Ajustes})` → `read`/`write` (núcleo de deserialize/serialize), `normRoof`, `levelSide`, extras, `blankMap`, `campValid` |
+| `mapas.js` | 214 | puro (UMD) | `Mapas.make(…)` → mapas de ejemplo: demo, mazmorra, pueblo, taller de luces |
+| `pixel.js` | 49 | puro (UMD) | voltear/girar, Bresenham, HSL, rampa de tonos, paletas, núcleos de los ajustes de color |
+| `ui3d.js` | 28 | fábrica | `T3D.UI({$, icon})` → `el, esc, mkBtn, sepEl, lblEl, thumbCanvas, lsGet, lsSet` |
+| `arte-procedural.js` | 743 | fábrica | `T3D.ArteProcedural(deps)`: atlas del terreno, sprites, arte propio (`CUSTOM`), `buildArt`; `atlasTex`/`atlasCanvas` por getter/setter |
+| `editor-arte.js` | 1017 | fábrica | `T3D.EditorArte(api)`: el editor de pixel art entero (API cerrada en su cabecera) |
+| `tablero3d.js` | 3055 | núcleo | `T3D._engine(ctx)`: modelo, luz, entidades, partida, mesa en vivo, entrada y bucle; sin reasignaciones de función |
+| `catalogo.js` | 327 | puro (UMD) | catálogo de piezas (fase 0; también lo usa el servidor) |
+| `vision.js`, `fichas.js`, `muros.js`, `ambiente.js`, `ajustes.js`, `dados.js`, `personajes.js`, `mesa.js`, `icons-t3d.js` | — | anteriores al refactor | visión y luz, fichas, muros, ambiente, ajustes, dados, arte de personajes, adaptador de la mesa, iconos |
 
 ### Piezas con comportamiento (fase 0, 2026-09-26)
 
