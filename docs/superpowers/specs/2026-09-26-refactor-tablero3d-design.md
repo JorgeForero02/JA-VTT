@@ -7,7 +7,7 @@ pruebas que ejecutan + reglas que impiden volver atrás). El núcleo con estado 
 cuando las fases 2 y 5 lo toquen, con estas reglas ya puestas.
 
 **Desvío de la hoja de ruta:** no está en ninguna hoja; se intercala antes de la fase 1 por decisión del usuario.
-Se despliega junto con la fase 1 y con P-47/P-48.
+Se iba a desplegar con la fase 1; por decisión del usuario se desplegó al cerrarlo, el 2026-09-27 (`main @ 007a610`), junto con P-47/P-48.
 
 ## 1. Punto de partida (mapa del 2026-09-26)
 

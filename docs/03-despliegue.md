@@ -19,7 +19,7 @@ Desplegar: push a **`main`** y `POST /api/v1/deploy {"uuid":"d6qlm5kzdoitlacr5br
 UI). El push solo no despliega (`instant_deploy: false`, sin webhook). `main` es la única rama. Reiniciar: `POST /api/v1/applications/d6qlm5kzdoitlacr5br29fna/restart`. **No** tocar los
 contenedores con `docker` a mano.
 
-Último despliegue: 2026-09-26, `main @ d69bd08` (fase 0 del arte propio: catálogo de piezas, `t3d/007`, y el arreglo de la caída por `ECONNRESET` en el upgrade). Antes: `main @ 0b12ed4`.
+Último despliegue: 2026-09-27, `main @ 007a610` (refactor SOLID del cliente 3D en 9 módulos, D1 y P-47/P-48; sin migraciones; copia previa `jav-2026-09-27-0528-pre-refactor-t3d.sql.gz`). Antes: `main @ d69bd08` (fase 0 del arte propio: catálogo de piezas, `t3d/007`, y el arreglo de la caída por `ECONNRESET` en el upgrade).
 correcto; `npm run test:e2e` con `BASE_URL=https://tablero.supportive.pro E2E_RESTART=no` → 10/10
 (WSS por Traefik, 190 ms por mensaje); restart por API → mismas filas antes y después.
 

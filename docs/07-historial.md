@@ -2,7 +2,27 @@
 
 Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
 
-## 2026-09-26 — Refactor SOLID del cliente 3D: `tablero3d.js` en 9 módulos, sin parches (rama `refactor-t3d`, sin desplegar)
+## 2026-09-27 — Despliegue de `main @ 007a610`: refactor SOLID del cliente 3D + P-47/P-48
+
+- **Qué:** merge `--no-ff` de `refactor-t3d` en `main` (`007a610`), push y deploy por la API de Coolify
+  (`l06jnkitysch8imp7dx3uefi`). Entran el refactor de abajo, D1 (botones deshacer/rehacer con aviso en vivo) y los
+  arreglos P-47/P-48 que estaban en `main` sin desplegar (`95290b9`). Sin migraciones.
+- **Antes de desplegar:** pasada completa de la tarea 11 (`check` 366/366, `test:ui` 54/54, `test:t3d` 40 + 11,
+  docker `test:e2e` 11/11) y, sobre `main` ya integrado, `test:ui` 54/54 y `test:t3d` 40/40 + 11/11. Copia de la base
+  de producción: `vps1new:/root/backups/ja-vtt-predeploy/jav-2026-09-27-0528-pre-refactor-t3d.sql.gz` (5,8 MB).
+- **Verificado en producción** (desde el servidor, `curl --resolve`, por Norton): app y db `healthy`; raíz 200; los
+  11 ficheros del cliente 3D (`base`, `luces`, `objetos3d`, `escena`, `mapas`, `pixel`, `ui3d`, `arte-procedural`,
+  `editor-arte`, `tablero3d`, `t3d`) en 200 y `tablero3d.js` sirviendo `undoLocal`; datos intactos (escenas 1,
+  piezas 0, dibujos 0, igual que antes); sin errores en el registro; `test:e2e` contra
+  `https://tablero.supportive.pro` con `E2E_RESTART=no` → 10/10.
+- **Por qué:** el usuario pidió integrar, subir y desplegar al cerrar el refactor (cambia lo acordado antes, que era
+  desplegarlo junto con la fase 1).
+- **Revertir:** redeploy de `95290b9` (P-47/P-48 sin el refactor) o de `d69bd08` (fase 0) desde Coolify, o
+  `git revert -m 1 007a610` + push + deploy. La base no cambió; la copia de arriba sólo haría falta ante un daño.
+- **Pendiente:** pedir al usuario la línea de rendimiento de Mesa → Conexión («Render de luz: N ms…») para compararla
+  con la de la fase 0; este refactor no midió rendimiento.
+
+## 2026-09-26 — Refactor SOLID del cliente 3D: `tablero3d.js` en 9 módulos, sin parches (rama `refactor-t3d`; desplegado el 2026-09-27, entrada de arriba)
 
 - **Qué** ([spec](superpowers/specs/2026-09-26-refactor-tablero3d-design.md), [plan](superpowers/plans/2026-09-26-refactor-tablero3d.md);
   11 tareas, `02ec33f..` rama `refactor-t3d`):

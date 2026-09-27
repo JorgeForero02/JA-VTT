@@ -12,6 +12,12 @@ desplegable: **Node 22 + PostgreSQL 16 + Docker Compose**, login con contraseña
 abierto. Casi privado: sin rate-limit ni 2FA a propósito.
 
 Estado: **en producción en https://tablero.supportive.pro** (Coolify, vps1new) desde el 2026-09-16.
+Último despliegue: 2026-09-27, `main @ 007a610` (tablero 3D con el cliente partido en módulos, ver
+[04](04-convenciones.md) B.1c y [07](07-historial.md)).
+
+Estado de calidad verificado el 2026-09-27: `npm run check` → **366 tests, 0 fallos** (cobertura 93 %; una
+prueba intermitente conocida, P-50) · `npm run test:ui` → **54/54** · `npm run test:t3d` → **40 + 11** ·
+`npm run test:e2e` → 10/10 contra producción.
 
 Tamaño real (2026-09-16): servidor ~1500 líneas (6 archivos + migraciones) · cliente ~2900 líneas
 + `dice3d.js` (módulo ES) · 1 dependencia de producción (`pg`); three.js y cannon-es vendorizados.
