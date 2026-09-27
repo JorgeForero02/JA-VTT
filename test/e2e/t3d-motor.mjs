@@ -291,6 +291,29 @@ try {
     owners.gm.find(([id]) => id === mine.id)[1] && !owners.gm.find(([id]) => id === dirs.id)[1],
     JSON.stringify({ owners, sel: [selDir, selMine], hint, arrived, movedPl: movedPl.slice(0, 3), movedGm: movedGm.slice(0, 3), endGm, endPl }));
 
+  // 10. D1: el director pinta terreno con el tablero en vivo; el jugador recibe el cambio (control positivo); al pulsar
+  // el BOTÓN deshacer (no Ctrl+Z) el jugador también recibe el terreno de antes del trazo.
+  // el combate movió la cámara a cualquier sitio (depende de la iniciativa al azar): se reimporta la v2 como en el paso 6
+  // para tener la cámara en su sitio de partida (M.start), con la mesa en vivo intacta (el director sigue siendo DM).
+  await importJson(Object.assign({}, v2, { name: 'Motor deshacer vivo' }));
+  // abrir la mesa puso al director en modo jugar (tablero3d.js: openGame fuerza play al entrar a una pestaña de partida);
+  // #t3d-mode está oculto por CSS (display:none!important) — se dispara como hace el propio motor, sin pasar por un clic visible.
+  await gm.evaluate(() => document.getElementById('t3d-mode').click());
+  await gm.click('#t3d-rail [data-tool="paint"]');
+  await gm.evaluate(() => [...document.querySelectorAll('#t3d-palette .t3d-sw')].find((b) => b.textContent === 'Nieve').click());
+  const T10 = () => gm.evaluate(() => t3dView.probe('serialized').t);
+  const t10_0 = await T10();
+  const at22c = await gm.evaluate(() => t3dView.probe('screen', 2, 2));
+  await gm.mouse.click(at22c.x, at22c.y);
+  const t10_1 = await T10();
+  const painted = t10_1 !== t10_0;
+  const plGotPaint = await pl.waitForFunction((t) => t3dView.probe('serialized').t === t, t10_1, { timeout: 5000 }).then(() => true, () => false);
+  const undoBtn10 = await gm.evaluate(() => { const b = document.getElementById('t3d-undo'); if (!b) return false; b.click(); return true; });
+  const plUndone = await pl.waitForFunction((t) => t3dView.probe('serialized').t === t, t10_0, { timeout: 5000 }).then(() => true, () => false);
+  step('D1: el botón deshacer avisa a la mesa en vivo como Ctrl+Z',
+    painted && plGotPaint && undoBtn10 && plUndone,
+    JSON.stringify({ painted, plGotPaint, undoBtn10, plUndone }));
+
   step('sin errores de consola', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (e) { step('sin excepciones', false, e.message.split('\n')[0]); console.log(errors.slice(0, 5).join('\n')); }
 await browser.close();

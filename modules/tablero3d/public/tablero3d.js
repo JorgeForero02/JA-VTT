@@ -1762,7 +1762,7 @@ $('zoneToolBtn').onclick=()=>$('rail').querySelector('[data-tool="zone"]').click
 if($('explore')) $('explore').onclick=()=>{ if(state.mode==='edit') $('mode').click(); };
 $('brush').onclick=()=>{ state.brush=state.brush>=5?1:state.brush+2; $('brush').querySelector('span').textContent=state.brush+'×'+state.brush; };
 $('fill').onclick=()=>{ state.fill=!state.fill; $('fill').setAttribute('aria-pressed',String(state.fill)); };
-$('undo').onclick=undoLocal; $('redo').onclick=redoLocal;
+$('undo').onclick=()=>undo(); $('redo').onclick=()=>redo();
 function layout(){}
 // raíl de herramientas: «Explorar» o la herramienta de edición activa
 function railSync(){ const ed=state.mode==='edit';

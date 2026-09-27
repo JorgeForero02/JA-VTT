@@ -879,5 +879,5 @@ test('el motor no reasigna funciones (sin parches)', () => {
     assert.doesNotMatch(src, new RegExp(`(^|[;\\s])${f}=function`, 'm'), f);
     assert.equal((src.match(new RegExp(`function ${f}\\(`, 'g')) || []).length, 1, f);
   }
-  assert.match(src, /\$\('undo'\)\.onclick=undoLocal; \$\('redo'\)\.onclick=redoLocal;/);   // D1 se arregla en la tarea 10
+  assert.match(src, /\$\('undo'\)\.onclick=\(\)=>undo\(\); \$\('redo'\)\.onclick=\(\)=>redo\(\);/);   // D1 (tarea 10): los botones avisan a la mesa en vivo como Ctrl+Z
 });
