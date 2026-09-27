@@ -8,6 +8,7 @@ const T3D=window.Tablero3D=window.Tablero3D||{};
 T3D._engine=function(ctx){
 const ROOT=ctx.root, $=ctx.$, Vision=T3D.Vision, Fichas=T3D.Fichas, Muros=T3D.Muros, Personajes=T3D.Personajes, Ambiente=T3D.Ambiente, Ajustes=T3D.Ajustes, Dados=T3D.Dados, Catalogo=T3D.Catalogo;
 const {mulberry32,hash,pick,hexRGB}=T3D.Base; const {WARM,HEX6,LIGHT_TYPES,LIGHT_IDS,OBJ_LIGHT_IDS,LIGHT_ANIMS,TOKEN_LIGHTS,normLight,lightOfType,lightName,lightRGB}=T3D.Luces;
+const {G,D,S,B,W,SA,WA,SL,TH,SH,CU,Grgb,Drgb,Srgb,PROP3D}=T3D.Objetos3D;
 /* escuchas de ventana, temporizadores y observadores que hay que soltar al desmontar */
 const offs=[]; let stopped=false;
 function on(t,ev,fn,o){ t.addEventListener(ev,fn,o); offs.push(()=>t.removeEventListener(ev,fn,o)); }
@@ -42,13 +43,6 @@ function tex(c){ const t=new THREE.CanvasTexture(c); t.magFilter=THREE.NearestFi
 const BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
 
 /* ============ paleta con cambio de tono (sombras frías, luces cálidas) ============ */
-const G=['#1e3b2f','#2b5a37','#3f7c3e','#5f9e48','#8fc657','#c7e07a'];
-const D=['#2e1f2b','#4d2f2c','#6e4331','#8e5d3b','#b07f4f','#cfa46c'];
-const S=['#1f1d2e','#34324a','#4b4a64','#666680','#8a8aa0','#b3b4c4'];
-const B=['#2a1c2a','#48303c','#6a4a50','#8a6564','#a8857b','#c4a595'];
-const W=['#2c1a1e','#4e2c28','#7a4630','#a0653c','#c48a50','#e0b574'];
-const SA=['#6e5a48','#a08563','#c9ae7c','#e2cf98','#f3e6bb'];
-const WA=['#16213e','#1f3a66','#2a5a8f','#3a7fb3','#6cb3d9','#b8e6f2'];
 const FL=['#d9495f','#f2d15b','#ece6f5','#9a7fd6'];
 const INK='#161222';
 // rampas de la paleta del editor que no pinta el atlas (rojo, piel, gris, púrpura, verde azulado); también las usan los personajes
@@ -185,10 +179,6 @@ paint(27,142,(P,F,r)=>{ F(RF[2]); for(let row=0;row<4;row++){ const y0=row*4, of
   for(let x=0;x<16;x++){ P(x,y0,RF[3]); P(x,y0+3,RF[1]); if(r()<.2) P(x,y0+1,RF[4]); }
   for(let k=0;k<2;k++){ const mx=(off+k*8)%16; for(let y=y0;y<y0+4;y++) P(mx,y,RF[1]); } } });
 // más tejados (31, 41, 42, 43): pizarra, paja, tablillas de madera y cobre con verdín. Hacia abajo en el lienzo = hacia el alero.
-const SL=['#1b1d2c','#2a3044','#3b465e','#526079','#72819b','#9aa7bd'];
-const TH=['#3d2b1a','#634524','#8c6a33','#b38f45','#d4b35f','#ecd58c'];
-const SH=['#2b1f22','#4b3431','#6e4d3b','#8f6a4b','#ad8a60','#c9aa7a'];
-const CU=['#173634','#23544e','#347866','#4f9c82','#7cc2a0','#b6e3c2'];
 paint(31,145,(P,F,r)=>{ F(SL[2]); for(let row=0;row<4;row++){ const y0=row*4, off=row%2?2:0;
   for(let k=0;k<4;k++){ const x0=off+k*4, tone=r()<.3?SL[3]:SL[2];
     for(let y=y0+1;y<y0+3;y++) for(let x=0;x<3;x++) P(x0+x,y,tone);
@@ -607,7 +597,6 @@ function paintStack(N,H,k,fn){
   ctx.putImageData(img,0,0);
   return {c,cols};
 }
-const Grgb=G.map(hexRGB), Drgb=D.map(hexRGB), Srgb=S.map(hexRGB);
 function stackTree(type,seed,k){
   const N=24*k, H=(type==='pine'?38:34)*k, r=mulberry32(seed), LX=-0.45, LY=0.78, LZ=-0.43;
   const bump=(a,s)=>Math.sin(a*5+seed)*0.5+Math.sin(a*3-s*0.7+seed*2)*0.5;
@@ -707,215 +696,6 @@ function placeholderStack(){
   return stackFromSlices(new Array(12*k).fill(box),TEX);
 }
 
-/* ---- objetos del pueblo: volúmenes por capas; fn(x,z,s) en texeles base desde el centro ---- */
-const Wr=W.map(hexRGB), Srr=S.map(hexRGB), RFr=['#3b1f2b','#6b2f3a','#a33b3b','#d9574a','#f08a5d'].map(hexRGB);
-const GOLDc=hexRGB('#e8c05a'), WHITEc=hexRGB('#ece6f5'), BLUEc=hexRGB('#3b5dc9'), BLUEd=hexRGB('#29366f'), WATc=hexRGB(WA[2]);
-const BOOKS=['#b83a4b','#3b5dc9','#38b764','#e8c05a','#9a7fd6'].map(hexRGB), FLc=['#fff0b8','#ffc14a','#f07a2a'].map(hexRGB);
-const SHr=SH.map(hexRGB), CUr=CU.map(hexRGB), Br=B.map(hexRGB), SAr=SA.map(hexRGB), IRON=['#161222','#1f1d2e','#34324a','#4b4a64'].map(hexRGB);
-const REDc=hexRGB('#c73a4a'), ROSEc=hexRGB('#f07a7a'), ORc=hexRGB('#e8872a'), YELc=hexRGB('#f2c14a'), CREAMc=hexRGB('#f3e6bb'), CREAMd=hexRGB('#c9ae7c');
-const PLAST=['#8f8778','#b3aa98','#d6cdb8','#ece6d6'].map(hexRGB), SAILc=['#e2dccb','#bdb49e'].map(hexRGB), BRONZE=['#6b4a2a','#b08a3a'].map(hexRGB);
-const CLOTH=[['#9a7fd6','#6b4a99'],['#38b764','#2d6b5e'],['#e8c05a','#b08a3a'],['#b83a4b','#6b2f3a'],['#6cb3d9','#2a5a8f']].map(p=>p.map(hexRGB));
-// tramo de puente de 1 casilla de largo (se empalma con otros a lo largo de z) y media anchura hw: tablones, vigas, pilotes y barandal
-function bridgeFn(x,z,s,hw){ const ax=Math.abs(x), az=Math.abs(z), ex=hw-1; if(az>8) return null;
-  if(Math.abs(ax-ex)<1.3&&Math.abs(az-5)<1.3&&s<=22) return s>=22?Wr[4]:s>=16?(x+z>0?Wr[3]:Wr[2]):Wr[1];
-  if(Math.abs(ax-ex)<0.9&&(s===20||s===21)) return s===21?Wr[4]:Wr[2];
-  if(ax<=hw&&s>=13&&s<=15){ if(s<15) return Wr[1]; if(((z+8)%4)<0.6) return Wr[0]; if(ax>hw-0.6) return Wr[2]; return (Math.floor((z+8)/4)%2)?Wr[3]:Wr[4]; }
-  if(Math.abs(ax-(hw-3))<1&&s>=11&&s<13) return Wr[1]; if(hw>8&&ax<1&&s>=11&&s<13) return Wr[1]; return null; }
-// puesto de mercado (2×1): postes, toldo a rayas que cae hacia el frente con faldón festoneado, mostrador y género
-function stallFn(x,z,s,aw1,aw2,goods){ const ax=Math.abs(x);
-  if(Math.abs(ax-14)<1.1&&Math.abs(Math.abs(z)-6)<1.1&&s<(z<0?27:22)) return (x+z>0)?Wr[3]:Wr[2];
-  const sa=Math.round(28-(z+8.5)*7/18), st=Math.floor((x+16)/4)%2;
-  if(ax<=15.5&&z>=-8.5&&z<=9.5){ if(s===sa) return st?aw1[0]:aw2[0]; if(s===sa-1) return st?aw1[1]:aw2[1];
-    if(z>=8.2&&s<sa-1&&s>=sa-2-(((x+16)%4)<2?1:0)) return st?aw1[1]:aw2[1]; }
-  if(ax<=13&&z>=1&&z<=7&&s<=11){ if(s>=10) return (ax>12.3||z>6.3||z<1.7)?Wr[3]:Wr[4]; if(s===0) return Wr[1]; return (Math.floor((x+14)/3)%2)?Wr[2]:Wr[3]; }
-  if(s>=12&&s<=13&&ax<=12&&z>=2&&z<=6) return (s===13&&(z<2.6||z>5.4))?null:goods(x,z);
-  if(Math.abs(ax-8)<=3.5&&z>=-6.5&&z<=-1.5&&s<=7) return s===7?Wr[4]:((Math.abs(ax-8)>3||z<-6||z>-2)?Wr[1]:Wr[3]);
-  return null; }
-/* ---- muros de JA-VTT por casilla (T6b): ventana, velo, maleza, barrera y los aspectos del portal ---- */
-const GLASS=['#2a5a8f','#6cb3d9','#b8e6f2'].map(hexRGB), VEILr=['#3e2f5c','#5f4a86','#8a70b3','#b79bd8','#d8c6ef'].map(hexRGB);
-const PINK=['#6b2f55','#a8527f','#e8a0bf','#fbd6e6'].map(hexRGB), BARR=['#5d6464','#a7afaf'].map(hexRGB), VOIDc=hexRGB('#0e0b16'), CAVEd=hexRGB('#1c1726');
-// ladrillo del muro con llagas al tresbolillo (hiladas de 3 texeles y junta de 1, como el terreno Muro), un tono más oscuro
-function brickAt(x,z,s){ const row=Math.floor(s/4), X=Math.floor(x+8+(row%2)*4); if(s%4===3||X%8===7) return Br[0]; const h=hash(Math.floor(X/8),row,Math.floor(z+8)>>2);
-  if(s%4===2) return Br[1]; return h<0.3?Br[1]:h<0.85?Br[2]:Br[3]; }
-// arco de piedra en el plano x–s: por dentro del hueco null; sillares con junta
-function archStone(x,s,top,hw){ const ax=Math.abs(x); if(ax<hw&&s<top+hw*Math.sqrt(Math.max(0,1-(x/hw)**2))) return null;
-  const row=Math.floor(s/4), X=Math.floor(x+8+(row%2)*2); if(s%4===3||X%4===3) return Srr[1]; return (hash(X>>2,row,3)<0.5)?Srr[3]:Srr[2]; }
-const PROP3D={
-  window:{name:'Ventana',N:16,H:32,orient:true,block:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z); if(az>4.5||ax>7.99) return null;
-    if(s===10&&ax<=5.5&&az<=5) return az>4?Srr[3]:Srr[4];                    // alféizar
-    if(s===25&&ax<=5.5) return az>4?Srr[2]:Srr[3];                            // dintel
-    if(s>=11&&s<=24&&ax<5){ if(az<0.8){ if(Math.abs(x)<0.6||s===17||s===18) return s===18?Wr[2]:Wr[1];   // parteluz y travesaño
-        const hl=((Math.floor(x+8)+(24-s))%9)<2; return hl?GLASS[2]:(x+s*0.3>6?GLASS[0]:GLASS[1]); }
-      return (az<1.4&&(ax>4.2||s===11||s===24))?Wr[1]:null; }                   // marco; el hueco se ve de lado
-    if(s===31) return hash(Math.floor(x+8)>>2,Math.floor(z+8)>>2,7)<0.5?Srr[2]:Srr[3]; return brickAt(x,z,s); }},
-  veil:{name:'Velo',N:16,H:30,orient:true,walk:true,noShadow:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x); if(ax>7.99) return null;
-    if(s>=28){ if(Math.abs(z)<0.7&&s===28) return IRON[2]; if(Math.abs(z)<1.2&&s===29&&(Math.floor(x+8)%4===1)) return IRON[3]; return null; }   // barra y anillas
-    const fold=Math.sin((x+8)*0.95)*1.1, dz=z-fold; if(Math.abs(dz)>0.75||s<1) return null;
-    if(ax<1.1&&s<9-ax*4) return null;                                              // se entreabre abajo, en el centro
-    const lit=Math.cos((x+8)*0.95); if(s<=2) return VEILr[lit>0?1:0];                // bajo más oscuro
-    return VEILr[lit>0.55?4:lit>0?3:lit>-0.55?2:1]; }},
-  cover:{name:'Maleza',N:16,H:17,walk:true,rand:true,noShadow:true,cat:'nature',hidden:true,fn:(x,z,s)=>{ if(Math.abs(x)>7.99||Math.abs(z)>7.99) return null;
-    const X=Math.floor(x+8), Z=Math.floor(z+8), h0=hash(X,Z,11); if(s===0) return h0<0.8?Grgb[1]:Grgb[0];        // mata al pie
-    if(h0>0.5) return null;
-    const clump=0.5+0.5*Math.cos(Math.hypot(x,z)*0.35+hash(X>>2,Z>>2,15)*2), top=Math.round(6+clump*6+hash(X,Z,12)*5); if(s>top) return null;
-    const f=s/top, lt=(x+z)<0?1:0;                                               // lado de la luz (arriba a la izquierda)
-    if(s===top&&hash(X,Z,14)<0.3) return hash(X,Z,16)<0.5?SAr[2]:Grgb[4];          // espigas
-    return f>0.75?Grgb[3+lt]:f>0.45?Grgb[2+lt]:f>0.2?Grgb[1+lt]:Grgb[1]; }},
-  barrier:{name:'Barrera',N:16,H:32,orient:true,block:true,noShadow:true,gmOnly:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x); if(Math.abs(z)>0.7||ax>7.6) return null;
-    const edgeV=ax>=5.9, edgeH=s<=1||s>=30||s===15||s===16; if(!edgeV&&!edgeH) return null;   // sólo el contorno y un travesaño, a trazos como en JA-VTT
-    const k=edgeV?s:Math.floor(x+8); if((k%5)>=3) return (edgeV&&edgeH)?BARR[0]:null; return (x+z<0)?BARR[1]:BARR[0]; }},
-  portal:{name:'Portal: puerta',N:16,H:36,orient:true,block:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z); if(az>2.5||ax>7.99||s>35) return null;
-    if(s>=34) return ax<7.5?(s===35?Srr[4]:Srr[3]):null;
-    const st=archStone(x,s,21,5.5); if(st) return (ax<1.3&&s>=26&&s<=28)?PINK[2+(s===27?1:0)]:st;   // sillares y clave con la gema
-    if(az>1) return null; if(s===0) return Wr[1];
-    if(ax<0.5) return Wr[0];                                                      // junta de las dos hojas
-    if(s===6||s===16) return IRON[2]; if(ax>1.5&&ax<2.5&&s>=10&&s<=12) return PINK[1];   // bandas y aldabas
-    return (Math.floor((x+8)/2.5)%2)?Wr[1]:Wr[2]; }},
-  portal_stairs:{name:'Portal: escalera',N:16,H:7,orient:true,block:true,noShadow:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z); if(ax>7.6||az>7.6) return null;
-    const rim=ax>=6.2||az>=6.2;
-    if(rim){ if((ax>=6.2&&az>=6.2)&&s<=6) return s>=5?PINK[s===6?3:2]:Srr[2];          // postes de las esquinas con remate rosa
-      if(s<=1) return s===1?(Math.floor(x+z+16)%3===0?Srr[3]:Srr[4]):Srr[2]; return null; }
-    if(s!==0) return null; const step=Math.floor((z+6.2)/2.5);                    // escalones que bajan hacia el fondo
-    if(((z+6.2)%2.5)<0.6) return Srr[Math.max(0,3-step)]; return [Srr[3],Srr[2],Srr[1],CAVEd,VOIDc][Math.min(4,step)]; }},
-  portal_cave:{name:'Portal: boca de cueva',N:16,H:19,orient:true,block:true,big:true,cat:'build',hidden:true,fn:(x,z,s)=>{
-    const X=Math.floor(x+8), Z=Math.floor(z+8), r=7.9*Math.sqrt(Math.max(0,1-(s/19)**2))-hash(X,Z,Math.floor(s/3))*0.9, d=Math.hypot(x,(z+1)*1.1);
-    if(d>r) return null; const mouth=z>-1&&Math.abs(x)<4.3*Math.sqrt(Math.max(0,1-(s/12)**2));
-    if(mouth) return d>r-1.3?VOIDc:null;                                           // la boca: oscura en la cara, hueca dentro
-    if(d>r-1.2&&s>=r*0.9&&hash(X,Z,s)<0.55) return Grgb[2+(hash(X,Z,5)<0.4?1:0)];   // musgo arriba
-    const lt=(x*-0.5+z*-0.6+s*0.6)/12; return lt>0.55?Srr[4]:lt>0.2?Srr[3]:lt>-0.1?Srr[2]:Srr[1]; }},
-  portal_trap:{name:'Portal: trampilla',N:16,H:3,orient:true,block:true,noShadow:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z); if(ax>7||az>7) return null;
-    if(s===0) return (ax>6||az>6)?Srr[2]:Wr[0];
-    if(s===1){ if(ax>6||az>6) return Srr[3]; if(Math.abs(az-3.5)<0.6) return IRON[2]; if(Math.floor(x+6.5)%3===0) return Wr[1]; return (Math.floor((x+6.5)/3)%2)?Wr[3]:Wr[2]; }
-    if(s===2){ if(Math.abs(Math.hypot(x,z-4.5)-1.2)<0.5) return IRON[3]; if(ax<0.8&&Math.abs(z+1)<0.8) return PINK[2]; } return null; }},
-  portal_magic:{name:'Portal mágico',N:16,H:34,orient:true,block:true,cat:'build',hidden:true,fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z);
-    if(s<2) return (ax<7.4&&az<3)?(s===1?Srr[3]:Srr[2]):null;                      // peana
-    const cy=18, d=Math.hypot(x,s-cy), a=Math.atan2(s-cy,x);
-    if(d>=5.6&&d<=7.9&&az<1.6){ const k=Math.floor((a+Math.PI)/(Math.PI/6)); if(d<6.3&&k%2===0) return PINK[2];   // runas del aro
-      return (x+(s-cy))<0?Srr[4]:Srr[2]; }
-    if(s>=2&&s<11&&ax>=5.4&&ax<=7.6&&az<1.6) return Srr[2];                          // pies del aro
-    if(d<5.6&&az<0.6){ const sw=(a*2+d*0.9)%(Math.PI*2), v=(Math.sin(sw*2)+1)/2;       // remolino
-      return d<1.3?PINK[3]:v>0.75?PINK[3]:v>0.45?PINK[2]:v>0.2?PINK[1]:PINK[0]; }
-    return null; }},
-  door:{name:'Puerta',N:16,H:32,orient:true,block:true,door:true,fn:(x,z,s)=>{ if(Math.abs(z)>1.1||Math.abs(x)>7.5) return null;
-    if(s===0||s>=31||Math.abs(x)>6.5) return Wr[1]; if(s===11||s===22) return Srr[1]; if(x>3.5&&x<5.5&&s>=14&&s<=16) return GOLDc;
-    return (Math.floor((x+7)/3.5)%2)?Wr[2]:Wr[3]; }},
-  chest:{name:'Cofre',N:16,H:10,block:true,rand:true,fn:(x,z,s)=>{ if(Math.abs(x)>6.5||Math.abs(z)>4.5) return null;
-    if(s>=9) return (Math.abs(x)>6||Math.abs(z)>4)?null:Wr[4]; if(s===6) return Srr[2]; if(Math.abs(x)<1.2&&z>3.5&&s>=4&&s<=6) return GOLDc;
-    return (Math.abs(x)>5.5||Math.abs(z)>3.5)?Srr[2]:(s>6?Wr[3]:Wr[2]); }},
-  barrel:{name:'Barril',N:12,H:15,block:true,rand:true,fn:(x,z,s)=>{ const r=4.4+0.8*Math.sin(Math.PI*s/14), d=Math.hypot(x,z); if(d>r) return null;
-    if(s===2||s===12) return Srr[1]; if(s===14) return d>r-1?Wr[1]:Wr[2]; const a=Math.atan2(z,x); return (Math.floor((a+Math.PI)/(Math.PI/6))%2)?Wr[3]:Wr[2]; }},
-  table:{name:'Mesa',N:20,H:12,orient:true,block:true,fn:(x,z,s)=>{ if(s>=10){ if(Math.abs(x)>8.5||Math.abs(z)>5.5) return null;
-      return s===11?((Math.abs(x)>7.5||Math.abs(z)>4.5)?Wr[2]:Wr[4]):Wr[2]; }
-    return (Math.abs(Math.abs(x)-7)<1&&Math.abs(Math.abs(z)-4)<1)?Wr[1]:null; }},
-  bed:{name:'Cama',N:24,H:9,orient:true,block:true,big:true,fn:(x,z,s)=>{ if(Math.abs(x)>6.5||Math.abs(z)>11) return null;
-    if(z<-10) return s<=8?Wr[1]:null; if(s<3) return (Math.abs(x)>5.5&&Math.abs(z)>9.5)?Wr[1]:null; if(s===3) return Wr[2];
-    if(s<=5) return z<-7?WHITEc:(Math.abs(x)>5.5||z>9.5?BLUEd:BLUEc); if(s===6&&z<-7&&z>-10&&Math.abs(x)<4.5) return WHITEc; return null; }},
-  shelf:{name:'Estantería',N:16,H:30,orient:true,block:true,fn:(x,z,s)=>{ if(Math.abs(x)>7||z<-4||z>5) return null;
-    if(z>=3.5) return Wr[1]; if(Math.abs(x)>6) return Wr[2]; if(s%7===0) return Wr[3];
-    if(s%7<=5&&z>=-3&&z<=2){ const col=Math.floor((x+7)/2); if((col+Math.floor(s/7))%5===4) return null; return BOOKS[(col*3+Math.floor(s/7))%5]; } return null; }},
-  fence:{name:'Valla',N:16,H:12,orient:true,block:true,fn:(x,z,s)=>{ if(Math.abs(x)>=6&&Math.abs(x)<=7.8&&Math.abs(z)<=1) return s===11?Wr[3]:Wr[2];
-    if(Math.abs(z)<=0.7&&(s===4||s===5||s===8||s===9)) return s%4===1?Wr[2]:Wr[3]; return null; }},
-  well:{name:'Pozo',N:22,H:26,block:true,big:true,cat:'build',fn:(x,z,s)=>{ const d=Math.hypot(x,z), a=Math.atan2(z,x);
-    if(s<7&&d>=6.5&&d<=9.5){ if(s===6) return d>8.8?Srr[3]:Srr[4]; if(s%3===2) return Srr[1]; const st=((Math.floor(a*3)+(s>>1)*2)%2+2)%2, lt=(x+z)/13;
-      if(hash(Math.floor(x+11),Math.floor(z+11),s)<0.12) return Grgb[2]; return lt>0.3?Srr[4]:(st?Srr[2]:Srr[3]); }
-    if(s===4&&d<6.5) return hash(Math.floor(x+11),Math.floor(z+11),9)<0.1?hexRGB(WA[4]):WATc;
-    if(s<22&&Math.abs(Math.abs(x)-8)<0.8&&Math.abs(z)<0.9) return (x>0)?Wr[3]:Wr[2];
-    if(s===16&&Math.abs(x)<8&&Math.abs(z)<0.6) return Wr[1]; if(s>=15&&s<=16&&x>8.5&&x<10.5&&z>=0&&z<2.2) return IRON[2];
-    if(s>=13&&s<=15&&Math.abs(x)<0.45&&Math.abs(z)<0.45) return SAr[2];
-    if(s>=9&&s<=12&&d<1.9) return s===11?IRON[1]:(s===12?Wr[1]:Wr[2]);
-    if(s>=20&&Math.abs(x)<=10&&Math.abs(z)<=(25.5-s)*2) return RFr[(s+Math.floor(Math.abs(z)))%2?2:3]; return null; }},
-  lamp:{name:'Farol',N:8,H:38,block:true,light:5,lightS:34,rand:true,fn:(x,z,s)=>{ const d=Math.hypot(x,z);
-    if(s<2) return d<2.6?Srr[2]:null; if(s<31) return d<1.2?Srr[1]:null; if(s<37){ if(d>3) return null; return (Math.abs(x)>2.2||Math.abs(z)>2.2||s===31)?Srr[1]:FLc[s%2]; }
-    return d<3.2?Srr[1]:null; }},
-  stairs:{name:'Paso a otro tablero',N:16,H:8,walk:true,rand:false,fn:(x,z,s)=>{ if(Math.abs(x)>7.5||Math.abs(z)>7.5) return null; const st=Math.floor((x+8)/4);
-    if(s>st*2+1) return null; if(Math.abs(z)>6.5) return Srr[1]; return s===st*2+1?Srr[4]:Srr[2]; }},
-  torch:{name:'Antorcha',N:6,H:20,block:true,light:4,lightS:18,rand:true,fn:(x,z,s)=>{ const d=Math.hypot(x,z);
-    if(s<14) return d<1?Wr[2]:null; if(s<16) return d<2?Srr[1]:null; const r=(19.5-s)*0.7+0.4; return d<r?FLc[Math.min(2,Math.floor((s-16)/1.4))]:null; }},
-  bridge:{name:'Puente de madera',N:16,H:23,orient:true,walk:true,deck:16,cat:'build',fn:(x,z,s)=>bridgeFn(x,z,s,7.5)},
-  bridge2:{name:'Puente ancho',N:32,H:23,orient:true,walk:true,deck:16,span:[2,1],cat:'build',fn:(x,z,s)=>bridgeFn(x,z,s,15.5)},
-  gate:{name:'Puerta de la muralla',N:16,H:40,orient:true,block:true,door:true,lift:1.5,frame:'gatearch',cat:'build',fn:(x,z,s)=>{ const ax=Math.abs(x);
-    if(Math.abs(z)>1||ax>6.3) return null; const bar=(Math.floor(x+8)%3)===1;
-    if(s>=38) return s===39?Wr[4]:Wr[2]; if(s<=1) return bar&&(s===1||Math.abs(z)<0.5)?IRON[1]:null;
-    if(bar) return (x+z>0)?IRON[3]:IRON[2]; if(s%5===2) return IRON[1]; return null; }},
-  gatearch:{name:'Arco de la muralla',N:16,H:64,orient:true,hidden:true,cat:'build',fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z), X=Math.floor(x+8);
-    if(ax>8||az>8||s>62) return null;
-    const arch=31+8*Math.sqrt(Math.max(0,1-(x/6.5)**2));
-    if(ax<6.5&&s<arch) return null;
-    if(ax<6.5&&az<1.4&&s<56) return null;
-    if(s>=56){ if(az<5.5) return null; const m=X<4||(X>=6&&X<10)||X>=12; if(!m) return null; return s===62?Srr[3]:(s%4===3?Br[1]:(x+z>0?Br[3]:Br[2])); }
-    if(s===55) return az>7.3?Srr[2]:Srr[3];
-    if(ax<6.5&&s<arch+2.2) return (Math.floor(Math.atan2(s-31,x)*5)%2)?Srr[3]:Srr[2];
-    const row=s>>2, off=row%2?4:0; if(s%4===3||(X+off)%8===7||(Math.floor(z+8)+off)%8===7) return Br[1];
-    return hash((X+off)>>3,row,Math.floor(z+8)>>3)<0.35?Br[2]:Br[3]; }},
-  stall:{name:'Puesto de fruta',N:32,H:30,orient:true,block:true,span:[2,1],cat:'build',fn:(x,z,s)=>stallFn(x,z,s,[RFr[2],RFr[1]],[WHITEc,Srr[4]],(x,z)=>{ const b=Math.floor((x+12)/8), ex=((x+12)%8), X=Math.floor(x+16), Z=Math.floor(z+8);
-    if(ex<0.8||ex>7.2||z<2.6||z>5.4) return Wr[3]; const hl=hash(X,Z,4)<0.25; return [[REDc,ROSEc],[ORc,YELc],[Grgb[3],Grgb[4]]][Math.min(2,b)][hl?1:0]; })},
-  stall2:{name:'Puesto de telas',N:32,H:30,orient:true,block:true,span:[2,1],cat:'build',fn:(x,z,s)=>stallFn(x,z,s,[BLUEc,BLUEd],[CREAMc,CREAMd],(x,z)=>{ const b=Math.floor((x+12)/4), ex=(x+12)%4;
-    if(ex<0.6) return Wr[1]; const c=CLOTH[(b*3)%CLOTH.length]; return (z>5||z<2.8)?c[1]:c[0]; })},
-  windmill:{name:'Molino de viento',N:64,H:106,orient:true,block:true,span:[3,3],cat:'build',fn:(x,z,s)=>{
-    if(z>=17.5&&z<=21){ const ds=s-74, rr=Math.hypot(x,ds);
-      if(rr<2.8) return rr<1.3?Wr[3]:Wr[0];
-      if(rr<=31) for(let i=0;i<4;i++){ const a=Math.PI/4+i*HALF_PI, ca=Math.cos(a), sa=Math.sin(a), al=x*ca+ds*sa, pp=-x*sa+ds*ca;
-        if(al<1||al>31) continue; if(Math.abs(pp)<1) return Wr[1];
-        if(pp>=1&&pp<=7&&al>=6){ if(al%4.8<0.9||pp>6.1) return Wr[2]; return (pp<4)?SAILc[0]:SAILc[1]; } } }
-    if(Math.abs(x)<1.2&&Math.abs(s-74)<1.2&&z>=12&&z<17.5) return Wr[1];
-    if(s<70){ const ax=Math.abs(x), az=Math.abs(z), R=s<36?21.5:s<60?19.5:17.5, d8=Math.max(ax,az,(ax+az)*0.7071); if(d8>R) return null;   // tres cuerpos: sin escalones de un texel que el contorno marcaría
-      const lt=(x+z)/(R*1.42);
-      if(s<8){ const ang=Math.atan2(z,x)*8/Math.PI+(Math.floor(s/3)%2?0.5:0); if(s%3===2||(d8>R-1.2&&((ang%1)+1)%1<0.14)) return Srr[1]; return lt>0.2?Srr[4]:lt>-0.3?Srr[3]:Srr[2]; }
-      if(s===8||s===36||s===60) return Wr[1];
-      if(z>0&&ax<3.8&&s<23&&d8>R-2.5) return (s>=22||ax>3.1)?Wr[1]:((Math.floor(x+32)%2)?Wr[2]:Wr[3]);
-      if(s>=44&&s<=49&&d8>R-1.5&&((ax<1.5&&az>7)||(az<1.5&&ax>7))) return s===44?Wr[1]:IRON[0];
-      const b=Math.max(0,Math.min(3,Math.floor(2+lt*1.7))), ph=s%3; return PLAST[Math.max(0,b-(ph===0?1:0)-(ph===2&&b<3?0:0))]; }   // tablas encaladas
-    if(s<=88){ const R2=18.5*(1-(s-70)/19), dh=Math.hypot(x,z); if(dh>R2) return null; if(s===88) return Wr[1];
-      const lt=(x+z)/(Math.max(R2,1)*1.42), row=Math.floor((s-70)/2.5), seam=((Math.floor(Math.atan2(z,x)*6/Math.PI+row*0.5)%2)+2)%2;
-      if(dh>R2-1.5&&(s-70)%2.5<1) return SHr[1]; return lt>0.25?SHr[seam?4:3]:lt>-0.3?SHr[seam?3:2]:SHr[2]; }
-    return null; }},
-  belfry:{name:'Campanario',N:20,H:108,block:true,cat:'build',fn:(x,z,s)=>{ const ax=Math.abs(x), az=Math.abs(z), m=Math.max(ax,az), X=Math.floor(x+10), Z=Math.floor(z+10);
-    if(s<68){ if(m>6.5) return null;
-      if(z>5.5&&ax<2.6&&s<12) return (s>=11||ax>1.9)?Srr[1]:((X%2)?Wr[2]:Wr[3]);
-      if(s>=40&&s<=46&&((ax<0.9&&az>5.5)||(az<0.9&&ax>5.5))) return IRON[0];
-      if(ax>5.5&&az>5.5) return (s%8<4)?Srr[4]:Srr[3];
-      const row=s>>2, off=row%2?3:0; if(s%4===3||(X+off)%6===5||(Z+off)%6===5) return Srr[1];
-      return (x+z>0)?(hash((X+off)/6|0,row,Z)<0.3?Srr[3]:Srr[4]):(hash((X+off)/6|0,row,Z)<0.3?Srr[2]:Srr[3]); }
-    if(s<70){ if(m>7.5) return null; return s===69?Srr[4]:Srr[2]; }
-    if(s<82){ if(m<=6.5&&ax>4.3&&az>4.3) return (x+z>0)?Srr[3]:Srr[2];
-      const bs=s-71; if(bs>=0&&bs<=9){ const br=1.4+(9-bs)*0.34; if(Math.hypot(x,z)<=br) return bs<1?BRONZE[0]:(x+z>0?GOLDc:BRONZE[1]); }
-      if(s>=80&&ax<0.8&&az<4.5) return Wr[1]; return null; }
-    if(s<86){ if(m>7.5) return null; return s===85?Srr[4]:(s===82?Srr[1]:Srr[3]); }
-    if(s<105){ const t=(s-86)/19, R=7.2*(1-t), d8=Math.max(ax,az,(ax+az)*0.7071); if(d8>R) return null;
-      const lt=(x+z)/(Math.max(R,1)*1.42); if((s-86)%3===2&&d8>R-1.2) return CUr[1]; return lt>0.3?CUr[4]:lt>-0.2?CUr[3]:CUr[2]; }
-    if(ax<0.6&&az<0.6) return GOLDc; if(s===106&&ax<1.9&&az<0.6) return GOLDc; return null; }},
-  post:{name:'Poste',N:16,H:32,block:true,cat:'build',fn:(x,z,s)=>{ const d=Math.max(Math.abs(x),Math.abs(z));
-    if(s<1&&d<2.4) return Srr[2]; if(d<1.6) return s===31?Wr[4]:((x+z)>0?Wr[3]:Wr[2]); return null; }},
-  cart:{name:'Carreta',N:32,H:17,orient:true,block:true,span:[2,1],cat:'decor',fn:(x,z,s)=>{ const az=Math.abs(z);
-    if(Math.abs(az-7.2)<1.1){ const dx=x+3, ds=s-5.5, r=Math.hypot(dx,ds); if(r<=6.2){ if(r>4.8) return (dx+ds>0)?Wr[2]:Wr[1]; if(r<1.4) return IRON[2];
-      const a=Math.atan2(ds,dx); return Math.abs(Math.sin(a*3))<0.2?Wr[3]:null; } }
-    if(x>9&&x<16&&Math.abs(az-3)<0.8&&Math.abs(s-(8-(x-9)*0.5))<0.9) return Wr[2];
-    if(x>=-12&&x<=10&&az<=6){ if(s===7) return Wr[1];
-      if(s>=8&&s<=11&&(az>5.2||x<-11.3||x>9.3)) return s===11?Wr[4]:((Math.floor(x+16)%4)?Wr[3]:Wr[2]);
-      if(s>=8) for(const [cx,cz] of [[-7,-2],[-1,2],[5,-2]]){ const q=((x-cx)/3.3)**2+((z-cz)/2.8)**2+((s-10)/3)**2; if(q<=1) return s>=12?SAr[3]:(q>0.7?SAr[1]:SAr[2]); } }
-    return null; }},
-  crates:{name:'Cajas y barriles',N:16,H:16,block:true,rand:true,cat:'decor',fn:(x,z,s)=>{
-    const crate=(x0,x1,z0,z1,s0,s1)=>{ if(x<x0||x>x1||z<z0||z>z1||s<s0||s>s1) return null; const ex=x<x0+1||x>x1-1, ez=z<z0+1||z>z1-1, top=s===s1;
-      if((ex&&ez)||(top&&(ex||ez))||(s===s0&&(ex||ez))) return Wr[1]; if(top) return (Math.floor(x+8)%3)?Wr[4]:Wr[3]; return ((s-s0)%3===2)?Wr[2]:Wr[3]; };
-    const d=Math.hypot(x-4,z-4); if(s<=10&&d<=3.2+0.5*Math.sin(Math.PI*s/10)){ if(s===2||s===8) return IRON[1]; if(s===10) return d>2.4?Wr[1]:Wr[2]; return (Math.floor(Math.atan2(z-4,x-4)*3)%2)?Wr[3]:Wr[2]; }
-    return crate(-7,1,-7,1,0,7)||crate(-6,0,-6,0,8,14)||crate(1.5,7,-7,-2,0,4); }},
-  bench:{name:'Banco',N:16,H:14,orient:true,block:true,cat:'furniture',fn:(x,z,s)=>{ const ax=Math.abs(x); if(ax>7) return null;
-    if(s>=6&&s<=7&&z>=-3&&z<=2.5) return s===7?((Math.floor(z+8)%3)?Wr[4]:Wr[3]):Wr[2];
-    if(z>=-4.2&&z<=-2.8&&s>=8&&s<=13) return s===13?Wr[4]:((s%3)?Wr[3]:Wr[1]);
-    if(Math.abs(ax-5.5)<1&&s<6&&(Math.abs(z-1)<1||Math.abs(z+3)<1)) return Wr[1]; return null; }},
-  picket:{name:'Valla de estacas',N:16,H:11,orient:true,block:true,noShadow:true,cat:'decor',fn:(x,z,s)=>{ const X=Math.floor(x+8), px=X%4;
-    if(z>=-1.8&&z<=-0.8&&(s===3||s===7)) return Wr[2];
-    if(Math.abs(z)<=0.9&&(px===1||px===2)){ if(s===10) return px===1?PLAST[3]:null; return s<1?PLAST[1]:(px===1?PLAST[3]:PLAST[2]); } return null; }},
-  stonewall:{name:'Murete de piedra',N:16,H:9,orient:true,block:true,noShadow:true,cat:'decor',fn:(x,z,s)=>{ const X=Math.floor(x+8), az=Math.abs(z); if(az>3.3-s*0.15) return null;
-    if(s===8) return hash(X,Math.floor(z+8),3)<0.55?Grgb[2]:Grgb[3];
-    const row=Math.floor(s/3), off=row%2?3:0, h=hash(Math.floor((X+off)/5),row,11); if(s%3===2||(X+off)%5===4) return Srr[1]; return h<0.3?Srr[2]:h<0.8?Srr[3]:Srr[4]; }},
-  sign:{name:'Letrero',N:16,H:26,orient:true,block:true,cat:'decor',fn:(x,z,s)=>{ const az=Math.abs(z);
-    if(s<1&&Math.abs(x+6)<2&&az<2) return Srr[2]; if(Math.abs(x+6)<1&&az<1) return s>=25?Wr[4]:Wr[2];
-    if(s>=23&&s<=24&&x>-6&&x<6&&az<0.8) return Wr[1];
-    if(s>=20&&s<=22&&az<0.6&&(Math.abs(x+1.5)<0.5||Math.abs(x-4.5)<0.5)) return IRON[1];
-    if(s>=12&&s<=19&&x>=-3&&x<=6&&az<=1){ if(x<-2.4||x>5.4||s===12||s===19) return Wr[1]; const X=Math.floor(x+3), Y=19-s;
-      if((X>=3&&X<=5&&Y>=2&&Y<=5)||(X===6&&(Y===3||Y===4))) return GOLDc; return Wr[3]; } return null; }},
-};
 let PSTACK={}, PSLICES={};
 // cada rebanada de alta resolución toma la rebanada base que le toca: los objetos tienen en vertical la misma densidad de píxel que el terreno
 const propFn=P=>(x,z,s)=>P.fn(x,z,Math.round(s));
@@ -1737,64 +1517,7 @@ function tokenShown(b){
 const hideable=b=>!!b.prop&&FT(b.prop)!=='light'&&!Muros.kindOf(b.prop)&&Catalogo.isLow(b.prop,PIECES);
 
 /* ============ mapas ============ */
-function demoMap(){
-  const rows=[
-    'g2 g2 g2 g3 g3 g4 g4 g4',
-    'g2 g2 p2 g3 g3 g4 g4 g4',
-    'g2 g2 p2 p2 g3 g3 g4 g4',
-    'a1 a1 g2 p2 p2 p2 s2 s2',
-    '~0 ~0 a1 g2 g2 p2 s2 w6',
-    '~0 ~0 a1 g2 g2 p2 s2 w6',
-    '~0 ~0 a1 g2 o3 o3 s2 w6',
-    'a1 a1 a1 g2 o3 o3 w6 w6'];
-  const w=8,d=8,h=new Int8Array(64),t=new Array(64);
-  rows.forEach((row,z)=>row.split(' ').forEach((c,x)=>{ t[z*w+x]=c[0]; h[z*w+x]=+c.slice(1); }));
-  return { name:'Claro del bosque 8×8', w,d,h,t, env:'day', start:[4,4], seed:3,
-    props:[{type:'tree',x:0,z:0,v:0},{type:'tree',x:4,z:1,v:2},{type:'tree',x:7,z:0,v:1},{type:'tree',x:6,z:1,v:2},{type:'brazier',x:6,z:4},{type:'brazier',x:5,z:7}],
-    minis:[{kind:'knight',x:3,z:5,fx:1,fz:0},{kind:'goblin',x:6,z:2,fx:-1,fz:0},{kind:'wolf',x:5,z:2,fx:-1,fz:0},{kind:'rat',x:2,z:2,fx:1,fz:0}] };
-}
-function dungeonMap(n,seed){
-  const r=mulberry32(seed), w=n, d=n, h=new Int8Array(w*d).fill(6), t=new Array(w*d).fill('w');
-  const I=(x,z)=>z*w+x, rooms=[], want=Math.floor(n*n/160);
-  for(let k=0;k<n*30&&rooms.length<want;k++){
-    const rw=5+(r()*7|0), rd=5+(r()*7|0), x=1+(r()*(w-rw-2)|0), z=1+(r()*(d-rd-2)|0);
-    if(rooms.some(o=>x<o.x+o.w+2&&x+rw+2>o.x&&z<o.z+o.d+2&&z+rd+2>o.z)) continue;
-    rooms.push({x,z,w:rw,d:rd,type:rooms.length===0?0:(r()*4|0)});
-  }
-  const props=[], minis=[];
-  for(const o of rooms){
-    for(let z=o.z;z<o.z+o.d;z++)for(let x=o.x;x<o.x+o.w;x++){ t[I(x,z)]=o.type===3?'g':'s'; h[I(x,z)]=2; }
-    if(o.w>=7&&o.d>=7){
-      if(o.type===1){ for(let z=o.z+1;z<o.z+o.d-1;z++)for(let x=o.x+1;x<o.x+o.w-1;x++) t[I(x,z)]='a';
-        for(let z=o.z+2;z<o.z+o.d-2;z++)for(let x=o.x+2;x<o.x+o.w-2;x++){ t[I(x,z)]='~'; h[I(x,z)]=0; } }
-      if(o.type===2) for(let z=o.z+2;z<o.z+o.d-2;z++)for(let x=o.x+2;x<o.x+o.w-2;x++){ t[I(x,z)]='o'; h[I(x,z)]=3; }
-    }
-    o.cx=o.x+(o.w>>1); o.cz=o.z+(o.d>>1);
-  }
-  const carve=(a,b)=>{
-    let x=a.cx, z=a.cz;
-    const cell=()=>{ const i=I(x,z); if(t[i]==='w'){ t[i]='p'; h[i]=2; } };
-    while(x!==b.cx){ cell(); x+=Math.sign(b.cx-x); }
-    while(z!==b.cz){ cell(); z+=Math.sign(b.cz-z); }
-  };
-  const order=rooms.slice().sort((a,b)=>(a.cx+a.cz*0.5)-(b.cx+b.cz*0.5));
-  for(let i=1;i<order.length;i++) carve(order[i-1],order[i]);
-  for(let i=0;i<rooms.length/4;i++) carve(rooms[r()*rooms.length|0],rooms[r()*rooms.length|0]);
-  const used=new Set();
-  const place=(type,x,z,extra={})=>{ const i=I(x,z); if(used.has(i)||t[i]==='w'||t[i]==='~') return false; used.add(i); props.push({type,x,z,...extra}); return true; };
-  rooms.forEach((o,k)=>{
-    place('brazier',o.x+1,o.z+1); place('brazier',o.x+o.w-2,o.z+o.d-2);
-    if(o.w*o.d>60){ place('brazier',o.x+o.w-2,o.z+1); place('brazier',o.x+1,o.z+o.d-2); }
-    if(o.type===3) for(let j=0;j<3;j++) place('tree',o.x+1+(r()*(o.w-2)|0),o.z+1+(r()*(o.d-2)|0),{v:(r()*3|0)});
-    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-    if(k===0){ used.add(I(o.cx,o.cz)); minis.push({kind:'knight',x:o.cx,z:o.cz,fx:0,fz:1}); }
-    else if(r()<0.45){
-      for(let tries=0;tries<10;tries++){ const x=o.x+(r()*o.w|0), z=o.z+(r()*o.d|0), i=I(x,z);
-        if(!used.has(i)&&t[i]!=='~'){ used.add(i); const dd=dirs[r()*4|0]; minis.push({kind:['skeleton','goblin','skeleton','bandit'][(x*7+z*3)%4],x,z,fx:dd[0],fz:dd[1]}); break; } }
-    }
-  });
-  return { name:`Mazmorra ${n}×${n}`, w,d,h,t, env:'interior', start:[rooms[0].cx,rooms[0].cz], props, minis, seed };
-}
+const {demoMap,dungeonMap,townMap,lightWorkshopMap}=T3D.Mapas.make({defaultSheet,normSheet,Fichas});
 const undoStack=[], redoStack=[];
 // ¿puede esta definición tapar algo? {hide} si alguna forma suya (la base o una variante) tapa vista, luz o es maleza; si no, null
 function senseOf(D){ let any=false, hide=false; const look=c=>{ if(!c) return; if('sight' in c&&c.sight!=='none') any=true; if('light' in c&&c.light!=='none') any=true; if(c.hide){ any=true; hide=true; } };
@@ -4559,139 +4282,6 @@ function recalcCell(i){ const x=i%M.w, z=(i/M.w)|0; let bl=false, sh=false, se=f
   const put=(S,v)=>{ if(v) S.add(i); else S.delete(i); }; put(blocked,bl); put(doorShut,sh); put(doorSeal,se); }
 // índices de las casillas (dentro del mapa) que ocupa una puerta
 function doorCells(p){ const out=[]; for(const [x,z] of propCells(p)) if(inb(x,z)) out.push(idx(x,z)); return out; }
-// --- el pueblo de ejemplo: muralla al norte con puerta y torres, atalaya con techo cónico, plaza de mercado con puestos,
-// capilla con campanario, molino en una loma, puente sobre el arroyo y tejados de cada material ---
-function townMap(){
-  const W=48, D=40, h=new Int8Array(W*D).fill(2), t=new Array(W*D).fill('g'), props=[], minis=[], roofs=[];
-  const I=(x,z)=>z*W+x, set=(x,z,tt,hh)=>{ if(x>=0&&z>=0&&x<W&&z<D){ t[I(x,z)]=tt; if(hh!=null) h[I(x,z)]=hh; } };
-  const put=(type,x,z,v,extra)=>props.push({type,x,z,v:v||0,...(extra||{})});
-  const lamp=(id,x,z,hh,extra)=>props.push(Object.assign({type:'light',x,z,v:0},lightOfType(id),{h:hh},extra||{}));
-  const block=(x,z,w,d,hh)=>{ for(let zz=z;zz<z+d;zz++) for(let xx=x;xx<x+w;xx++) set(xx,zz,'w',hh); };
-  // caminos: el camino real (este–oeste), la calle mayor (norte–sur) y la plaza del mercado
-  for(let x=0;x<W;x++){ set(x,16,'c'); set(x,17,'c'); } for(let z=3;z<D;z++){ set(19,z,'c'); set(20,z,'c'); }
-  for(let z=13;z<=20;z++) for(let x=15;x<=24;x++) set(x,z,'c');
-  // casa: muros de ladrillo, suelo, puerta y techo del material y la forma que se pidan
-  const house=(x,z,w,d,door,roof,floor)=>{ for(let zz=z;zz<z+d;zz++) for(let xx=x;xx<x+w;xx++){ const edge=xx===x||zz===z||xx===x+w-1||zz===z+d-1; set(xx,zz,edge?'w':(floor||'o'),edge?6:2); }
-    const [dx,dz,v]=door; set(dx,dz,floor||'o',2); put('door',dx,dz,v); roofs.push({x,z,w,d,...(roof||{})}); };
-  // ventana en un muro (v 0: muro a lo largo de x; 1: a lo largo de z): de día deja entrar la luz de fuera (T6c)
-  const win=(x,z,v,floor)=>{ set(x,z,floor||'o',2); put('window',x,z,v); };
-  // muralla del norte con la puerta del camino, sus dos torres (azoteas almenadas) y la torre de la esquina
-  for(let x=0;x<W;x++) set(x,2,'w',8);
-  for(let z=0;z<2;z++){ set(19,z,'p'); set(20,z,'p'); }
-  block(16,1,3,3,10); block(21,1,3,3,10); roofs.push({x:16,z:1,w:3,d:3,shape:'flat'},{x:21,z:1,w:3,d:3,shape:'flat'});
-  set(19,2,'c',2); set(20,2,'c',2); put('gate',19,2,0); put('gate',20,2,0);
-  lamp('torch',19,3,1.6); lamp('torch',20,3,1.6); lamp('brazier',17,2,0.6); lamp('brazier',22,2,0.6);
-  block(0,0,3,4,10); roofs.push({x:0,z:0,w:3,d:4,shape:'flat'});
-  // atalaya: torre de 4×4 más alta que la muralla, con puerta al pueblo y techo cónico de pizarra
-  for(let z=0;z<4;z++) for(let x=43;x<47;x++){ const edge=x===43||x===46||z===0||z===3; set(x,z,edge?'w':'s',edge?12:2); }
-  set(44,3,'s',2); put('door',44,3,0); put('torch',45,1); roofs.push({x:43,z:0,w:4,d:4,mat:'slate',shape:'cone'});
-  minis.push({kind:'guard',x:44,z:2,fx:0,fz:1,sheet:{name:'Vigía Bruno'}});
-  // taberna (tejas, a cuatro aguas)
-  house(22,4,10,9,[26,12,0],{shape:'hip'});
-  put('table',24,6,0); put('table',28,6,0); put('table',24,9,0); put('table',28,9,0);
-  put('barrel',30,5); put('barrel',30,6); put('barrel',23,5); put('brazier',26,5); put('chest',30,10); put('shelf',23,10,1);
-  put('sign',27,13,0); win(24,12,0); win(29,12,0); win(22,8,1); win(31,7,1);
-  minis.push({kind:'barmaid',x:27,z:10,fx:0,fz:1,sheet:{name:'Tabernera Olga'}});
-  // herrería con fragua de lava (tablillas) y un cobertizo a un agua sobre postes junto a su muro oeste
-  house(8,4,7,7,[11,10,0],{mat:'shingle'});
-  set(9,5,'l',2); set(10,5,'l',2); put('chest',13,5); put('barrel',13,8); put('shelf',9,8,1);
-  for(let z=5;z<=8;z++) for(let x=5;x<=7;x++) set(x,z,'p');
-  put('post',5,5); put('post',5,8); put('crates',6,6); put('barrel',6,8); roofs.push({x:5,z:5,w:3,d:4,mat:'shingle',shape:'shed',rot:3});
-  put('sign',12,11,0); win(14,7,1);
-  minis.push({kind:'smith',x:11,z:7,fx:0,fz:1,sheet:{name:'Herrero Iván'}});
-  // casas: dos de paja, una de pizarra, la torre de la maga (cónica de pizarra) y un granero de tablillas
-  house(2,19,6,6,[4,19,0],{mat:'thatch'}); put('bed',3,22,1); put('table',6,22,0); put('chest',3,23); put('torch',6,20); win(7,21,1); win(5,24,0);
-  house(24,21,6,6,[26,21,0],{mat:'slate'}); put('bed',28,24,1); put('shelf',25,25,0); put('table',26,23,0); put('lamp',28,22); win(29,23,1); win(24,23,1);
-  minis.push({kind:'crone',x:25,z:23,fx:1,fz:0,sheet:{name:'Abuela Lía'}});
-  house(12,23,5,5,[14,23,0],{mat:'thatch',shape:'hip'}); put('bed',13,25,1); put('chest',15,26); put('torch',15,24); win(16,25,1);
-  house(33,18,5,5,[33,20,1],{mat:'slate',shape:'cone'}); put('shelf',35,19,0); put('shelf',36,20,1); put('table',35,21,0); put('chest',36,21); put('torch',34,21);
-  house(11,29,6,5,[13,29,0],{mat:'shingle',rot:1}); put('crates',12,31); put('cart',14,31,0); put('barrel',15,30); win(16,31,1);
-  house(24,29,5,5,[26,29,0],{mat:'thatch'}); put('bed',27,31,1); put('table',25,31,0); put('torch',27,30); win(24,31,1);
-  // capilla de piedra con techo de cobre, bancos, altar con velas, campanario y muro del atrio
-  house(37,5,7,9,[40,13,0],{mat:'copper',rot:1},'s');
-  for(const [x,z] of [[37,7],[37,11],[43,7],[43,10]]) win(x,z,1,'s');
-  put('table',40,6,0); lamp('candle',39,6,1.1); lamp('candle',41,6,1.1);
-  for(const z of [8,10]) for(const x of [38,39,41,42]) put('bench',x,z,2);
-  put('belfry',44,12); lamp('lantern',40,14,1.6);
-  for(let x=36;x<=46;x++) if(x!==40&&x!==41) put('stonewall',x,15,0);
-  minis.push({kind:'cleric',x:40,z:9,fx:0,fz:-1,sheet:{name:'Hermana Clara'}});
-  // plaza del mercado: pozo, tres puestos, cajas, carreta y bancos; faroles en las esquinas
-  put('well',17,14); put('stall',21,13,0); put('stall2',16,20,2); put('stall',22,20,2);
-  put('crates',24,14); put('barrel',16,13); put('barrel',15,19); put('barrel',24,19); put('cart',23,18,0); put('bench',15,15,1); put('bench',15,18,1);
-  lamp('lantern',22,14,1.5); lamp('lantern',17,19,1.5); lamp('lantern',23,19,1.5);
-  for(const [x,z] of [[15,13],[24,13],[15,20],[24,20],[6,15],[33,15],[21,6],[21,27],[18,33],[38,18]]) put('lamp',x,z);
-  // estanque, arroyo que sale de él hacia el sur y corre hacia el oeste, y el puente de la calle mayor
-  for(let z=25;z<=31;z++) for(let x=30;x<=37;x++){ const d=Math.hypot(x-33.5,z-28); if(d<=3.9) set(x,z,d<=2.6?'~':'a',d<=2.6?0:1); }
-  for(let z=31;z<=34;z++){ set(33,z,'~',0); set(34,z,'~',0); if(t[I(32,z)]==='g') set(32,z,'a',1); if(t[I(35,z)]==='g') set(35,z,'a',1); }
-  for(let x=0;x<=36;x++){ set(x,35,'~',0); set(x,36,'~',0); for(const z of [34,37]) if(t[I(x,z)]==='g') set(x,z,'a',1); }
-  for(const z of [35,36]) put('bridge2',19,z,0);
-  put('bridge',33,32,1); put('bridge',34,32,1);
-  lamp('moon',33,28,2);
-  // huerto con valla de estacas
-  for(let z=26;z<=31;z++) for(let x=3;x<=9;x++){ const edge=x===3||x===9||z===26||z===31; if(edge){ if(!(x===6&&z===26)) put('picket',x,z,(z===26||z===31)?0:1); } else set(x,z,(z%2)?'p':'g'); }
-  // loma del molino al sureste, con su sendero
-  for(let z=23;z<=36;z++) for(let x=38;x<W;x++){ const d=Math.hypot(x+0.5-43.5,z+0.5-29.5); if(d<5.3) set(x,z,'g',2+(d<1.9?3:d<3.3?2:d<4.5?1:0)); }
-  for(let z=18;z<=25;z++) set(40,z,'p'); set(41,26,'p'); set(41,27,'p');
-  put('windmill',42,28,0); put('cart',45,32,1); put('crates',46,29); lamp('lantern',43,31,1.4);
-  minis.push({kind:'miller',x:41,z:31,fx:1,fz:0,sheet:{name:'Molinero Tobías'}});
-  // el guardián de la capilla: un gólem de piedra colosal (4×4) entre la capilla y la atalaya, en el lindero del bosque
-  minis.push({kind:'golem',x:44,z:6,fx:-1,fz:0,sheet:{name:'Guardián de piedra'}});
-  // bosque alrededor (fuera de la muralla, del arroyo y de la loma), sin tapar a las fichas
-  for(let z=0;z<D;z++) for(let x=0;x<W;x++){ const band=x<3||x>44||z<2||z>36; if(!band||t[I(x,z)]!=='g'||hash(x,z,31)>0.42) continue;
-    if(props.some(p=>Math.abs(p.x-x)<=1&&Math.abs(p.z-z)<=1)) continue;
-    if(minis.some(m=>{ const n=Fichas.cellsOf(defaultSheet(m.kind)); return x>=m.x-1&&x<=m.x+n&&z>=m.z-1&&z<=m.z+n; })) continue; put('tree',x,z,Math.floor(hash(x,z,32)*3)); }
-  // personajes
-  minis.push({kind:'knight',x:19,z:18,fx:0,fz:-1,sheet:{name:'Aria'}});
-  minis.push({kind:'mage',x:20,z:18,fx:0,fz:-1,sheet:{name:'Maga Selene'}});
-  minis.push({kind:'warrior',x:17,z:18,fx:0,fz:-1,sheet:{name:'Brenna'}}); minis.push({kind:'archer',x:21,z:18,fx:0,fz:-1,sheet:{name:'Ilse'}});
-  minis.push({kind:'villager',x:21,z:14,fx:-1,fz:0,sheet:{name:'Pregonero'}});
-  minis.push({kind:'goblin',x:37,z:0,fx:-1,fz:0});
-  // fichas de varios tamaños, cada una con su arte a su tamaño: un ogro grande (2×2), un trol enorme (3×3), una rata diminuta, un niño pequeño
-  // (el gólem colosal, 4×4, está más arriba, antes de plantar el bosque)
-  minis.push({kind:'ogre',x:33,z:11,fx:-1,fz:0,sheet:{name:'Ogro del bosque'}});
-  minis.push({kind:'troll',x:3,z:10,fx:1,fz:0,sheet:{name:'Trol de la colina'}});
-  minis.push({kind:'rat',x:29,z:11,fx:-1,fz:0,sheet:{name:'Rata de la bodega'}});
-  minis.push({kind:'boy',x:18,z:21,fx:0,fz:-1,sheet:{name:'Niño Tomás'}});
-  return {name:'Pueblo de Brezo 48×40',w:W,d:D,h,t,props,minis:minis.map(m=>({...m,sheet:normSheet(m.sheet?{...defaultSheet(m.kind),...m.sheet}:null,m.kind)})),roofs,env:'day',seed:77,start:[20,17]};
-}
-
-// Taller de luces: sala de noche con una alcoba por tipo de luz (nombre sobre cada una al editar) y una galería
-// larga con pilares para la linterna sorda. Enseña sombras, conos, parpadeo, pulso y oscuridad mágica.
-function lightWorkshopMap(){
-  const W=43, D=24, h=new Int8Array(W*D).fill(2), t=new Array(W*D).fill('s'), props=[], minis=[];
-  const I=(x,z)=>z*W+x, set=(x,z,tt,hh)=>{ if(x>=0&&z>=0&&x<W&&z<D){ t[I(x,z)]=tt; if(hh!=null) h[I(x,z)]=hh; } };
-  const wall=(x,z)=>set(x,z,'w',6), floor=(x0,z0,w,d,tt)=>{ for(let z=z0;z<z0+d;z++) for(let x=x0;x<x0+w;x++) set(x,z,tt,2); };
-  const put=(type,x,z,v)=>props.push({type,x,z,v:v||0});
-  const lamp=(id,x,z,extra)=>props.push(Object.assign({type:'light',x,z,v:0},lightOfType(id),{name:LIGHT_TYPES[id].name},extra||{}));
-  for(let x=0;x<W;x++){ wall(x,0); wall(x,D-1); } for(let z=0;z<D;z++){ wall(0,z); wall(W-1,z); }
-  // dos filas de alcobas a los lados de un pasillo; cada alcoba abre al pasillo por un vano de dos casillas
-  for(const [zw,zi] of [[7,1],[12,13]]){ for(let x=0;x<W;x++) wall(x,zw); for(let i=0;i<6;i++){ const x0=1+7*i; set(x0+2,zw,'s',2); set(x0+3,zw,'s',2); if(i<5&&!(zi===13&&i===4)) for(let z=zi;z<zi+6;z++) wall(x0+6,z); } }
-  for(let x=0;x<W;x++) wall(x,19);
-  floor(1,8,W-2,4,'c');
-  // fila norte
-  floor(1,1,6,6,'o'); put('table',3,3,0); lamp('candle',3,3,{h:1}); put('bed',5,2,1); put('chest',1,6); put('shelf',1,1,0);
-  floor(8,1,6,6,'s'); lamp('torch',10,1); put('barrel',8,1); put('barrel',13,1); put('barrel',13,2); put('chest',8,6);
-  floor(15,1,6,6,'o'); lamp('lantern',17,3); put('barrel',15,1); put('barrel',16,1); put('chest',20,1); put('chest',20,6); put('table',18,5,0);
-  floor(22,1,6,6,'o'); for(const x of [22,23,26,27]) put('shelf',x,1,0); put('table',24,5,0); lamp('magic',24,3);
-  floor(29,1,6,6,'s'); floor(30,2,4,3,'s'); for(let z=2;z<5;z++) for(let x=30;x<34;x++) h[I(x,z)]=3; lamp('crystal',31,3);
-  floor(36,1,6,6,'o'); for(let x=37;x<41;x++) set(x,0,'w',4); lamp('window',38,1,{rot:90}); put('bed',40,3,1); put('table',37,4,0); put('chest',41,6);
-  // fila sur
-  floor(1,13,6,6,'a'); lamp('campfire',3,15); put('barrel',1,13); put('barrel',6,18); put('fence',2,17,0); put('fence',5,14,1);
-  floor(8,13,6,6,'s'); lamp('brazier',10,15); put('chest',8,18); put('shelf',13,18,0);
-  floor(15,13,6,6,'o'); floor(16,14,4,4,'a'); set(17,15,'~',1); set(18,15,'~',1); set(17,16,'~',1); set(18,16,'~',1); lamp('moon',17,15);
-  floor(22,13,6,6,'s'); lamp('torch',22,13,{name:'Antorcha (junto a la oscuridad)'}); lamp('darkness',25,17);
-  minis.push({kind:'goblin',x:25,z:17,fx:-1,fz:0,sheet:{name:'Goblin en la oscuridad'}});
-  floor(29,13,13,6,'g'); put('well',35,16); put('tree',29,13,0); put('tree',41,18,2); put('tree',41,13,1); put('fence',33,18,0); put('fence',37,18,0); lamp('daylight',35,15);
-  // galería de la linterna sorda: pilares a los lados del haz
-  floor(1,20,W-2,3,'s'); set(40,19,'s',2); for(const [x,z] of [[8,20],[13,22],[18,20],[23,22],[28,20]]) wall(x,z);
-  lamp('bullseye',1,21,{rot:0}); put('barrel',41,20); put('barrel',41,22);
-  // los muros exteriores del lado de la cámara, bajos: dejan ver la galería y el patio
-  for(let x=1;x<W;x++) set(x,D-1,'w',3); for(let z=1;z<D;z++) set(W-1,z,'w',3);
-  // el grupo en el pasillo: la maga lleva una vela
-  minis.push({kind:'knight',x:20,z:10,fx:0,fz:-1,sheet:{name:'Aria'}});
-  minis.push({kind:'mage',x:22,z:10,fx:0,fz:1,sheet:{name:'Maga Selene',light:Fichas.tokenLight('candle')}});
-  return {name:'Taller de luces 43×24',w:W,d:D,h,t,props,minis:minis.map(m=>({...m,sheet:normSheet(m.sheet?{...defaultSheet(m.kind),...m.sheet}:null,m.kind)})),roofs:[],env:'night',seed:91,start:[21,10]};
-}
 
 /* ============ fase 8: campañas ============ */
 // Una campaña guarda varios tableros (serializados), los pasos entre ellos y notas del DM por casilla, solo para el DM.

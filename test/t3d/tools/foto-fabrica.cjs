@@ -1,6 +1,6 @@
 'use strict';
-/* Foto del comportamiento de las piezas de fábrica ANTES de la fase 0: lee PROP3D de tablero3d.js (las banderas
-   anteriores a `fn:`), Muros (kindOf, WALL_TYPES, PASSABLE, SPANS) y las listas del servidor (rules.js). Uso:
+/* Foto del comportamiento de las piezas de fábrica ANTES de la fase 0: lee PROP3D (hoy de objetos3d.js; las banderas,
+   no `fn`), Muros (kindOf, WALL_TYPES, PASSABLE, SPANS) y las listas del servidor (rules.js). Uso:
    node test/t3d/tools/foto-fabrica.cjs > test/t3d/fixtures/fabrica-antes.json  (sólo una vez; es la referencia).
    NO VOLVER A EJECUTAR: sólo vale sobre el código anterior a la fase 0, commit 0f73530. Desde que muros.js y
    rules.js leen el catálogo (Catalogo/PIECES) en vez de PROP3D/listas sueltas, esta herramienta ya no fotografía
@@ -9,17 +9,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const MOD = path.join(__dirname, '..', '..', '..', 'modules', 'tablero3d');
-const src = fs.readFileSync(path.join(MOD, 'public', 'tablero3d.js'), 'utf8');
-const a = src.indexOf('const PROP3D={');
-let depth = 0, i = a + 13;
-const start = i;
-for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}') { depth--; if (!depth) break; } }
-const body = src.slice(start + 1, i);
-const P3 = {};
-for (const m of body.matchAll(/\n {2}([a-zA-Z0-9_]+):\{/g)) {
-  const from = m.index + m[0].length, to = body.indexOf('fn:', from);
-  P3[m[1]] = Function('return {' + body.slice(from, to).replace(/,\s*$/, '') + '}')();
-}
+// PROP3D vive en objetos3d.js desde la tarea 4 del refactor (antes se recortaba de tablero3d.js); se leen sus banderas
+const P3 = require(path.join(MOD, 'public', 'objetos3d.js')).PROP3D;
 const ctx = { window: {} };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(MOD, 'public', 'muros.js'), 'utf8'), ctx);

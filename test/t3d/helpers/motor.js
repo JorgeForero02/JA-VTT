@@ -7,7 +7,8 @@
      load('luces') → luces.js (WARM, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, HEX6, normLight, lightOfType,
                      lightName, lightRGB) + hexRGB de base.js
      load('azar')  → base.js (mulberry32, hash, pick y hexRGB)
-     load('mapas') → demoMap, dungeonMap, townMap, lightWorkshopMap (recortados; azar y luces les llegan de base.js y luces.js) */
+     load('mapas') → mapas.js: Mapas.make({defaultSheet, normSheet, Fichas}) → demoMap, dungeonMap, townMap, lightWorkshopMap;
+                     defaultSheet/normSheet (con CHARS, CUSTOM, NPC y SHEET_OF, que leen) siguen en tablero3d.js y se recortan */
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -34,6 +35,7 @@ function run(src, ret, deps = {}) {
 
 const Base = require(path.join(MOD, 'base.js'));
 const Luces = require(path.join(MOD, 'luces.js'));
+const Mapas = require(path.join(MOD, 'mapas.js'));
 
 function loadFichas() {
   return vm.runInThisContext(`(function(window){\n${fs.readFileSync(path.join(MOD, 'fichas.js'), 'utf8')}\nreturn window.Tablero3D.Fichas;\n})`)({});
@@ -42,11 +44,13 @@ function loadFichas() {
 const LOADERS = {
   luces: () => ({ ...Luces, hexRGB: Base.hexRGB }),
   azar: () => Base,
-  mapas: () => run([between('const CHARS=', '\nconst CHAR_ART='), lineOf('const CUSTOM='),
-    between('const NPC=', '\nfunction defaultSheet('), between('function defaultSheet(', '\n// una ficha guardada'), lineOf('function normSheet('),
-    between('function demoMap(', '\nfunction dungeonMap('), between('function dungeonMap(', '\nconst undoStack='),
-    between('function townMap(', '\n// Taller de luces'), between('function lightWorkshopMap(', '\n/* ============ fase 8')].join('\n'),
-  ['demoMap', 'dungeonMap', 'townMap', 'lightWorkshopMap'], { Fichas: loadFichas(), ...Base, ...Luces }),
+  mapas: () => {
+    const Fichas = loadFichas();
+    const sheets = run([between('const CHARS=', '\nconst CHAR_ART='), lineOf('const CUSTOM='),
+      between('const NPC=', '\nfunction defaultSheet('), between('function defaultSheet(', '\n// una ficha guardada'), lineOf('function normSheet(')].join('\n'),
+    ['defaultSheet', 'normSheet'], { Fichas });
+    return Mapas.make({ ...sheets, Fichas });
+  },
 };
 
 function load(name) {

@@ -10,6 +10,9 @@ const vm = require('node:vm');
 const R = require('../../modules/tablero3d/rules');
 const F2 = require('./helpers/fixtures');
 const { ENGINE_FILES, readEngine } = require('./helpers/engine');
+// generadores de mapas (mapas.js, tarea 4 del refactor): las comprobaciones de su código leen el de cada función del módulo
+const MAPAS = require('./helpers/motor').load('mapas');
+const Objetos3D = require('../../modules/tablero3d/public/objetos3d.js');
 
 const PUB = path.join(__dirname, '..', '..', 'public'); // JA-VTT: el público real del anfitrión, no el mock de 3d-tablero
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
@@ -136,7 +139,7 @@ test('nada se carga de internet: scripts, estilos y fuentes son locales', () => 
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -148,7 +151,7 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   const before = new Set(Object.keys(ctx));
   for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Fichas', 'Luces', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -271,7 +274,7 @@ test('luces: el cliente y el servidor leen igual una luz de antes (r, h, c, f) y
 test('luces: la plantilla «Taller de luces» está en el menú y pone cada tipo', () => {
   assert.match(frag, /data-map="lights"/);
   assert.match(engine, /k==='lights'\?lightWorkshopMap\(\)/);
-  const tpl = engine.slice(engine.indexOf('function lightWorkshopMap('), engine.indexOf('/* ============ fase 8'));
+  const tpl = MAPAS.lightWorkshopMap.toString();
   for (const id of Object.keys(JA_LIGHTS.presets)) assert.match(tpl, new RegExp(`lamp\\('${id}'`), id);
 });
 
@@ -369,12 +372,12 @@ test('fichas: distancias de 5.ª edición de borde a borde y ocupación', () => 
 });
 
 test('fichas: las plantillas traen fichas de varios tamaños y el motor usa fichas.js para caminos y ocupación', () => {
-  const town = engine.slice(engine.indexOf('function townMap('), engine.indexOf('function lightWorkshopMap('));
+  const town = MAPAS.townMap.toString();
   for (const k of ['ogre', 'troll', 'golem', 'rat', 'boy', 'guard', 'barmaid', 'smith', 'crone', 'cleric', 'miller', 'warrior', 'archer', 'villager']) assert.match(town, new RegExp(`kind:'${k}'`), k);
   const names = (k) => [...town.matchAll(new RegExp(`kind:'${k}'[^}]*name:'([^']+)'`, 'g'))].map((m) => m[1]);
   assert.deepEqual(names('villager'), ['Pregonero'], 'los vecinos del pueblo ya no son todos el mismo aldeano');
-  assert.match(between('function demoMap(', '\n}'), /kind:'wolf'/, 'el claro del bosque trae un lobo');
-  assert.match(between('function dungeonMap(', '\n}'), /kind:\['skeleton','goblin','skeleton','bandit'\]/, 'la mazmorra: esqueletos, goblins y bandidos');
+  assert.match(MAPAS.demoMap.toString(), /kind:'wolf'/, 'el claro del bosque trae un lobo');
+  assert.match(MAPAS.dungeonMap.toString(), /kind:\['skeleton','goblin','skeleton','bandit'\]/, 'la mazmorra: esqueletos, goblins y bandidos');
   assert.match(engine, /Fichas\.route\(PATHG/); assert.match(engine, /Fichas\.paths\(PATHG/);
   assert.doesNotMatch(engine, /sheet\.(team|hpMax|luz)\b/, 'el motor ya no usa los campos de antes');
 });
@@ -383,10 +386,9 @@ test('fichas: las plantillas traen fichas de varios tamaños y el motor usa fich
 const between = (a, b) => { const i = engine.indexOf(a), j = engine.indexOf(b, i); assert.ok(i >= 0 && j > i, `${a} … ${b}`); return engine.slice(i, j); };
 const lineOf = (start) => { const i = engine.indexOf(start); assert.ok(i >= 0, start); return engine.slice(i, engine.indexOf('\n', i)); };
 const T6 = (() => {
-  const ctx = {};
-  const src = [lineOf('function hash('), lineOf('const HALF_PI'), between('const G=[', '\n/* ============ atlas'), lineOf('const hexRGB='),
-    ...['SL', 'TH', 'SH', 'CU'].map((k) => lineOf(`const ${k}=[`)), between('const ROOF_MATS=', 'function normRoof(') + between('function normRoof(', 'return o; }') + 'return o; }',
-    lineOf('const Grgb=G.map'), between('const Wr=W.map', 'let PSTACK={}')].join('\n');
+  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los techos siguen en el motor
+  const ctx = { PROP3D: Objetos3D.PROP3D };
+  const src = between('const ROOF_MATS=', 'function normRoof(') + between('function normRoof(', 'return o; }') + 'return o; }';
   vm.runInNewContext(`${src}\nthis.PROP3D=PROP3D;this.ROOF_MATS=ROOF_MATS;this.ROOF_KEY=ROOF_KEY;this.ROOF_SHAPES=ROOF_SHAPES;this.normRoof=normRoof;`, ctx);
   return ctx;
 })();
@@ -436,7 +438,7 @@ test('estructuras: cada objeto por capas pinta algo, cabe en su lienzo y se pued
 });
 
 test('estructuras: el pueblo de ejemplo usa cada material y forma de techo y las estructuras nuevas', () => {
-  const town = between('function townMap(', '// Taller de luces');
+  const town = MAPAS.townMap.toString();
   for (const m of ['slate', 'thatch', 'shingle', 'copper']) assert.match(town, new RegExp(`mat:'${m}'`), m);
   for (const s of ['hip', 'flat', 'cone', 'shed']) assert.match(town, new RegExp(`shape:'${s}'`), s);
   for (const p of ['gate', 'bridge2', 'bridge', 'stall', 'stall2', 'windmill', 'belfry', 'cart', 'crates', 'bench', 'picket', 'stonewall', 'sign', 'post', 'well']) assert.match(town, new RegExp(`put\\('${p}',`), p);
@@ -448,8 +450,10 @@ test('estructuras: el pueblo de ejemplo usa cada material y forma de techo y las
 /* ---- personajes medianos pintados a mano (T5c): personajes.js con las rampas del motor; selout y handArt del motor ---- */
 const MEDIUM = ['knight', 'warrior', 'rogue', 'cleric', 'archer', 'mage', 'goblin', 'skeleton', 'wolf', 'bandit', 'villager', 'miller', 'barmaid', 'smith', 'crone', 'guard'];
 const PAL = (() => {
-  const ctx = {};
-  vm.runInNewContext(`${between('const G=[', '\n/* ============ atlas')}\n${['SL', 'TH', 'SH', 'CU'].map((k) => lineOf(`const ${k}=[`)).join('\n')}
+  // las rampas G…CU vienen de objetos3d.js; FL, INK, EXTRA_RAMPS, OGS… siguen en el motor
+  const { G, D, S, B, W, SA, WA, SL, TH, SH, CU } = Objetos3D;
+  const ctx = { G, D, S, B, W, SA, WA, SL, TH, SH, CU };
+  vm.runInNewContext(`${between('const FL=', '\n/* ============ atlas')}
 ${between('const OGS=', 'const HANDART=')}\nthis.P={INK,G,D,S,B,W,SA,WA,SL,TH,SH,CU,FL,EX:EXTRA_RAMPS,OGS,TRS,BONE,RUNE};`, ctx);
   return ctx.P;
 })();
@@ -797,7 +801,7 @@ test('ventanas: una ventana que da fuera deja entrar el ambiente hacia dentro (c
 });
 
 test('ambiente: el pueblo tiene ventanas que dan fuera en sus casas; cada plantilla abre en su momento', () => {
-  const lines = engine.split('\n'), i0 = lines.findIndex((l) => l.startsWith('function townMap(')), town = lines.slice(i0, i0 + 70).join('\n');
+  const town = MAPAS.townMap.toString().split('\n').slice(0, 70).join('\n');
   assert.ok((town.match(/win\(\d+,\d+,\d/g) || []).length >= 10, 'ventanas en las casas del pueblo');
   assert.match(engine, /roofs,env:'day',seed:77/); assert.match(engine, /roofs:\[\],env:'night',seed:91/);
   assert.match(engine, /env:'interior', start:\[rooms\[0\]\.cx/, 'la mazmorra, interior'); assert.match(engine, /env:'day', start:\[4,4\]/);
