@@ -872,3 +872,12 @@ test('P-48: puertas por su huella y WALLAT con varias piezas por casilla', () =>
   assert.match(engine, /if\(p\.x===x&&p\.z===z\) return p; if\(!hit&&propCovers\(p,x,z\)\) hit=p;/, 'doorAt: la esquina primero, luego la que cubre');
   assert.match(engine, /untouched=!!M&&AUTO\.last!==null&&autoKey\(\)===AUTO\.last;[^\n]*\n\s*PIECES=new Map\([^\n]*if\(untouched\) autoBaseline\(\);/, 'abrir no guarda al llegar las piezas en un reintento');
 });
+
+test('el motor no reasigna funciones (sin parches)', () => {
+  const src = readEngine();
+  for (const f of ['moveMiniTo', 'loadMap', 'startCombat', 'nextTurn', 'endCombat', 'dash', 'undo', 'redo', 'endStroke', 'setFog']) {
+    assert.doesNotMatch(src, new RegExp(`(^|[;\\s])${f}=function`, 'm'), f);
+    assert.equal((src.match(new RegExp(`function ${f}\\(`, 'g')) || []).length, 1, f);
+  }
+  assert.match(src, /\$\('undo'\)\.onclick=undoLocal; \$\('redo'\)\.onclick=redoLocal;/);   // D1 se arregla en la tarea 10
+});

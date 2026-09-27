@@ -63,6 +63,6 @@ export default [
   {
     files: ['modules/tablero3d/public/tablero3d.js'],
     languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...browserGlobals, THREE: 'readonly' } },
-    rules: { 'no-func-assign': 'off', 'no-redeclare': 'error', 'no-dupe-keys': 'error', 'max-lines': ['error', { max: 5300 }] },
+    rules: { 'no-func-assign': 'error', 'no-redeclare': 'error', 'no-dupe-keys': 'error', 'max-lines': ['error', { max: 5300 }] },
   },
 ];

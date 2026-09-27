@@ -930,7 +930,7 @@ function normSheet(o,kind){ return Fichas.norm(o,defaultSheet(kind)); }
 const cloneSheet=s=>JSON.parse(JSON.stringify(s));
 const isPC=b=>b.sheet.kind==='player';
 const lightTypeName=L=>!Fichas.lightOn(L)?'ninguna':LIGHT_TYPES[L.preset]?LIGHT_TYPES[L.preset].name:'luz de '+Math.round(L.bright+L.dim)+' pies';
-function loadMap(def,keepCam){
+function loadMapLocal(def,keepCam){
   M=def; Object.assign(M,Ajustes.sceneFlags(M)); if(!Array.isArray(M.plans)) M.plans=[]; if(!Array.isArray(M.notes)) M.notes=[]; EH=null; WS=null; WL=null; LR=null; DD=null; undoStack.length=0; redoStack.length=0;
   const n=M.w*M.d; if(!M.src||M.src.length!==n) M.src=new Uint8Array(n);
   for(let i=0;i<n;i++) if(M.t[i]==='~'){ M.t[i]='a'; M.src[i]=2; }
@@ -1435,7 +1435,7 @@ function miniName(b){ if(b.sheet&&b.sheet.name) return b.sheet.name; const f=CHA
 function miniAt(cx,cy){ const rect=canvas.getBoundingClientRect();
   ndc.set(((cx-rect.left)/rect.width)*2-1, -((cy-rect.top)/rect.height)*2+1); scene.updateMatrixWorld(); ray.setFromCamera(ndc,camera);
   const ms=bills.filter(b=>b.mini&&b.mesh.visible), h=ray.intersectObjects(ms.map(b=>b.mesh),false); return h.length?ms.find(b=>b.mesh===h[0].object):null; }
-function moveMiniTo(b,x,z,quiet){
+function moveMini(b,x,z,quiet){
   clearPath();
   const from=b.path?b.path[b.step+1]:[b.x,b.z], path=findPath(from[0],from[1],x,z,b);
   if(!path){ if(!quiet) showHint('No hay camino hasta esa casilla.'); return false; }
@@ -1557,8 +1557,8 @@ function restore(sn){ M.roofs=sn.roofs||[]; roofKey=null; M.src=sn.src; M.h=sn.h
   if(sn.env&&(sn.env.env!==ENV.env||sn.env.ambient!==ENV.ambient||sn.env.darkColor!==ENV.darkColor)) setEnv(sn.env);
   refreshEntities(); rebuild(); solveWater(true); state.simActive=true; buildDecor(); }
 function pushUndo(sn){ undoStack.push(sn); if(undoStack.length>40) undoStack.shift(); redoStack.length=0; }
-function undo(){ if(!undoStack.length){ showHint('No hay nada que deshacer.',1200); return; } syncMinis(); redoStack.push(snap()); restore(undoStack.pop()); }
-function redo(){ if(!redoStack.length){ showHint('No hay nada que rehacer.',1200); return; } syncMinis(); undoStack.push(snap()); restore(redoStack.pop()); }
+function undoLocal(){ if(!undoStack.length){ showHint('No hay nada que deshacer.',1200); return; } syncMinis(); redoStack.push(snap()); restore(undoStack.pop()); }
+function redoLocal(){ if(!redoStack.length){ showHint('No hay nada que rehacer.',1200); return; } syncMinis(); undoStack.push(snap()); restore(redoStack.pop()); }
 function beginStroke(){ stroke={snap:snap(),changed:false,last:-1,ents:false,box:null}; }
 function touch(x,z){
   stroke.changed=true;
@@ -1579,7 +1579,7 @@ function fillWater(x,z,v){
       if(!seen[n]&&M.t[n]!=='w'&&M.h[n]===h0){ seen[n]=1; q.push(n); } }
   }
 }
-function endStroke(){
+function endStrokeLocal(){
   if(!stroke) return;
   if(state.zoneA&&state.tool==='zone'){ const [ax,az]=state.zoneA, [bx,bz]=state.zoneB||state.zoneA, cs=[]; state.zoneA=state.zoneB=null;
     for(let z=Math.min(az,bz);z<=Math.max(az,bz);z++) for(let x=Math.min(ax,bx);x<=Math.max(ax,bx);x++) cs.push([x,z]);
@@ -1762,7 +1762,7 @@ $('zoneToolBtn').onclick=()=>$('rail').querySelector('[data-tool="zone"]').click
 if($('explore')) $('explore').onclick=()=>{ if(state.mode==='edit') $('mode').click(); };
 $('brush').onclick=()=>{ state.brush=state.brush>=5?1:state.brush+2; $('brush').querySelector('span').textContent=state.brush+'×'+state.brush; };
 $('fill').onclick=()=>{ state.fill=!state.fill; $('fill').setAttribute('aria-pressed',String(state.fill)); };
-$('undo').onclick=undo; $('redo').onclick=redo;
+$('undo').onclick=undoLocal; $('redo').onclick=redoLocal;
 function layout(){}
 // raíl de herramientas: «Explorar» o la herramienta de edición activa
 function railSync(){ const ed=state.mode==='edit';
@@ -2231,7 +2231,7 @@ function fogTick(dt){
   fogTex.needsUpdate=true; fogAnim=moving;
 }
 function fogVis(i){ return !state.fog||!FOG?2:FOG[i]; }
-function setFog(on){ state.fog=on; M.fog=on; fogU.uFogOn.value=on?1:0; fogDirty=true; renderGame(); }
+function setFogLocal(on){ state.fog=on; M.fog=on; fogU.uFogOn.value=on?1:0; fogDirty=true; renderGame(); }
 // ---- capas sobre casillas: alcance (azul) y plantillas (naranja) ----
 const ovMats={range:new THREE.MeshBasicMaterial({color:0x3a7fb3,transparent:true,opacity:0.34,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}),
   tmpl:new THREE.MeshBasicMaterial({color:0xf07a2a,transparent:true,opacity:0.42,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-5,polygonOffsetUnits:-5}),
@@ -2278,24 +2278,23 @@ function updateRange(){
   setOverlay('range',cells);
 }
 // ---- movimiento en combate: turno y presupuesto ----
-const _moveMiniTo=moveMiniTo;
-moveMiniTo=function(b,x,z,quiet){
+function combatMove(b,x,z,quiet){
   if(GM.active&&state.mode==='play'){
     if(b!==curMini()){ if(!quiet) showHint('No es el turno de '+miniName(b)+'.',1600); return false; }
     const path=findPath(b.x,b.z,x,z,b); if(!path){ if(!quiet) showHint('No hay camino hasta esa casilla.'); return false; }
     if(path.cost>GM.left){ if(!quiet) showHint('Fuera de alcance: cuesta '+path.cost*5+' pies y quedan '+GM.left*5+'.',2000); return false; }
     GM.left-=path.cost; renderGame();
   }
-  return _moveMiniTo(b,x,z,quiet);
-};
+  return moveMini(b,x,z,quiet);
+}
 // ---- iniciativa y turnos ----
 function roll(sides){ const a=new Uint32Array(1); crypto.getRandomValues(a); return 1+a[0]%sides; }
-function startCombat(){
+function startCombatLocal(){
   syncMinis(); const ms=bills.filter(b=>b.mini&&alive(b)); if(!ms.length){ showHint('No hay personajes en el tablero.'); return; }
   GM.order=ms.map(b=>{ const r=roll(20); return {id:b.id,roll:r,total:r+b.sheet.init,init:b.sheet.init}; }).sort((p,q)=>q.total-p.total||q.init-p.init);
   GM.active=true; GM.round=1; GM.turn=-1; addLog('Iniciativa: '+GM.order.map(o=>miniName(byId(o.id))+' '+o.total).join(', ')); nextTurn();
 }
-function nextTurn(){
+function nextTurnLocal(){
   if(!GM.active) return; let guard=0;
   do{ GM.turn++; if(GM.turn>=GM.order.length){ GM.turn=0; GM.round++; } }while(!alive(byId(GM.order[GM.turn].id))&&++guard<=GM.order.length);
   GM.cur=GM.order[GM.turn].id;
@@ -2303,8 +2302,8 @@ function nextTurn(){
   GM.left=sq(b.sheet.speed); GM.dashed=false; selected=b; focusSelected(); rangeKey=''; renderGame();
   showHint('Ronda '+GM.round+': turno de '+miniName(b)+'.',1600);
 }
-function endCombat(){ GM.active=false; GM.order=[]; GM.cur=null; rangeKey=''; renderGame(); showHint('Combate terminado.',1200); }
-function dash(){ const b=curMini(); if(!b||GM.dashed) return; GM.left+=sq(b.sheet.speed); GM.dashed=true; rangeKey=''; renderGame(); showHint('Carrera: +'+b.sheet.speed+' pies este turno.',1400); }
+function endCombatLocal(){ GM.active=false; GM.order=[]; GM.cur=null; rangeKey=''; renderGame(); showHint('Combate terminado.',1200); }
+function dashLocal(){ const b=curMini(); if(!b||GM.dashed) return; GM.left+=sq(b.sheet.speed); GM.dashed=true; rangeKey=''; renderGame(); showHint('Carrera: +'+b.sheet.speed+' pies este turno.',1400); }
 // ---- dados: la notación y el formato de JA-VTT (dados.js). En la mesa en vivo tira el servidor: lo ven todos y queda en el chat
 // del tablero (chat_messages, kind 'roll'); fuera de ella, el cliente. diceEnabled apagado: nadie tira.
 function addLog(t){ GM.log.unshift(t); GM.log=GM.log.slice(0,12); }
@@ -2869,7 +2868,7 @@ function applyTokens(tk,keepSel){
   } else for(const b of cur){ const t=tk[b.id], n0=nOf(b); b.sheet=normSheet(t.sheet,b.kind); b.owner=typeof t.owner==='string'&&UID.test(t.owner)?t.owner:null;
     if(nOf(b)!==n0&&!b.path) placeBill(b);
     const x=t.x|0, z=t.z|0, d=b.path?b.path[b.path.length-1]:[b.x,b.z];
-    if(d[0]!==x||d[1]!==z){ if(!_moveMiniTo(b,x,z,true)) teleport(b,x,z); }
+    if(d[0]!==x||d[1]!==z){ if(!moveMini(b,x,z,true)) teleport(b,x,z); }
     if(!b.path&&(t.fx|t.fz)){ b.fx=Math.sign(t.fx|0); b.fz=Math.sign(t.fz|0); } }
   fogDirty=true; rangeKey=''; if(state.gameOpen) renderGame();
 }
@@ -2884,22 +2883,19 @@ function applyCombat(d){
   rangeKey=''; if(state.gameOpen) renderGame();
 }
 // ---- permisos y escritura en las acciones de juego ----
-const _mvCombat=moveMiniTo;
-moveMiniTo=function(b,x,z,quiet){
+function moveMiniTo(b,x,z,quiet){   // permiso en vivo → turno de combate → mover → sincronizar
   if(LIVE.on&&!canControl(b)){ if(!quiet) showHint(miniName(b)+' lo controla otra persona.',1600); return false; }
-  const okm=_mvCombat(b,x,z,quiet); if(okm&&LIVE.on){ liveTok(b); if(GM.active) liveCombat(); } return okm;
-};
-const _loadMap=loadMap;
-loadMap=function(...a){ const r=_loadMap(...a); AUTO.at=0; autoBaseline(); return r; };   // lo que se abre no se guarda hasta que cambie
-const _start=startCombat, _next=nextTurn, _end=endCombat, _dash=dash, _undo=undo, _redo=redo, _endStroke=endStroke, _setFog=setFog;
-startCombat=function(){ if(LIVE.on&&!LIVE.dm) return; _start(); liveCombat(); };
-nextTurn=function(){ const b=curMini(); if(LIVE.on&&(!b||!canControl(b))){ showHint(b?'Solo el DM o quien controla a '+miniName(b)+' puede pasar el turno.':'No es tu turno.',2000); return; }
-  if(LIVE.on&&!LIVE.dm){ DB.doc('live/combat').update({next:true}).catch(liveErr); return; } _next(); liveCombat(); };
-endCombat=function(){ if(LIVE.on&&!LIVE.dm) return; _end(); liveCombat(); };
-dash=function(){ if(LIVE.on&&!canControl(curMini())) return; _dash(); liveCombat(); };
-undo=function(){ _undo(); liveBoardSoon(); }; redo=function(){ _redo(); liveBoardSoon(); };
-endStroke=function(){ _endStroke(); liveBoardSoon(); };
-setFog=function(on){ if(LIVE.on&&!LIVE.dm) return; _setFog(on); liveBoardSoon(); };
+  const okm=combatMove(b,x,z,quiet); if(okm&&LIVE.on){ liveTok(b); if(GM.active) liveCombat(); } return okm;
+}
+function loadMap(...a){ const r=loadMapLocal(...a); AUTO.at=0; autoBaseline(); return r; }   // lo que se abre no se guarda hasta que cambie
+function startCombat(){ if(LIVE.on&&!LIVE.dm) return; startCombatLocal(); liveCombat(); }
+function nextTurn(){ const b=curMini(); if(LIVE.on&&(!b||!canControl(b))){ showHint(b?'Solo el DM o quien controla a '+miniName(b)+' puede pasar el turno.':'No es tu turno.',2000); return; }
+  if(LIVE.on&&!LIVE.dm){ DB.doc('live/combat').update({next:true}).catch(liveErr); return; } nextTurnLocal(); liveCombat(); }
+function endCombat(){ if(LIVE.on&&!LIVE.dm) return; endCombatLocal(); liveCombat(); }
+function dash(){ if(LIVE.on&&!canControl(curMini())) return; dashLocal(); liveCombat(); }
+function undo(){ undoLocal(); liveBoardSoon(); } function redo(){ redoLocal(); liveBoardSoon(); }
+function endStroke(){ endStrokeLocal(); liveBoardSoon(); }
+function setFog(on){ if(LIVE.on&&!LIVE.dm) return; setFogLocal(on); liveBoardSoon(); }
 function roleUI(){ const player=LIVE.on&&!LIVE.dm; $('mode').hidden=player; if(player&&state.mode==='edit') $('mode').click();
   $('mapName').textContent=M?M.name+(LIVE.on?' · en vivo':''):''; layout(); }
 // ---- presencia: cursores de los demás ----
