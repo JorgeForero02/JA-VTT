@@ -1,8 +1,8 @@
 /* Objetos por capas del tablero 3D (Tablero3D.Objetos3D en el navegador; require() en node): los datos de PROP3D
    (nombre, tamaño N×H, banderas y fn(x,z,s) → color RGB de cada texel) y la paleta con la que pintan: las rampas
    G…CU y sus versiones RGB. Extraído literalmente de tablero3d.js (refactor, tarea 4). Sólo datos y funciones
-   puras (ningún lienzo): lo que pinta (paintStack, buildProp, pstack, propSlices) sigue en el motor. La paleta
-   la usa también el motor (atlas, sprites), que la toma de aquí con un alias. HALF_PI es copia de la del motor. */
+   puras (ningún lienzo): lo que pinta (paintStack, buildProp, pstack, propSlices) está en arte-procedural.js. La paleta
+   la usan también el motor y el arte procedural (atlas, sprites), que la toman de aquí. HALF_PI es copia de la del motor. */
 (function (root) {
   'use strict';
   const Base = typeof module === 'object' && module.exports ? require('./base') : root.Tablero3D.Base;

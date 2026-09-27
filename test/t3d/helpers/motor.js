@@ -8,11 +8,12 @@
                      lightName, lightRGB) + hexRGB de base.js
      load('azar')  → base.js (mulberry32, hash, pick y hexRGB)
      load('mapas') → mapas.js: Mapas.make({defaultSheet, normSheet, Fichas}) → demoMap, dungeonMap, townMap, lightWorkshopMap;
-                     defaultSheet/normSheet (con CHARS, CUSTOM, NPC y SHEET_OF, que leen) siguen en tablero3d.js y se recortan
+                     defaultSheet/normSheet (con NPC y SHEET_OF) siguen en tablero3d.js y se recortan; CHARS y CUSTOM, que
+                     leen, vienen de la fábrica del arte procedural (helpers/arte.js)
      load('escena') → { Escena, deps(pieces) }: escena.js hecho con Escena.make({Catalogo, Muros, Ambiente, Ajustes}) (muros.js,
                      ambiente.js y ajustes.js no son UMD: se cargan con vm como frontend.test.js); deps(pieces) da lo que el motor
-                     pasa en cada llamada (escenaDeps): pieces (Map de las p: del tablero), opaque, ft, terr (claves de TERR),
-                     miniKinds (CHARS) y normSheet, recortados de tablero3d.js */
+                     pasa en cada llamada (escenaDeps): pieces (Map de las p: del tablero), opaque, ft, terr (TERR, de la fábrica
+                     del arte procedural), miniKinds (CHARS) y normSheet */
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -42,6 +43,7 @@ const Luces = require(path.join(MOD, 'luces.js'));
 const Mapas = require(path.join(MOD, 'mapas.js'));
 const Escena = require(path.join(MOD, 'escena.js'));
 const Catalogo = require(path.join(MOD, 'catalogo.js'));
+const { loadArte } = require('./arte');
 
 // módulos de navegador (no UMD) en su propio contexto, como frontend.test.js y cliente-armonia.test.js
 function loadBrowser(files, name) {
@@ -50,10 +52,12 @@ function loadBrowser(files, name) {
   return ctx.Tablero3D[name];
 }
 
+// CHARS y CUSTOM vienen de la fábrica del arte procedural (arte-procedural.js, tarea 6; helpers/arte.js la construye con un
+// lienzo de mentira); NPC, defaultSheet y normSheet siguen en tablero3d.js y se recortan
 function loadSheets(Fichas) {
-  return run([between('const CHARS=', '\nconst CHAR_ART='), lineOf('const CUSTOM='),
-    between('const NPC=', '\nfunction defaultSheet('), between('function defaultSheet(', '\n// una ficha guardada'), lineOf('function normSheet(')].join('\n'),
-  ['defaultSheet', 'normSheet', 'CHARS'], { Fichas });
+  const { CHARS, CUSTOM } = loadArte();
+  return run([between('const NPC=', '\nfunction defaultSheet('), between('function defaultSheet(', '\n// una ficha guardada'), lineOf('function normSheet(')].join('\n'),
+    ['defaultSheet', 'normSheet', 'CHARS'], { Fichas, CHARS, CUSTOM });
 }
 
 function loadFichas() {
@@ -72,7 +76,7 @@ const LOADERS = {
     const mods = { Catalogo, Muros: loadBrowser(['catalogo.js', 'muros.js'], 'Muros'), Ambiente: loadBrowser(['ambiente.js'], 'Ambiente'), Ajustes: loadBrowser(['ajustes.js'], 'Ajustes') };
     const E = Escena.make(mods);
     const { normSheet, CHARS } = loadSheets(loadFichas());
-    const { TERR } = run(`${between('const TERR={', '\n};')}\n};`, ['TERR']);
+    const { TERR } = loadArte();
     const miniKinds = CHARS.map((c) => c[0]);
     const deps = (pieces = new Map()) => ({ pieces, opaque: run(lineOf('const opaque='), ['opaque'], { Catalogo, PIECES: pieces }).opaque,
       ft: (p) => Catalogo.factoryType(p), terr: TERR, miniKinds, normSheet });

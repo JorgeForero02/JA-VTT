@@ -39,6 +39,7 @@
         if(!T.createMesa)await loadScript(BASE+'mesa.js');
         if(!T.icons)await loadScript(BASE+'icons-t3d.js');
         addIcons();
+        if(!T.ArteProcedural)await loadScript(BASE+'arte-procedural.js');
         if(!T._engine)await loadScript(BASE+'tablero3d.js');
         return html;
       });

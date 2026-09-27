@@ -15,6 +15,9 @@ const MAPAS = require('./helpers/motor').load('mapas');
 const Objetos3D = require('../../modules/tablero3d/public/objetos3d.js');
 // lectura y escritura de escenas (escena.js, tarea 5): normRoof y las listas de techos
 const ESCENA = require('./helpers/motor').load('escena').Escena;
+// arte procedural (arte-procedural.js, tarea 6): la fábrica construida con un lienzo de mentira; paleta, techos, CHARS, CAN… se leen de ella
+const { loadArte, fakeCanvas } = require('./helpers/arte');
+const ARTE = loadArte();
 
 const PUB = path.join(__dirname, '..', '..', 'public'); // JA-VTT: el público real del anfitrión, no el mock de 3d-tablero
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
@@ -141,7 +144,7 @@ test('nada se carga de internet: scripts, estilos y fuentes son locales', () => 
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'escena.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'arte-procedural.js', 'base.js', 'catalogo.js', 'dados.js', 'escena.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -153,7 +156,7 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   const before = new Set(Object.keys(ctx));
   for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Escena', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'ArteProcedural', 'Base', 'Catalogo', 'Dados', 'Escena', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -386,14 +389,12 @@ test('fichas: las plantillas traen fichas de varios tamaños y el motor usa fich
 
 /* ---- techos y estructuras (T6): materiales y formas de techo, objetos por capas del pueblo ---- */
 const between = (a, b) => { const i = engine.indexOf(a), j = engine.indexOf(b, i); assert.ok(i >= 0 && j > i, `${a} … ${b}`); return engine.slice(i, j); };
-const lineOf = (start) => { const i = engine.indexOf(start); assert.ok(i >= 0, start); return engine.slice(i, engine.indexOf('\n', i)); };
 const T6 = (() => {
-  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los datos de pintado de los techos siguen en el motor y
-  // cómo se lee un techo (normRoof, con ROOF_MAT_IDS y ROOF_SHAPE_IDS) viene de escena.js (tarea 5 del refactor)
+  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los datos de pintado de los techos, de la fábrica del
+  // arte procedural (tarea 6), y cómo se lee un techo (normRoof, con ROOF_MAT_IDS y ROOF_SHAPE_IDS), de escena.js (tarea 5)
   const { normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS } = ESCENA;
-  const ctx = { PROP3D: Objetos3D.PROP3D, normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS };
-  vm.runInNewContext(`${between('const ROOF_MATS=', '\n// nieve (29)')}\nthis.ROOF_MATS=ROOF_MATS;this.ROOF_KEY=ROOF_KEY;this.ROOF_SHAPES=ROOF_SHAPES;`, ctx);
-  return ctx;
+  const { ROOF_MATS, ROOF_KEY, ROOF_SHAPES } = ARTE;
+  return { PROP3D: Objetos3D.PROP3D, normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS, ROOF_MATS, ROOF_KEY, ROOF_SHAPES };
 })();
 
 test('techos: el cliente (normRoof) y el servidor (cleanRoof) leen igual un techo de antes y uno nuevo', () => {
@@ -451,31 +452,19 @@ test('estructuras: el pueblo de ejemplo usa cada material y forma de techo y las
   assert.match(frag, new RegExp(`data-map="town"[^>]*>Pueblo de Brezo ${W}×${D}<`));
 });
 
-/* ---- personajes medianos pintados a mano (T5c): personajes.js con las rampas del motor; selout y handArt del motor ---- */
+/* ---- personajes medianos pintados a mano (T5c): personajes.js con las rampas del motor; selout y handArt de arte-procedural.js ---- */
 const MEDIUM = ['knight', 'warrior', 'rogue', 'cleric', 'archer', 'mage', 'goblin', 'skeleton', 'wolf', 'bandit', 'villager', 'miller', 'barmaid', 'smith', 'crone', 'guard'];
 const PAL = (() => {
-  // las rampas G…CU vienen de objetos3d.js; FL, INK, EXTRA_RAMPS, OGS… siguen en el motor
+  // las rampas G…CU vienen de objetos3d.js; FL, INK, EXTRA_RAMPS, OGS… de la fábrica del arte procedural
   const { G, D, S, B, W, SA, WA, SL, TH, SH, CU } = Objetos3D;
-  const ctx = { G, D, S, B, W, SA, WA, SL, TH, SH, CU };
-  vm.runInNewContext(`${between('const FL=', '\n/* ============ atlas')}
-${between('const OGS=', 'const HANDART=')}\nthis.P={INK,G,D,S,B,W,SA,WA,SL,TH,SH,CU,FL,EX:EXTRA_RAMPS,OGS,TRS,BONE,RUNE};`, ctx);
-  return ctx.P;
+  const { INK, FL, EXTRA_RAMPS, OGS, TRS, BONE, RUNE } = ARTE;
+  return { INK, G, D, S, B, W, SA, WA, SL, TH, SH, CU, FL, EX: EXTRA_RAMPS, OGS, TRS, BONE, RUNE };
 })();
 const Personajes = (() => { const ctx = {}; ctx.window = ctx; vm.runInNewContext(readMod('personajes.js'), ctx); return ctx.Tablero3D.Personajes; })();
 const HANDART = Personajes.art(PAL);
-// lienzo de mentira (sin navegador): fillRect, getImageData y putImageData sobre RGBA, lo que usan handArt y selout
-function fakeCanvas(w, h) {
-  const px = new Uint8ClampedArray(w * h * 4); let fill = [0, 0, 0, 255];
-  const x = { set fillStyle(c) { fill = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)).concat(255); },
-    fillRect(a, b, rw, rh) { for (let j = b; j < b + rh; j++) for (let i = a; i < a + rw; i++) if (i >= 0 && j >= 0 && i < w && j < h) px.set(fill, (j * w + i) * 4); },
-    getImageData() { return { data: px.slice() }; }, putImageData(img) { px.set(img.data); } };
-  return { width: w, height: h, getContext: () => x, px };
-}
-const ART = (() => {
-  const ctx = { HANDART, mkCanvas: fakeCanvas, R: (x, a, b, w, h, c) => { x.fillStyle = c; x.fillRect(a, b, w, h); } };
-  vm.runInNewContext(`${between('function selout(', '\nfunction handArt(')}${between('function handArt(', '\n}')}\n}\nthis.handArt=handArt;this.selout=selout;`, ctx);
-  return ctx;
-})();
+// el arte de la fábrica (lienzo de mentira con píxeles RGBA, helpers/arte.js): selout y los personajes pintados a mano de CAN
+// (CAN[k] = {front, back, right, left} = handArt(k, dir) con el contorno selectivo; la vista 'side' es `right`)
+const ART = { selout: ARTE.selout, handArt: (k, v) => ARTE.CAN[k][v === 'side' ? 'right' : v] };
 const rgbAt = (c, x, y) => { const o = (y * c.width + x) * 4; return [...c.px.slice(o, o + 4)]; };
 
 test('personajes: el contorno selectivo es de tinta abajo y a la derecha, y del color de la pieza oscurecido en el lado de la luz', () => {
@@ -521,9 +510,9 @@ test('personajes medianos: tres vistas de 16×24 pintadas con la clave, con cont
 
 /* ---- arte por tamaño (T5b): el texel de cualquier personaje mide lo mismo que el del terreno ---- */
 const T5B = (() => {
-  const ctx = { Fichas, CUSTOM: { chars: {} } };
-  vm.runInNewContext(`${lineOf('const CHARS=[')}\n${engine.slice(engine.indexOf('const CHARS=[') + lineOf('const CHARS=[').length, engine.indexOf('const CHAR_ART='))}${lineOf('const CHAR_ART=')}
-${between('const NPC=', 'function defaultSheet(')}${between('function defaultSheet(', '\n}')}\n}\nthis.CHARS=CHARS;this.CHAR_ART=CHAR_ART;this.defaultSheet=defaultSheet;`, ctx);
+  // CHARS y CHAR_ART, de la fábrica del arte procedural; defaultSheet (con NPC) sigue en el motor y lee CHARS y CUSTOM
+  const ctx = { Fichas, CUSTOM: { chars: {} }, CHARS: ARTE.CHARS, CHAR_ART: ARTE.CHAR_ART };
+  vm.runInNewContext(`${between('const NPC=', 'function defaultSheet(')}${between('function defaultSheet(', '\n}')}\n}\nthis.defaultSheet=defaultSheet;`, ctx);
   return ctx;
 })();
 
@@ -543,7 +532,7 @@ test('arte por tamaño: cada tamaño tiene su lienzo a 16 texeles por casilla y 
   assert.match(upd, /m\.scale\.set\(sd\.w,sd\.h\/1\.5\*invC,sd\.w\)/);
   assert.doesNotMatch(upd, /SZ\.scale/, 'el tamaño de la ficha no agranda el sprite');
   assert.match(upd, /updateStatus\(b,show,py\+\(sd\.h\*\(1-artTop\(b\.kind\)\)/);
-  assert.match(between('function buildCharTex(', '\n}'), /TEX\/\(ch\.res\|\|32\)/, 'un dibujo propio se lleva a TEX píxel a píxel');
+  assert.match(between('function buildCharTex(', '\n}'), /getTEX\(\)\/\(ch\.res\|\|32\)/, 'un dibujo propio se lleva a TEX píxel a píxel');
 });
 
 test('arte por tamaño: los personajes de fábrica se dibujan en el lienzo de su tamaño, nacen con él y están en «Todo el arte»', () => {
@@ -554,7 +543,7 @@ test('arte por tamaño: los personajes de fábrica se dibujan en el lienzo de su
   assert.deepEqual(plain(T5B.CHAR_ART), { ...Object.fromEntries(medium.map((k) => [k, 'medium'])), rat: 'tiny', boy: 'small', ogre: 'large', troll: 'huge', golem: 'gargantuan' });
   for (const [k, name, size] of T5B.CHARS) {
     if (HANDART.chars[k]) assert.equal(size, 'medium', `${k}: los pintados a mano son Medianos (16×24)`);
-    else { const m = between(`function ${k}(dir){`, '\n}').match(/(?:mkCanvas|sculpt)\((\d+),(\d+)\)/); assert.deepEqual([+m[1], +m[2]], plain(Fichas.artDims(size, 16)), `${k}: lienzo de ${size}`); assert.match(engine, new RegExp(`${k}:dirCanv\\(${k}\\)`), `${k} en CAN`); }
+    else { for (const v of ['front', 'back', 'right', 'left']) assert.deepEqual([ARTE.CAN[k][v].width, ARTE.CAN[k][v].height], plain(Fichas.artDims(size, 16)), `${k} ${v}: lienzo de ${size}`); assert.match(engine, new RegExp(`${k}:dirCanv\\(${k}\\)`), `${k} en CAN`); }
     const sh = T5B.defaultSheet(k);
     assert.equal(Fichas.sizeOf(sh).id, size, `${k}: la ficha nace ${size}`);
     assert.equal(sh.name, name, `${k}: nace con el nombre de la paleta`);
@@ -861,7 +850,7 @@ test('motor (ola final): factoryType, WALLAT por componentes, árbol v%3, carga 
   assert.match(engine, /const FT=p=>Catalogo\.factoryType\(p\);/);
   assert.doesNotMatch(engine, /\b(p|q|x|b\.prop)\.type==='(portal|light|window|stairs)'/, 'nada decide por p.type de portal/luz/ventana/escalera');
   assert.match(engine, /else if\(!wk&&D\)\{ const c=senseOf\(D\); if\(c\)\{ for\(const \[cx,cz\] of propCells\(p\)\) if\(inb\(cx,cz\)\) wallAdd\(idx\(cx,cz\),p\); if\(c\.hide\) HAS_COVER=true; \} \}/);
-  assert.match(engine, /const st=STACK\[\(opt\.v\|0\)%3\];/);
+  assert.match(engine, /const st=ART3\.STACK\[\(opt\.v\|0\)%3\];/);
   assert.match(engine, /PIECES_OK=true; piecesDone\(\); if\(M&&PIECES\.size\)\{ refreshEntities\(\); rebuildRegion\(0,0,M\.w-1,M\.d-1\); lightDirty=true; fogDirty=true; \}/);
   assert.match(engine, /catch\(e\)\{ if\(stopped\) return; piecesDone\(\);/, 'abrir no espera a que carguen las piezas (M4)');
   assert.match(engine, /toggleDoor\(p,true,lot\); \}\n\s*if\(lot\.length\) doorRelight\(lot\);/, 'un solo doorRelight por lote');
