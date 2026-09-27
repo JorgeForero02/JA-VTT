@@ -1,11 +1,13 @@
 'use strict';
 /* Red de seguridad del refactor de tablero3d.js (tarea 1): `load(nombre)` devuelve la implementación ACTUAL de una parte
-   del motor, recortada del texto de modules/tablero3d/public/tablero3d.js (como frontend.test.js con engineConst/between)
-   y ejecutada con vm en este mismo reino (así sus objetos y listas se comparan con deepStrictEqual sin plain()).
-   Las tareas 3–5 cambian cada `load` por el módulo extraído; las fotos (fixtures/motor-antes.json) no cambian.
-     load('luces') → WARM, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, HEX6, normLight, lightOfType, lightName, hexRGB, lightRGB
-     load('azar')  → mulberry32, hash, pick
-     load('mapas') → demoMap, dungeonMap, townMap, lightWorkshopMap */
+   del motor. Lo ya extraído se carga con require del módulo; lo que aún vive en tablero3d.js se recorta de su texto
+   (como frontend.test.js con between) y se ejecuta con vm en este mismo reino (así sus objetos y listas se
+   comparan con deepStrictEqual sin plain()). Las tareas 3–5 cambian cada `load` por el módulo; las fotos
+   (fixtures/motor-antes.json) no cambian.
+     load('luces') → luces.js (WARM, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, HEX6, normLight, lightOfType,
+                     lightName, lightRGB) + hexRGB de base.js
+     load('azar')  → base.js (mulberry32, hash, pick y hexRGB)
+     load('mapas') → demoMap, dungeonMap, townMap, lightWorkshopMap (recortados; azar y luces les llegan de base.js y luces.js) */
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -23,8 +25,6 @@ function between(a, b) {
   return engine.slice(i, j);
 }
 const lineOf = (start) => between(start, '\n');
-// constante de una línea, o de varias si la línea acaba en «{» (LIGHT_TYPES, que cierra con «\n};»)
-const engineConst = (name) => (lineOf(`const ${name}=`).endsWith('{') ? between(`const ${name}=`, '\n};') + '\n};' : lineOf(`const ${name}=`));
 
 // ejecuta un trozo del motor dentro de una función (ámbito propio, mismo reino) y devuelve lo que exporta `ret`
 function run(src, ret, deps = {}) {
@@ -32,24 +32,21 @@ function run(src, ret, deps = {}) {
   return vm.runInThisContext(`(function(${names.join(',')}){'use strict';\n${src}\nreturn {${ret.join(',')}};\n})`)(...names.map((k) => deps[k]));
 }
 
-const LUCES = ['WARM', 'LIGHT_TYPES', 'LIGHT_IDS', 'OBJ_LIGHT_IDS', 'LIGHT_ANIMS', 'TOKEN_LIGHTS', 'HEX6', 'normLight', 'lightOfType', 'lightName', 'hexRGB', 'lightRGB'];
-const srcLuces = () => [lineOf('const hexRGB='), ...['WARM', 'LIGHT_TYPES', 'LIGHT_IDS', 'OBJ_LIGHT_IDS', 'LIGHT_ANIMS', 'TOKEN_LIGHTS', 'HEX6'].map(engineConst),
-  between('function normLight(', '\n// campos de un tipo'), between('function lightOfType(', '\nconst lightName='), lineOf('const lightName='), lineOf('function lightRGB(')].join('\n');
-const AZAR = ['mulberry32', 'hash', 'pick'];
-const srcAzar = () => [lineOf('function mulberry32('), lineOf('function hash('), lineOf('const pick=')].join('\n');
+const Base = require(path.join(MOD, 'base.js'));
+const Luces = require(path.join(MOD, 'luces.js'));
 
 function loadFichas() {
   return vm.runInThisContext(`(function(window){\n${fs.readFileSync(path.join(MOD, 'fichas.js'), 'utf8')}\nreturn window.Tablero3D.Fichas;\n})`)({});
 }
 
 const LOADERS = {
-  luces: () => run(srcLuces(), LUCES),
-  azar: () => run(srcAzar(), AZAR),
-  mapas: () => run([srcAzar(), srcLuces(), between('const CHARS=', '\nconst CHAR_ART='), lineOf('const CUSTOM='),
+  luces: () => ({ ...Luces, hexRGB: Base.hexRGB }),
+  azar: () => Base,
+  mapas: () => run([between('const CHARS=', '\nconst CHAR_ART='), lineOf('const CUSTOM='),
     between('const NPC=', '\nfunction defaultSheet('), between('function defaultSheet(', '\n// una ficha guardada'), lineOf('function normSheet('),
     between('function demoMap(', '\nfunction dungeonMap('), between('function dungeonMap(', '\nconst undoStack='),
     between('function townMap(', '\n// Taller de luces'), between('function lightWorkshopMap(', '\n/* ============ fase 8')].join('\n'),
-  ['demoMap', 'dungeonMap', 'townMap', 'lightWorkshopMap'], { Fichas: loadFichas() }),
+  ['demoMap', 'dungeonMap', 'townMap', 'lightWorkshopMap'], { Fichas: loadFichas(), ...Base, ...Luces }),
 };
 
 function load(name) {

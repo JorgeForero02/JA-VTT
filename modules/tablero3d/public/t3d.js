@@ -31,6 +31,8 @@
         if(!T.Ajustes)await loadScript(BASE+'ajustes.js');
         if(!T.Dados)await loadScript(BASE+'dados.js');
         if(!T.Personajes)await loadScript(BASE+'personajes.js');
+        if(!T.Base)await loadScript(BASE+'base.js');
+        if(!T.Luces)await loadScript(BASE+'luces.js');
         if(!T.createMesa)await loadScript(BASE+'mesa.js');
         if(!T.icons)await loadScript(BASE+'icons-t3d.js');
         addIcons();

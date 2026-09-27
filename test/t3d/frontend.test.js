@@ -136,7 +136,7 @@ test('nada se carga de internet: scripts, estilos y fuentes son locales', () => 
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'base.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -148,7 +148,7 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   const before = new Set(Object.keys(ctx));
   for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Catalogo', 'Dados', 'Fichas', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Base', 'Catalogo', 'Dados', 'Fichas', 'Luces', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -227,13 +227,9 @@ test('luz: un muro hace sombra; una luz alta pasa por encima de un escalón bajo
 
 /* ---- tipos de luz: los de Just Another VTT (fijo test/fixtures/ja-vtt/light-presets.json, commit d68f41f) ---- */
 const JA_LIGHTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'ja-vtt', 'light-presets.json'), 'utf8'));
-const engineConst = (name) => { const i = engine.indexOf(`const ${name}=`); assert.ok(i >= 0, name); const j = engine.indexOf(';\n', i); return engine.slice(i, j + 1); };
 const LT = (() => {
-  const ctx = {};
-  const src = ['WARM', 'LIGHT_TYPES', 'LIGHT_IDS', 'LIGHT_ANIMS', 'TOKEN_LIGHTS', 'HEX6'].map(engineConst).join('\n');
-  const fn = engine.slice(engine.indexOf('function normLight('), engine.indexOf('\n// campos de un tipo'));
-  vm.runInNewContext(`${src}\n${fn}\nthis.T=LIGHT_TYPES;this.tok=TOKEN_LIGHTS;this.anims=LIGHT_ANIMS.map(a=>a[0]);this.norm=normLight;`, ctx);
-  return ctx;
+  const Luces = require(path.join(MOD, 'luces.js'));
+  return { T: Luces.LIGHT_TYPES, tok: Luces.TOKEN_LIGHTS, anims: Luces.LIGHT_ANIMS.map((a) => a[0]), norm: Luces.normLight };
 })();
 
 test('luces: los tipos del motor son los de JA-VTT (ids, nombres, iconos, color, animación, cono y oscuridad)', () => {
