@@ -19,8 +19,9 @@ Formato: fecha · qué · por qué · cómo revertir. Más reciente arriba.
   desplegarlo junto con la fase 1).
 - **Revertir:** redeploy de `95290b9` (P-47/P-48 sin el refactor) o de `d69bd08` (fase 0) desde Coolify, o
   `git revert -m 1 007a610` + push + deploy. La base no cambió; la copia de arriba sólo haría falta ante un daño.
-- **Pendiente:** pedir al usuario la línea de rendimiento de Mesa → Conexión («Render de luz: N ms…») para compararla
-  con la de la fase 0; este refactor no midió rendimiento.
+- **Rendimiento en producción** (Mesa → Conexión, medido por el usuario tras el despliegue): chat y tablero 3D
+  conectados; **60 fps, 0,4 ms de CPU por fotograma**, 10 llamadas de dibujo, 2497 triángulos. No hay una medida
+  anterior en el mismo formato con la que comparar; queda como referencia para las fases siguientes.
 
 ## 2026-09-26 — Refactor SOLID del cliente 3D: `tablero3d.js` en 9 módulos, sin parches (rama `refactor-t3d`; desplegado el 2026-09-27, entrada de arriba)
 
