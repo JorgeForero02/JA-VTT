@@ -1,0 +1,882 @@
+{
+ "arte": {
+  "atlas": {
+   "w": 512,
+   "h": 128,
+   "sum": 794832750
+  },
+  "sprites": {
+   "knight": {
+    "custom": false,
+    "w": 32,
+    "h": 48,
+    "sum": 3371132815
+   },
+   "goblin": {
+    "custom": false,
+    "w": 32,
+    "h": 48,
+    "sum": 301284922
+   },
+   "golem": {
+    "custom": false,
+    "w": 128,
+    "h": 192,
+    "sum": 2671251274
+   },
+   "rat": {
+    "custom": false,
+    "w": 20,
+    "h": 28,
+    "sum": 1782928929
+   }
+  }
+ },
+ "escenas": [
+  {
+   "serialized": {
+    "v": 2,
+    "name": "Motor v1",
+    "w": 16,
+    "d": 16,
+    "h": "2222222222222333222222222222233322222222222223332222222222222333222222222222233322222222222223336666266666666666222222222222233322222222222223332222222222222333222222222222233322222222222223332222222222222333222222222222233322222222222223332222222222222333",
+    "t": "gggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggssswwwwgwwwwwwwwwwwgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsssgggggggggggggsss",
+    "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "props": [
+     {
+      "type": "door",
+      "x": 4,
+      "z": 6,
+      "v": 0,
+      "open": false,
+      "locked": true,
+      "uid": "(nuevo)",
+      "def": "f:door",
+      "state": {
+       "open": false,
+       "locked": true
+      }
+     },
+     {
+      "type": "tree",
+      "x": 1,
+      "z": 1,
+      "v": 2,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:tree"
+     },
+     {
+      "type": "brazier",
+      "x": 8,
+      "z": 3,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:brazier"
+     },
+     {
+      "type": "light",
+      "x": 10,
+      "z": 10,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:light",
+      "preset": "custom",
+      "r": 6,
+      "h": 1,
+      "color": "#7ab8ff",
+      "intensity": 1,
+      "anim": "none",
+      "angle": 360,
+      "rot": 0,
+      "darkness": false,
+      "on": true
+     },
+     {
+      "type": "light",
+      "x": 3,
+      "z": 12,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:light",
+      "preset": "bullseye",
+      "r": 24,
+      "h": 1.25,
+      "color": "#ffe6b8",
+      "intensity": 1,
+      "anim": "none",
+      "angle": 60,
+      "rot": 90,
+      "darkness": false,
+      "on": true,
+      "name": "Linterna"
+     },
+     {
+      "type": "window",
+      "x": 9,
+      "z": 6,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:window"
+     },
+     {
+      "type": "chest",
+      "x": 6,
+      "z": 9,
+      "v": 1,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:chest"
+     },
+     {
+      "type": "barrel",
+      "x": 7,
+      "z": 9,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:barrel"
+     },
+     {
+      "type": "portal",
+      "x": 12,
+      "z": 12,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:portal",
+      "id": 3,
+      "look": "magic",
+      "target": null,
+      "name": "Aro"
+     },
+     {
+      "type": "portal",
+      "x": 14,
+      "z": 2,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:portal",
+      "id": 335,
+      "look": "stairs",
+      "target": {
+       "scene": "cabajo",
+       "portal": 162
+      }
+     },
+     {
+      "type": "table",
+      "x": 2,
+      "z": 9,
+      "v": 0,
+      "open": false,
+      "uid": "(nuevo)",
+      "def": "f:table"
+     }
+    ],
+    "roofs": [],
+    "start": [
+     2,
+     2
+    ],
+    "minis": [
+     {
+      "kind": "knight",
+      "x": 2,
+      "z": 2,
+      "fx": 1,
+      "fz": 0,
+      "id": "k1",
+      "sheet": {
+       "name": "Caballero",
+       "kind": "player",
+       "size": 1,
+       "hidden": false,
+       "vision": true,
+       "sight": 60,
+       "darkvision": 0,
+       "light": {
+        "preset": "none",
+        "on": false,
+        "bright": 0,
+        "dim": 0,
+        "color": "#ffffff",
+        "intensity": 1,
+        "anim": "none",
+        "angle": 360,
+        "rot": 0
+       },
+       "conditions": [],
+       "elevation": 0,
+       "ac": 16,
+       "hp": {
+        "cur": 20,
+        "max": 20,
+        "temp": 0
+       },
+       "speed": 30,
+       "init": 1
+      }
+     },
+     {
+      "kind": "goblin",
+      "x": 10,
+      "z": 12,
+      "fx": -1,
+      "fz": 0,
+      "id": "g1",
+      "sheet": {
+       "name": "Goblin viejo",
+       "kind": "enemy",
+       "size": 1,
+       "hidden": false,
+       "vision": true,
+       "sight": 60,
+       "darkvision": 60,
+       "light": {
+        "preset": "torch",
+        "on": true,
+        "bright": 20,
+        "dim": 20,
+        "color": "#ffa652",
+        "intensity": 1,
+        "anim": "flicker",
+        "angle": 360,
+        "rot": 0
+       },
+       "conditions": [],
+       "elevation": 0,
+       "ac": 15,
+       "hp": {
+        "cur": 5,
+        "max": 7,
+        "temp": 0
+       },
+       "speed": 30,
+       "init": 2
+      }
+     }
+    ],
+    "env": "night",
+    "ambient": 0.18,
+    "darkColor": "#081026",
+    "fog": false,
+    "seen": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "grid": true,
+    "snap": true,
+    "animate": false,
+    "plansReleased": false
+   },
+   "props": [
+    {
+     "type": "door",
+     "kind": "door",
+     "open": false,
+     "locked": true
+    },
+    {
+     "type": "tree",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "brazier",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "light",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "light",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "window",
+     "kind": "window",
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "chest",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "barrel",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "portal",
+     "kind": "portal",
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "portal",
+     "kind": "portal",
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "table",
+     "kind": null,
+     "open": false,
+     "locked": false
+    }
+   ],
+   "roofs": 0,
+   "plans": 0,
+   "notes": 0,
+   "cells": [
+    {
+     "blocked": true,
+     "shut": true,
+     "seal": true,
+     "locked": true
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    }
+   ]
+  },
+  {
+   "serialized": {
+    "v": 2,
+    "name": "Motor v2",
+    "w": 16,
+    "d": 16,
+    "h": "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "t": "ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggwwwwwggwwwwwwwwwgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+    "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "props": [
+     {
+      "type": "obj:o_mpuerta",
+      "x": 5,
+      "z": 8,
+      "v": 0,
+      "open": false,
+      "uid": "umpuerta1",
+      "def": "p:mpuerta",
+      "state": {
+       "open": false,
+       "locked": false
+      }
+     },
+     {
+      "type": "obj:o_mvelo",
+      "x": 3,
+      "z": 3,
+      "v": 0,
+      "open": false,
+      "uid": "umvelo001",
+      "def": "p:mvelo"
+     },
+     {
+      "type": "obj:o_mfarol",
+      "x": 12,
+      "z": 3,
+      "v": 0,
+      "open": false,
+      "uid": "umfarol01",
+      "def": "p:mfarol"
+     },
+     {
+      "type": "door",
+      "x": 9,
+      "z": 8,
+      "v": 1,
+      "open": true,
+      "uid": "ufdoor001",
+      "def": "f:door",
+      "state": {
+       "open": true,
+       "locked": false
+      }
+     },
+     {
+      "type": "lamp",
+      "x": 14,
+      "z": 14,
+      "v": 0,
+      "open": false,
+      "uid": "uflamp001",
+      "def": "f:lamp"
+     },
+     {
+      "type": "light",
+      "x": 2,
+      "z": 12,
+      "v": 0,
+      "open": false,
+      "uid": "uflight01",
+      "def": "f:light",
+      "preset": "crystal",
+      "r": 6,
+      "h": 1,
+      "color": "#a98bff",
+      "intensity": 0.9,
+      "anim": "pulse",
+      "angle": 360,
+      "rot": 0,
+      "darkness": false,
+      "on": true
+     }
+    ],
+    "roofs": [],
+    "start": [
+     1,
+     1
+    ],
+    "minis": [
+     {
+      "kind": "knight",
+      "x": 1,
+      "z": 1,
+      "fx": 0,
+      "fz": 1,
+      "id": "k1",
+      "sheet": {
+       "name": "Caballero",
+       "kind": "player",
+       "size": 1,
+       "hidden": false,
+       "vision": true,
+       "sight": 60,
+       "darkvision": 0,
+       "light": {
+        "preset": "none",
+        "on": false,
+        "bright": 0,
+        "dim": 0,
+        "color": "#ffffff",
+        "intensity": 1,
+        "anim": "none",
+        "angle": 360,
+        "rot": 0
+       },
+       "conditions": [],
+       "elevation": 0,
+       "ac": 16,
+       "hp": {
+        "cur": 20,
+        "max": 20,
+        "temp": 0
+       },
+       "speed": 30,
+       "init": 1
+      }
+     },
+     {
+      "kind": "wolf",
+      "x": 8,
+      "z": 12,
+      "fx": 1,
+      "fz": 0,
+      "id": "w1",
+      "sheet": {
+       "name": "Lobo",
+       "kind": "enemy",
+       "size": 1,
+       "hidden": false,
+       "vision": true,
+       "sight": 60,
+       "darkvision": 0,
+       "light": {
+        "preset": "none",
+        "on": false,
+        "bright": 0,
+        "dim": 0,
+        "color": "#ffffff",
+        "intensity": 1,
+        "anim": "none",
+        "angle": 360,
+        "rot": 0
+       },
+       "conditions": [],
+       "elevation": 0,
+       "ac": 13,
+       "hp": {
+        "cur": 11,
+        "max": 11,
+        "temp": 0
+       },
+       "speed": 40,
+       "init": 2
+      }
+     }
+    ],
+    "env": "day",
+    "ambient": 1,
+    "darkColor": "#0E1316",
+    "fog": false,
+    "seen": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "grid": true,
+    "snap": true,
+    "animate": false,
+    "plansReleased": false
+   },
+   "props": [
+    {
+     "type": "obj:o_mpuerta",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "obj:o_mvelo",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "obj:o_mfarol",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "door",
+     "kind": "door",
+     "open": true,
+     "locked": false
+    },
+    {
+     "type": "lamp",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "light",
+     "kind": null,
+     "open": false,
+     "locked": false
+    }
+   ],
+   "roofs": 0,
+   "plans": 0,
+   "notes": 0,
+   "cells": [
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": true,
+     "shut": true,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": true,
+     "shut": true,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    }
+   ]
+  },
+  {
+   "serialized": {
+    "v": 2,
+    "name": "Motor techos",
+    "w": 16,
+    "d": 16,
+    "h": "2222222222222222222222222222222222666666222222222262222622222222226222262222222222622226222222222266266622222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+    "t": "ggggggggggggggggggggggggggggggggggwwwwwwggggggggggwoooowggggggggggwoooowggggggggggwoooowggggggggggwwowwwgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+    "wsrc": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "props": [
+     {
+      "type": "door",
+      "x": 4,
+      "z": 6,
+      "v": 0,
+      "open": false,
+      "uid": "utdoor001",
+      "def": "f:door",
+      "state": {
+       "open": false,
+       "locked": false
+      }
+     },
+     {
+      "type": "bed",
+      "x": 3,
+      "z": 3,
+      "v": 1,
+      "open": false,
+      "uid": "utbed0001",
+      "def": "f:bed"
+     },
+     {
+      "type": "well",
+      "x": 12,
+      "z": 12,
+      "v": 0,
+      "open": false,
+      "uid": "utwell001",
+      "def": "f:well"
+     }
+    ],
+    "roofs": [
+     {
+      "x": 2,
+      "z": 2,
+      "w": 6,
+      "d": 5,
+      "mat": "slate",
+      "shape": "hip"
+     },
+     {
+      "x": 10,
+      "z": 10,
+      "w": 3,
+      "d": 3,
+      "mat": "tile",
+      "shape": "gable"
+     },
+     {
+      "x": 10,
+      "z": 2,
+      "w": 4,
+      "d": 4,
+      "mat": "copper",
+      "shape": "cone",
+      "rot": 1
+     }
+    ],
+    "start": [
+     4,
+     8
+    ],
+    "minis": [
+     {
+      "kind": "mage",
+      "x": 4,
+      "z": 8,
+      "fx": 0,
+      "fz": -1,
+      "id": "m1",
+      "sheet": {
+       "name": "Maga",
+       "kind": "player",
+       "size": 1,
+       "hidden": false,
+       "vision": true,
+       "sight": 60,
+       "darkvision": 0,
+       "light": {
+        "preset": "candle",
+        "on": true,
+        "bright": 5,
+        "dim": 5,
+        "color": "#ffc878",
+        "intensity": 0.9,
+        "anim": "flicker",
+        "angle": 360,
+        "rot": 0
+       },
+       "conditions": [],
+       "elevation": 0,
+       "ac": 12,
+       "hp": {
+        "cur": 14,
+        "max": 14,
+        "temp": 0
+       },
+       "speed": 30,
+       "init": 2
+      }
+     }
+    ],
+    "env": "dusk",
+    "ambient": 0.55,
+    "darkColor": "#1A1220",
+    "fog": false,
+    "seen": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "grid": false,
+    "snap": true,
+    "animate": true,
+    "plansReleased": true,
+    "plans": [
+     {
+      "id": 5,
+      "shape": "circle",
+      "a": {
+       "x": 8.5,
+       "z": 8.5
+      },
+      "b": {
+       "x": 10.5,
+       "z": 8.5
+      }
+     },
+     {
+      "id": 6,
+      "shape": "line",
+      "a": {
+       "x": 1,
+       "z": 1
+      },
+      "b": {
+       "x": 5,
+       "z": 14
+      },
+      "area": true
+     }
+    ],
+    "notes": [
+     {
+      "id": 1,
+      "x": 4,
+      "z": 4,
+      "text": "Aquí hay una trampilla",
+      "gmOnly": true
+     },
+     {
+      "id": 2,
+      "x": 12,
+      "z": 12,
+      "text": "Pozo",
+      "gmOnly": false
+     }
+    ]
+   },
+   "props": [
+    {
+     "type": "door",
+     "kind": "door",
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "bed",
+     "kind": null,
+     "open": false,
+     "locked": false
+    },
+    {
+     "type": "well",
+     "kind": null,
+     "open": false,
+     "locked": false
+    }
+   ],
+   "roofs": 3,
+   "plans": 2,
+   "notes": 2,
+   "cells": [
+    {
+     "blocked": true,
+     "shut": true,
+     "seal": true,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": false,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    },
+    {
+     "blocked": true,
+     "shut": false,
+     "seal": false,
+     "locked": false
+    }
+   ]
+  }
+ ],
+ "mapas": {
+  "town": {
+   "props": 217,
+   "saved": 217,
+   "lights": 12,
+   "minis": 17,
+   "roofs": 14,
+   "w": 48,
+   "d": 40
+  },
+  "d64ok": true,
+  "demo": {
+   "props": 6,
+   "saved": 6,
+   "lights": 0,
+   "minis": 4,
+   "roofs": 0,
+   "w": 8,
+   "d": 8
+  },
+  "lights": {
+   "props": 48,
+   "saved": 48,
+   "lights": 13,
+   "minis": 3,
+   "roofs": 0,
+   "w": 43,
+   "d": 24
+  }
+ }
+}

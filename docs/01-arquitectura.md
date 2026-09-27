@@ -84,7 +84,7 @@ decisión del usuario (proyecto casi privado), ver spec en `superpowers/specs/`.
 
 ## Módulo del tablero 3D (`modules/tablero3d`, desde 2026-09-26)
 
-Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz en
+Traído del repo `3d-tablero` (`403d6a5`); desde el 2026-09-26 se mantiene aquí ([04](04-convenciones.md) B.1b). Interfaz en
 [modules/tablero3d/README.md](../modules/tablero3d/README.md) y guía de montaje en
 `3d-tablero/docs/08-integracion-ja-vtt.md`. Lo que JA-VTT le añade son 78 líneas marcadas
 `// t3d` (o `t3d:` en HTML/CSS) en `Dockerfile`, `server/app.js`, `public/index.html` y
@@ -109,6 +109,28 @@ Copiado tal cual del repo `3d-tablero` (`403d6a5`); no se edita aquí. Interfaz 
 - **Interruptor**: `T3D=off` apaga el módulo (sin migrar, rutas 404, `/t3d/t3d.js` vacío).
 - Trampa de tests: `resetSchema()` borra `public` en cascada y deja `t3d` sin sus claves
   ajenas; `test/t3d.test.js` borra también `t3d` antes de empezar.
+
+### Cliente 3D: mapa de ficheros (`modules/tablero3d/public`, tras el refactor del 2026-09-26)
+
+`t3d.js` los carga al montar, en este orden (cada uno con su guarda `if(!T.X)`): `three → vision → fichas →
+catalogo → muros → ambiente → ajustes → dados → personajes → base → luces → objetos3d → escena → mapas → pixel →
+mesa → icons-t3d → ui3d → arte-procedural → editor-arte → tablero3d`. Capas y reglas en [04](04-convenciones.md) B.1c.
+
+| Fichero | Líneas | Tipo | Qué tiene |
+|---|---|---|---|
+| `t3d.js` | 190 | cargador | `Tablero3D.mount`: estilos, marcado, scripts en orden, iconos, conexión propia `/t3d/ws` |
+| `base.js` | 12 | puro (UMD) | `mulberry32, hash, pick, hexRGB` |
+| `luces.js` | 50 | puro (UMD) | `WARM, HEX6, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, normLight, lightOfType, lightName, lightRGB` (datos congelados) |
+| `objetos3d.js` | 239 | puro (UMD) | `PROP3D` (objetos por rebanadas) y su paleta: `G, D, S, B, W, SA, WA, SL, TH, SH, CU, Grgb, Drgb, Srgb` (congelados) |
+| `escena.js` | 99 | puro (UMD) | `Escena.make({Catalogo, Muros, Ambiente, Ajustes})` → `read`, `write` (núcleo de deserialize/serialize), `levelSide`, `readExtras`, `sceneExtras`, `normRoof`, `blankMap`, `campValid`, `ROOF_MAT_IDS`, `ROOF_SHAPE_IDS` (listas congeladas) |
+| `mapas.js` | 214 | puro (UMD) | `Mapas.make({defaultSheet, normSheet, Fichas})` → `demoMap, dungeonMap, townMap, lightWorkshopMap` |
+| `pixel.js` | 49 | puro (UMD) | `flipH, flipV, rot90, lineCb, rgb2hsl, hsl2rgb, hueRamp, parsePalette, reduceToPalette, replaceColor, mapPixels, toHex` |
+| `ui3d.js` | 28 | fábrica | `T3D.UI({$, icon})` (deps reservadas, sin uso) → `el, esc, mkBtn, sepEl, lblEl, thumbCanvas, lsGet, lsSet` |
+| `arte-procedural.js` | 742 | fábrica | `T3D.ArteProcedural({THREE, Personajes, Objetos3D, Base, getTEX})`: atlas del terreno, sprites, arte propio (`CUSTOM`), `buildArt`…; `SPR/STACK/STK/CSTACK/PSTACK` por getter, `atlasTex`/`atlasCanvas`/`PLACEHOLDER` por getter/setter |
+| `editor-arte.js` | 1017 | fábrica | `T3D.EditorArte(api)` → `open, close, isOpen, key, preview, loadAllAssets, registerDoc, applyCustom, docInfo, openNewDlg, artTab` (API cerrada en su cabecera) |
+| `tablero3d.js` | 3055 | núcleo | `T3D._engine(ctx)`: modelo, luz, entidades, partida, mesa en vivo, entrada y bucle; sin reasignaciones de función |
+| `catalogo.js` | 327 | puro (UMD) | catálogo de piezas (fase 0; también lo usa el servidor): `defOf`, `complete`, `blocks`, `blocksMove`, `validateDef`… |
+| `vision.js`, `fichas.js`, `muros.js`, `ambiente.js`, `ajustes.js`, `dados.js`, `personajes.js`, `mesa.js`, `icons-t3d.js` | — | anteriores al refactor | visión y luz, fichas, muros, ambiente, ajustes, dados, arte de personajes, adaptador de la mesa, iconos |
 
 ### Piezas con comportamiento (fase 0, 2026-09-26)
 

@@ -9,6 +9,7 @@ const vm = require('node:vm');
 const R = require('../../modules/tablero3d/rules');
 const dice = require('../../modules/tablero3d/dice');
 const F = require('./helpers/fixtures');
+const { readEngine } = require('./helpers/engine');
 
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
 const readMod = (f) => fs.readFileSync(path.join(MOD, f), 'utf8');
@@ -21,7 +22,7 @@ const fixture = (f) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures
 const JA = fixture('board-settings.json');
 const JD = fixture('dice.json');
 const frag = readMod('t3d.html');
-const engine = readMod('tablero3d.js');
+const engine = readEngine();
 
 test('ajustes: el cliente tiene las claves y valores por defecto de JA-VTT y lee igual que el servidor', () => {
   assert.deepEqual(plain(Ajustes.DEFAULTS), R.DEFAULT_SETTINGS);

@@ -31,9 +31,18 @@
         if(!T.Ajustes)await loadScript(BASE+'ajustes.js');
         if(!T.Dados)await loadScript(BASE+'dados.js');
         if(!T.Personajes)await loadScript(BASE+'personajes.js');
+        if(!T.Base)await loadScript(BASE+'base.js');
+        if(!T.Luces)await loadScript(BASE+'luces.js');
+        if(!T.Objetos3D)await loadScript(BASE+'objetos3d.js');
+        if(!T.Escena)await loadScript(BASE+'escena.js');
+        if(!T.Mapas)await loadScript(BASE+'mapas.js');
+        if(!T.Pixel)await loadScript(BASE+'pixel.js');
         if(!T.createMesa)await loadScript(BASE+'mesa.js');
         if(!T.icons)await loadScript(BASE+'icons-t3d.js');
         addIcons();
+        if(!T.UI)await loadScript(BASE+'ui3d.js');
+        if(!T.ArteProcedural)await loadScript(BASE+'arte-procedural.js');
+        if(!T.EditorArte)await loadScript(BASE+'editor-arte.js');
         if(!T._engine)await loadScript(BASE+'tablero3d.js');
         return html;
       });

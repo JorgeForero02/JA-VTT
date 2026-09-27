@@ -60,6 +60,57 @@ renumerar documentos.
   ya lo supera y se deja así por ahora (decisión de la ola final de la fase 0: partirlo sería sólo estilo);
   la regla vale desde aquí.
 
+## B.1c Arquitectura del cliente 3D (`modules/tablero3d/public`, refactor del 2026-09-26)
+
+Detalle y motivos en [la spec del refactor](superpowers/specs/2026-09-26-refactor-tablero3d-design.md) §2.
+Capas: una capa sólo usa las de arriba, nunca al revés.
+
+```
+base.js ─ luces.js ─ objetos3d.js ─ escena.js ─ mapas.js ─ pixel.js      (puros: node y navegador)
+      └──────────────── arte-procedural.js ─ ui3d.js                      (navegador, fábricas con deps)
+                              └──────────── editor-arte.js                 (navegador, fábrica con API explícita)
+                                                  └── tablero3d.js (núcleo: modelo, luz, entidades, partida, en vivo, entrada, bucle)
+```
+
+- **Módulos puros**: sin DOM, sin `THREE`, sin estado global; UMD exactamente como la cola de `catalogo.js`
+  (`module.exports` en node, `Tablero3D.X` en el navegador). El lint cubre una parte: los ficheros de `PURE_T3D`
+  (`eslint.config.mjs`) sólo tienen los globales del envoltorio UMD (`module`, `require`, `globalThis`, `window`,
+  `TextEncoder`), así que un `document`, `THREE` u otro global del navegador suelto no pasa. `window` está porque la
+  cola UMD lo lee: usar `window.*` fuera de esa cola (p. ej. `window.document`) el lint no lo ve y queda
+  **prohibido por convención y revisión**.
+- **Los exports de los módulos puros son de sólo lectura (congelados)**: lo que cambie por tablero va en el motor o
+  en una fábrica. El módulo es uno para todas las mesas montadas (`test/t3d/congelados.test.js`).
+- **Fábricas**: `T3D.Nombre = function (deps) { … return {…}; }`. Todo lo que usan del motor llega en `deps`;
+  no leen variables del motor por cierre. El estado que el motor **reasigna** (`M`, `ENV`, `TEX`, `DB`…) llega
+  como **función lectora** (`getM()`), nunca copiado. La API de `editor-arte.js` es una lista cerrada escrita en
+  su cabecera: cambiarla es cambiar la cabecera en el mismo commit.
+- `tablero3d.js` usa los módulos por alias al principio de su cierre. DOM sólo con `$()` (lo prueba `frontend.test.js`).
+- **Prohibido reasignar funciones** (`no-func-assign` y `no-redeclare` en `tablero3d.js`). Para añadir un paso a
+  una función se compone por nombre: la base pasa a `…Local` (p. ej. `undoLocal`) y la pública la llama.
+- **Trinquete de líneas** (`max-lines` en `eslint.config.mjs`): `tablero3d.js` ≤ **3100** (3055 al cerrar el
+  refactor; la meta de la spec era ~2600, ver [07](07-historial.md)); cada otro fichero del módulo ≤ 1100
+  (`personajes.js`, 1161 y anterior al refactor, está exento). **Bajar el tope está permitido; subirlo es una
+  decisión explícita anotada aquí**, con fecha y motivo.
+- **Un módulo nuevo** entra a la vez en: `loadAssets` de `t3d.js` (en orden de capas, con su guarda `if(!T.X)`),
+  `ENGINE_FILES` de `test/t3d/helpers/engine.js`, las listas fijas de `frontend.test.js`, `PURE_T3D` si es puro y
+  `--test-coverage-include` de `package.json` si es puro.
+- **Las pruebas del código movido ejecutan el módulo**: `require` para los puros; `vm` con lienzo y DOM de mentira
+  para las fábricas (`test/t3d/helpers/arte.js`, `ui3d.test.js`, `editor-arte.test.js`). Las regex quedan **sólo
+  para invariantes de cableado** (un único `WALLAT.set(`, `DB.doc('live/…')` contra `LIVE_KEYS`, colecciones,
+  `ctx.mesa`) y leen la concatenación de todos los ficheros del motor con `readEngine()`, nunca un fichero suelto.
+- **Fotos doradas: no se regeneran nunca.** `test/t3d/fixtures/motor-antes.json`, `motor-escenas-entrada.json`,
+  `fabrica-antes.json` y `test/e2e/fixtures/motor-escenas.json` son la referencia de «sin cambio de
+  comportamiento». `FOTO=1` (`t3d-motor.mjs`) sólo se usa cuando una foto **nueva** se crea por primera vez; el
+  guion se niega a sobrescribir una que existe. Una foto que no cuadra es un cambio de comportamiento: se para
+  y se decide, no se recaptura.
+- **Comando obligatorio de las pruebas 3D en node:** `node --test --test-concurrency=1 "test/t3d/*.test.js"`.
+  Sin `--test-concurrency=1` las pruebas con Postgres chocan (`users_name_ci`) y dan falsos fallos; sin el glob
+  entre comillas Node 24 no encuentra los ficheros.
+- **Dónde va lo nuevo:** fase 1 — el panel «Comportamiento» del editor → `editor-arte.js` (no al núcleo);
+  datos y plantillas puros (definiciones, tablas, validación) → un módulo puro nuevo o `catalogo.js`; pintado
+  procedural → `arte-procedural.js`; utilidades de interfaz → `ui3d.js`. Al núcleo sólo lo que toca su estado
+  compartido (modelo, luz, entidades, partida, mesa en vivo, entrada, bucle).
+
 ## B.2 Ramas
 
 | Rama | Qué es |
@@ -90,7 +141,7 @@ renumerar documentos.
 | Unitarios + integración | `npm test` (necesita Postgres en `TEST_DATABASE_URL`) | obligatorio |
 | E2E tiempo real | `npm run test:e2e` con la pila levantada | obligatorio antes de desplegar |
 | E2E visual | `npm run test:ui` (Playwright + Edge/Chrome del PC, servidor local en 3999) | obligatorio cuando se toca el cliente |
-| Cobertura con umbral | incluida en `npm test` (`server/**`: líneas ≥ 78 %, ramas ≥ 72 %, funciones ≥ 82 %; baseline 80/75/84 el 2026-09-19) | obligatorio |
+| Cobertura con umbral | incluida en `npm test` (`server/**`, `modules/tablero3d/*.js` y los módulos puros del cliente 3D —`catalogo`, `base`, `luces`, `objetos3d`, `escena`, `mapas`, `pixel`—: líneas ≥ 78 %, ramas ≥ 72 %, funciones ≥ 82 %, los de `package.json`; baseline 80/75/84 el 2026-09-19) | obligatorio |
 | Mutación automatizada | — | N3, pendiente P-04 |
 
 ## Excepciones declaradas

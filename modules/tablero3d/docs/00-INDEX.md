@@ -29,6 +29,9 @@ migraciones · módulo 1592 líneas en el servidor (`index.js` 618, `rules.js` 7
 `ambiente.js`, `ajustes.js`, `dados.js`, `mesa.js` y 25 iconos en `icons-t3d.js`) · 1 dependencia de
 producción (`pg`); three.js r128 vendorizado.
 
+> 2026-09-26: tras el refactor del cliente 3D el motor quedó repartido en 9 módulos más `tablero3d.js` (3055
+> líneas). El mapa de ficheros vigente está en `docs/01-arquitectura.md` del repositorio; estas cifras son históricas.
+
 Estado de calidad verificado el 2026-09-26: `npm run lint` limpio · `npm run check` → **170 tests, 0
 fallos** (contra un Postgres real; cobertura núcleo + módulo 97,5/93,5/95,4; T8) · `npm run test:ui` →
 **96/96** (director y jugador, móvil incluido; T8) · `npm run test:e2e` (`realtime.mjs`) →

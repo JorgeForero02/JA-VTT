@@ -9,6 +9,15 @@ const path = require('node:path');
 const vm = require('node:vm');
 const R = require('../../modules/tablero3d/rules');
 const F2 = require('./helpers/fixtures');
+const { ENGINE_FILES, readEngine } = require('./helpers/engine');
+// generadores de mapas (mapas.js, tarea 4 del refactor): las comprobaciones de su código leen el de cada función del módulo
+const MAPAS = require('./helpers/motor').load('mapas');
+const Objetos3D = require('../../modules/tablero3d/public/objetos3d.js');
+// lectura y escritura de escenas (escena.js, tarea 5): normRoof y las listas de techos
+const ESCENA = require('./helpers/motor').load('escena').Escena;
+// arte procedural (arte-procedural.js, tarea 6): la fábrica construida con un lienzo de mentira; paleta, techos, CHARS, CAN… se leen de ella
+const { loadArte, fakeCanvas } = require('./helpers/arte');
+const ARTE = loadArte();
 
 const PUB = path.join(__dirname, '..', '..', 'public'); // JA-VTT: el público real del anfitrión, no el mock de 3d-tablero
 const MOD = path.join(__dirname, '..', '..', 'modules', 'tablero3d', 'public');
@@ -16,7 +25,7 @@ const read = (f) => fs.readFileSync(path.join(PUB, f), 'utf8');
 const readMod = (f) => fs.readFileSync(path.join(MOD, f), 'utf8');
 const html = read('index.html');
 const frag = readMod('t3d.html');
-const engine = readMod('tablero3d.js');
+const engine = readEngine();
 const css = readMod('t3d.css');
 const hostCss = read('css/app.css');
 const idsOf = (h) => [...h.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
@@ -128,14 +137,16 @@ test('iconos: cada icono del módulo está en JA-VTT o viaja con el módulo (ico
 
 test('nada se carga de internet: scripts, estilos y fuentes son locales', () => {
   const files = [['index.html', html], ['css/app.css', hostCss], ...['js/main.js', 'js/net.js', 'js/store.js', 'js/icons.js'].map((f) => [f, read(f)]),
-    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', 'tablero3d.js'].map((f) => ['t3d/' + f, readMod(f)])];
+    ...['t3d.js', 't3d.html', 't3d.css', 'mesa.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'icons-t3d.js', ...ENGINE_FILES].map((f) => ['t3d/' + f, readMod(f)])];
   for (const [f, text] of files) assert.doesNotMatch(text, /(src|href)=["']https?:|url\(\s*["']?https?:|googleapis|cdnjs|unpkg|jsdelivr|document\.write|import\(/i, f);
   const where = (s) => (s.startsWith('t3d/') ? path.join(MOD, s.slice(4)) : path.join(PUB, s));
   for (const s of [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) assert.ok(fs.existsSync(where(s)), s);
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'catalogo.js', 'dados.js', 'fichas.js', 'icons-t3d.js', 'mesa.js', 'muros.js', 'personajes.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'vendor/three.min.js', 'vision.js'].sort());
+  // el motor se carga en el orden de capas de ENGINE_FILES (base → … → tablero3d), antes de ordenar la lista
+  assert.deepEqual(lazy.filter((f) => ENGINE_FILES.includes(f)), ENGINE_FILES, 'orden de carga del motor en t3d.js');
+  assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'arte-procedural.js', 'base.js', 'catalogo.js', 'dados.js', 'editor-arte.js', 'escena.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 'pixel.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'ui3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);
 });
@@ -145,9 +156,9 @@ test('módulo: sólo añade el global Tablero3D (THREE lo pone three.js al monta
   ctx.window = ctx;
   vm.createContext(ctx);
   const before = new Set(Object.keys(ctx));
-  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', 'tablero3d.js']) vm.runInContext(readMod(f), ctx, { filename: f });
+  for (const f of ['t3d.js', 'vision.js', 'fichas.js', 'catalogo.js', 'muros.js', 'ambiente.js', 'ajustes.js', 'dados.js', 'personajes.js', 'mesa.js', 'icons-t3d.js', ...ENGINE_FILES]) vm.runInContext(readMod(f), ctx, { filename: f });
   assert.deepEqual(Object.keys(ctx).filter((k) => !before.has(k)), ['Tablero3D']);
-  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'Catalogo', 'Dados', 'Fichas', 'Muros', 'Personajes', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
+  assert.deepEqual(Object.keys(ctx.Tablero3D).sort(), ['Ajustes', 'Ambiente', 'ArteProcedural', 'Base', 'Catalogo', 'Dados', 'EditorArte', 'Escena', 'Fichas', 'Luces', 'Mapas', 'Muros', 'Objetos3D', 'Personajes', 'Pixel', 'UI', 'Vision', '_engine', 'createMesa', 'icons', 'mount']);
 });
 
 test('el cliente y el servidor usan los mismos documentos de la mesa en vivo', () => {
@@ -226,13 +237,9 @@ test('luz: un muro hace sombra; una luz alta pasa por encima de un escalón bajo
 
 /* ---- tipos de luz: los de Just Another VTT (fijo test/fixtures/ja-vtt/light-presets.json, commit d68f41f) ---- */
 const JA_LIGHTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'ja-vtt', 'light-presets.json'), 'utf8'));
-const engineConst = (name) => { const i = engine.indexOf(`const ${name}=`); assert.ok(i >= 0, name); const j = engine.indexOf(';\n', i); return engine.slice(i, j + 1); };
 const LT = (() => {
-  const ctx = {};
-  const src = ['WARM', 'LIGHT_TYPES', 'LIGHT_IDS', 'LIGHT_ANIMS', 'TOKEN_LIGHTS', 'HEX6'].map(engineConst).join('\n');
-  const fn = engine.slice(engine.indexOf('function normLight('), engine.indexOf('\n// campos de un tipo'));
-  vm.runInNewContext(`${src}\n${fn}\nthis.T=LIGHT_TYPES;this.tok=TOKEN_LIGHTS;this.anims=LIGHT_ANIMS.map(a=>a[0]);this.norm=normLight;`, ctx);
-  return ctx;
+  const Luces = require(path.join(MOD, 'luces.js'));
+  return { T: Luces.LIGHT_TYPES, tok: Luces.TOKEN_LIGHTS, anims: Luces.LIGHT_ANIMS.map((a) => a[0]), norm: Luces.normLight };
 })();
 
 test('luces: los tipos del motor son los de JA-VTT (ids, nombres, iconos, color, animación, cono y oscuridad)', () => {
@@ -274,7 +281,7 @@ test('luces: el cliente y el servidor leen igual una luz de antes (r, h, c, f) y
 test('luces: la plantilla «Taller de luces» está en el menú y pone cada tipo', () => {
   assert.match(frag, /data-map="lights"/);
   assert.match(engine, /k==='lights'\?lightWorkshopMap\(\)/);
-  const tpl = engine.slice(engine.indexOf('function lightWorkshopMap('), engine.indexOf('/* ============ fase 8'));
+  const tpl = MAPAS.lightWorkshopMap.toString();
   for (const id of Object.keys(JA_LIGHTS.presets)) assert.match(tpl, new RegExp(`lamp\\('${id}'`), id);
 });
 
@@ -372,26 +379,24 @@ test('fichas: distancias de 5.ª edición de borde a borde y ocupación', () => 
 });
 
 test('fichas: las plantillas traen fichas de varios tamaños y el motor usa fichas.js para caminos y ocupación', () => {
-  const town = engine.slice(engine.indexOf('function townMap('), engine.indexOf('function lightWorkshopMap('));
+  const town = MAPAS.townMap.toString();
   for (const k of ['ogre', 'troll', 'golem', 'rat', 'boy', 'guard', 'barmaid', 'smith', 'crone', 'cleric', 'miller', 'warrior', 'archer', 'villager']) assert.match(town, new RegExp(`kind:'${k}'`), k);
   const names = (k) => [...town.matchAll(new RegExp(`kind:'${k}'[^}]*name:'([^']+)'`, 'g'))].map((m) => m[1]);
   assert.deepEqual(names('villager'), ['Pregonero'], 'los vecinos del pueblo ya no son todos el mismo aldeano');
-  assert.match(between('function demoMap(', '\n}'), /kind:'wolf'/, 'el claro del bosque trae un lobo');
-  assert.match(between('function dungeonMap(', '\n}'), /kind:\['skeleton','goblin','skeleton','bandit'\]/, 'la mazmorra: esqueletos, goblins y bandidos');
+  assert.match(MAPAS.demoMap.toString(), /kind:'wolf'/, 'el claro del bosque trae un lobo');
+  assert.match(MAPAS.dungeonMap.toString(), /kind:\['skeleton','goblin','skeleton','bandit'\]/, 'la mazmorra: esqueletos, goblins y bandidos');
   assert.match(engine, /Fichas\.route\(PATHG/); assert.match(engine, /Fichas\.paths\(PATHG/);
   assert.doesNotMatch(engine, /sheet\.(team|hpMax|luz)\b/, 'el motor ya no usa los campos de antes');
 });
 
 /* ---- techos y estructuras (T6): materiales y formas de techo, objetos por capas del pueblo ---- */
 const between = (a, b) => { const i = engine.indexOf(a), j = engine.indexOf(b, i); assert.ok(i >= 0 && j > i, `${a} … ${b}`); return engine.slice(i, j); };
-const lineOf = (start) => { const i = engine.indexOf(start); assert.ok(i >= 0, start); return engine.slice(i, engine.indexOf('\n', i)); };
 const T6 = (() => {
-  const ctx = {};
-  const src = [lineOf('function hash('), lineOf('const HALF_PI'), between('const G=[', '\n/* ============ atlas'), lineOf('const hexRGB='),
-    ...['SL', 'TH', 'SH', 'CU'].map((k) => lineOf(`const ${k}=[`)), between('const ROOF_MATS=', 'function normRoof(') + between('function normRoof(', 'return o; }') + 'return o; }',
-    lineOf('const Grgb=G.map'), between('const Wr=W.map', 'let PSTACK={}')].join('\n');
-  vm.runInNewContext(`${src}\nthis.PROP3D=PROP3D;this.ROOF_MATS=ROOF_MATS;this.ROOF_KEY=ROOF_KEY;this.ROOF_SHAPES=ROOF_SHAPES;this.normRoof=normRoof;`, ctx);
-  return ctx;
+  // PROP3D (con la paleta con la que pinta) viene de objetos3d.js; los datos de pintado de los techos, de la fábrica del
+  // arte procedural (tarea 6), y cómo se lee un techo (normRoof, con ROOF_MAT_IDS y ROOF_SHAPE_IDS), de escena.js (tarea 5)
+  const { normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS } = ESCENA;
+  const { ROOF_MATS, ROOF_KEY, ROOF_SHAPES } = ARTE;
+  return { PROP3D: Objetos3D.PROP3D, normRoof, ROOF_MAT_IDS, ROOF_SHAPE_IDS, ROOF_MATS, ROOF_KEY, ROOF_SHAPES };
 })();
 
 test('techos: el cliente (normRoof) y el servidor (cleanRoof) leen igual un techo de antes y uno nuevo', () => {
@@ -401,6 +406,7 @@ test('techos: el cliente (normRoof) y el servidor (cleanRoof) leen igual un tech
   assert.deepEqual(plain(T6.normRoof(cases[0], 8, 8)), { x: 1, z: 1, w: 3, d: 2, mat: 'tile', shape: 'gable' }, 'un techo de antes: teja a dos aguas');
   assert.deepEqual(Object.keys(T6.ROOF_MATS), R.ROOF_MATS);
   assert.deepEqual(Object.keys(T6.ROOF_SHAPES), R.ROOF_SHAPES);
+  assert.deepEqual([...T6.ROOF_MAT_IDS], R.ROOF_MATS); assert.deepEqual([...T6.ROOF_SHAPE_IDS], R.ROOF_SHAPES);
   assert.match(engine, /map\(r=>normRoof\(r,w,d\)\)/, 'deserialize usa normRoof');
 });
 
@@ -439,7 +445,7 @@ test('estructuras: cada objeto por capas pinta algo, cabe en su lienzo y se pued
 });
 
 test('estructuras: el pueblo de ejemplo usa cada material y forma de techo y las estructuras nuevas', () => {
-  const town = between('function townMap(', '// Taller de luces');
+  const town = MAPAS.townMap.toString();
   for (const m of ['slate', 'thatch', 'shingle', 'copper']) assert.match(town, new RegExp(`mat:'${m}'`), m);
   for (const s of ['hip', 'flat', 'cone', 'shed']) assert.match(town, new RegExp(`shape:'${s}'`), s);
   for (const p of ['gate', 'bridge2', 'bridge', 'stall', 'stall2', 'windmill', 'belfry', 'cart', 'crates', 'bench', 'picket', 'stonewall', 'sign', 'post', 'well']) assert.match(town, new RegExp(`put\\('${p}',`), p);
@@ -448,29 +454,19 @@ test('estructuras: el pueblo de ejemplo usa cada material y forma de techo y las
   assert.match(frag, new RegExp(`data-map="town"[^>]*>Pueblo de Brezo ${W}×${D}<`));
 });
 
-/* ---- personajes medianos pintados a mano (T5c): personajes.js con las rampas del motor; selout y handArt del motor ---- */
+/* ---- personajes medianos pintados a mano (T5c): personajes.js con las rampas del motor; selout y handArt de arte-procedural.js ---- */
 const MEDIUM = ['knight', 'warrior', 'rogue', 'cleric', 'archer', 'mage', 'goblin', 'skeleton', 'wolf', 'bandit', 'villager', 'miller', 'barmaid', 'smith', 'crone', 'guard'];
 const PAL = (() => {
-  const ctx = {};
-  vm.runInNewContext(`${between('const G=[', '\n/* ============ atlas')}\n${['SL', 'TH', 'SH', 'CU'].map((k) => lineOf(`const ${k}=[`)).join('\n')}
-${between('const OGS=', 'const HANDART=')}\nthis.P={INK,G,D,S,B,W,SA,WA,SL,TH,SH,CU,FL,EX:EXTRA_RAMPS,OGS,TRS,BONE,RUNE};`, ctx);
-  return ctx.P;
+  // las rampas G…CU vienen de objetos3d.js; FL, INK, EXTRA_RAMPS, OGS… de la fábrica del arte procedural
+  const { G, D, S, B, W, SA, WA, SL, TH, SH, CU } = Objetos3D;
+  const { INK, FL, EXTRA_RAMPS, OGS, TRS, BONE, RUNE } = ARTE;
+  return { INK, G, D, S, B, W, SA, WA, SL, TH, SH, CU, FL, EX: EXTRA_RAMPS, OGS, TRS, BONE, RUNE };
 })();
 const Personajes = (() => { const ctx = {}; ctx.window = ctx; vm.runInNewContext(readMod('personajes.js'), ctx); return ctx.Tablero3D.Personajes; })();
 const HANDART = Personajes.art(PAL);
-// lienzo de mentira (sin navegador): fillRect, getImageData y putImageData sobre RGBA, lo que usan handArt y selout
-function fakeCanvas(w, h) {
-  const px = new Uint8ClampedArray(w * h * 4); let fill = [0, 0, 0, 255];
-  const x = { set fillStyle(c) { fill = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)).concat(255); },
-    fillRect(a, b, rw, rh) { for (let j = b; j < b + rh; j++) for (let i = a; i < a + rw; i++) if (i >= 0 && j >= 0 && i < w && j < h) px.set(fill, (j * w + i) * 4); },
-    getImageData() { return { data: px.slice() }; }, putImageData(img) { px.set(img.data); } };
-  return { width: w, height: h, getContext: () => x, px };
-}
-const ART = (() => {
-  const ctx = { HANDART, mkCanvas: fakeCanvas, R: (x, a, b, w, h, c) => { x.fillStyle = c; x.fillRect(a, b, w, h); } };
-  vm.runInNewContext(`${between('function selout(', '\nfunction handArt(')}${between('function handArt(', '\n}')}\n}\nthis.handArt=handArt;this.selout=selout;`, ctx);
-  return ctx;
-})();
+// el arte de la fábrica (lienzo de mentira con píxeles RGBA, helpers/arte.js): selout y los personajes pintados a mano de CAN
+// (CAN[k] = {front, back, right, left} = handArt(k, dir) con el contorno selectivo; la vista 'side' es `right`)
+const ART = { selout: ARTE.selout, handArt: (k, v) => ARTE.CAN[k][v === 'side' ? 'right' : v] };
 const rgbAt = (c, x, y) => { const o = (y * c.width + x) * 4; return [...c.px.slice(o, o + 4)]; };
 
 test('personajes: el contorno selectivo es de tinta abajo y a la derecha, y del color de la pieza oscurecido en el lado de la luz', () => {
@@ -516,9 +512,9 @@ test('personajes medianos: tres vistas de 16×24 pintadas con la clave, con cont
 
 /* ---- arte por tamaño (T5b): el texel de cualquier personaje mide lo mismo que el del terreno ---- */
 const T5B = (() => {
-  const ctx = { Fichas, CUSTOM: { chars: {} } };
-  vm.runInNewContext(`${lineOf('const CHARS=[')}\n${engine.slice(engine.indexOf('const CHARS=[') + lineOf('const CHARS=[').length, engine.indexOf('const CHAR_ART='))}${lineOf('const CHAR_ART=')}
-${between('const NPC=', 'function defaultSheet(')}${between('function defaultSheet(', '\n}')}\n}\nthis.CHARS=CHARS;this.CHAR_ART=CHAR_ART;this.defaultSheet=defaultSheet;`, ctx);
+  // CHARS y CHAR_ART, de la fábrica del arte procedural; defaultSheet (con NPC) sigue en el motor y lee CHARS y CUSTOM
+  const ctx = { Fichas, CUSTOM: { chars: {} }, CHARS: ARTE.CHARS, CHAR_ART: ARTE.CHAR_ART };
+  vm.runInNewContext(`${between('const NPC=', 'function defaultSheet(')}${between('function defaultSheet(', '\n}')}\n}\nthis.defaultSheet=defaultSheet;`, ctx);
   return ctx;
 })();
 
@@ -538,7 +534,7 @@ test('arte por tamaño: cada tamaño tiene su lienzo a 16 texeles por casilla y 
   assert.match(upd, /m\.scale\.set\(sd\.w,sd\.h\/1\.5\*invC,sd\.w\)/);
   assert.doesNotMatch(upd, /SZ\.scale/, 'el tamaño de la ficha no agranda el sprite');
   assert.match(upd, /updateStatus\(b,show,py\+\(sd\.h\*\(1-artTop\(b\.kind\)\)/);
-  assert.match(between('function buildCharTex(', '\n}'), /TEX\/\(ch\.res\|\|32\)/, 'un dibujo propio se lleva a TEX píxel a píxel');
+  assert.match(between('function buildCharTex(', '\n}'), /getTEX\(\)\/\(ch\.res\|\|32\)/, 'un dibujo propio se lleva a TEX píxel a píxel');
 });
 
 test('arte por tamaño: los personajes de fábrica se dibujan en el lienzo de su tamaño, nacen con él y están en «Todo el arte»', () => {
@@ -549,7 +545,7 @@ test('arte por tamaño: los personajes de fábrica se dibujan en el lienzo de su
   assert.deepEqual(plain(T5B.CHAR_ART), { ...Object.fromEntries(medium.map((k) => [k, 'medium'])), rat: 'tiny', boy: 'small', ogre: 'large', troll: 'huge', golem: 'gargantuan' });
   for (const [k, name, size] of T5B.CHARS) {
     if (HANDART.chars[k]) assert.equal(size, 'medium', `${k}: los pintados a mano son Medianos (16×24)`);
-    else { const m = between(`function ${k}(dir){`, '\n}').match(/(?:mkCanvas|sculpt)\((\d+),(\d+)\)/); assert.deepEqual([+m[1], +m[2]], plain(Fichas.artDims(size, 16)), `${k}: lienzo de ${size}`); assert.match(engine, new RegExp(`${k}:dirCanv\\(${k}\\)`), `${k} en CAN`); }
+    else { for (const v of ['front', 'back', 'right', 'left']) assert.deepEqual([ARTE.CAN[k][v].width, ARTE.CAN[k][v].height], plain(Fichas.artDims(size, 16)), `${k} ${v}: lienzo de ${size}`); assert.match(engine, new RegExp(`${k}:dirCanv\\(${k}\\)`), `${k} en CAN`); }
     const sh = T5B.defaultSheet(k);
     assert.equal(Fichas.sizeOf(sh).id, size, `${k}: la ficha nace ${size}`);
     assert.equal(sh.name, name, `${k}: nace con el nombre de la paleta`);
@@ -800,7 +796,7 @@ test('ventanas: una ventana que da fuera deja entrar el ambiente hacia dentro (c
 });
 
 test('ambiente: el pueblo tiene ventanas que dan fuera en sus casas; cada plantilla abre en su momento', () => {
-  const lines = engine.split('\n'), i0 = lines.findIndex((l) => l.startsWith('function townMap(')), town = lines.slice(i0, i0 + 70).join('\n');
+  const town = MAPAS.townMap.toString().split('\n').slice(0, 70).join('\n');
   assert.ok((town.match(/win\(\d+,\d+,\d/g) || []).length >= 10, 'ventanas en las casas del pueblo');
   assert.match(engine, /roofs,env:'day',seed:77/); assert.match(engine, /roofs:\[\],env:'night',seed:91/);
   assert.match(engine, /env:'interior', start:\[rooms\[0\]\.cx/, 'la mazmorra, interior'); assert.match(engine, /env:'day', start:\[4,4\]/);
@@ -856,7 +852,7 @@ test('motor (ola final): factoryType, WALLAT por componentes, árbol v%3, carga 
   assert.match(engine, /const FT=p=>Catalogo\.factoryType\(p\);/);
   assert.doesNotMatch(engine, /\b(p|q|x|b\.prop)\.type==='(portal|light|window|stairs)'/, 'nada decide por p.type de portal/luz/ventana/escalera');
   assert.match(engine, /else if\(!wk&&D\)\{ const c=senseOf\(D\); if\(c\)\{ for\(const \[cx,cz\] of propCells\(p\)\) if\(inb\(cx,cz\)\) wallAdd\(idx\(cx,cz\),p\); if\(c\.hide\) HAS_COVER=true; \} \}/);
-  assert.match(engine, /const st=STACK\[\(opt\.v\|0\)%3\];/);
+  assert.match(engine, /const st=ART3\.STACK\[\(opt\.v\|0\)%3\];/);
   assert.match(engine, /PIECES_OK=true; piecesDone\(\); if\(M&&PIECES\.size\)\{ refreshEntities\(\); rebuildRegion\(0,0,M\.w-1,M\.d-1\); lightDirty=true; fogDirty=true; \}/);
   assert.match(engine, /catch\(e\)\{ if\(stopped\) return; piecesDone\(\);/, 'abrir no espera a que carguen las piezas (M4)');
   assert.match(engine, /toggleDoor\(p,true,lot\); \}\n\s*if\(lot\.length\) doorRelight\(lot\);/, 'un solo doorRelight por lote');
@@ -877,4 +873,13 @@ test('P-48: puertas por su huella y WALLAT con varias piezas por casilla', () =>
   assert.equal((engine.match(/door:i=>doorSeal\.has\(i\), bk:wallBlocks \};/g) || []).length, 2, 'GRID y AGRID: sólo las puertas de fábrica tapan como muro; las p:, por componentes (WALLAT)');
   assert.match(engine, /if\(p\.x===x&&p\.z===z\) return p; if\(!hit&&propCovers\(p,x,z\)\) hit=p;/, 'doorAt: la esquina primero, luego la que cubre');
   assert.match(engine, /untouched=!!M&&AUTO\.last!==null&&autoKey\(\)===AUTO\.last;[^\n]*\n\s*PIECES=new Map\([^\n]*if\(untouched\) autoBaseline\(\);/, 'abrir no guarda al llegar las piezas en un reintento');
+});
+
+test('el motor no reasigna funciones (sin parches)', () => {
+  const src = readEngine();
+  for (const f of ['moveMiniTo', 'loadMap', 'startCombat', 'nextTurn', 'endCombat', 'dash', 'undo', 'redo', 'endStroke', 'setFog']) {
+    assert.doesNotMatch(src, new RegExp(`(^|[;\\s])${f}=function`, 'm'), f);
+    assert.equal((src.match(new RegExp(`function ${f}\\(`, 'g')) || []).length, 1, f);
+  }
+  assert.match(src, /\$\('undo'\)\.onclick=\(\)=>undo\(\); \$\('redo'\)\.onclick=\(\)=>redo\(\);/);   // D1 (tarea 10): los botones avisan a la mesa en vivo como Ctrl+Z
 });
