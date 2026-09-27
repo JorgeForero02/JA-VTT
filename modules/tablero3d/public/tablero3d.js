@@ -10,6 +10,8 @@ const ROOT=ctx.root, $=ctx.$, Vision=T3D.Vision, Fichas=T3D.Fichas, Muros=T3D.Mu
 const {mulberry32,hash,pick,hexRGB}=T3D.Base; const {WARM,HEX6,LIGHT_TYPES,LIGHT_IDS,OBJ_LIGHT_IDS,LIGHT_ANIMS,TOKEN_LIGHTS,normLight,lightOfType,lightName,lightRGB}=T3D.Luces;
 const {G,D,S,B,W,SA,WA,SL,TH,SH,CU,Grgb,Drgb,Srgb,PROP3D}=T3D.Objetos3D;
 const Escena=T3D.Escena.make({Catalogo,Muros,Ambiente,Ajustes}); const {ROOF_MAT_IDS,ROOF_SHAPE_IDS,normRoof,sceneExtras}=Escena;
+const {el,esc,mkBtn,sepEl,lblEl,thumbCanvas,lsGet,lsSet}=T3D.UI({$,icon:ctx.icon});
+const Pixel=T3D.Pixel; const {flipH,flipV,rot90,lineCb,rgb2hsl,hsl2rgb,hueRamp,parsePalette,toHex}=Pixel;
 /* escuchas de ventana, temporizadores y observadores que hay que soltar al desmontar */
 const offs=[]; let stopped=false;
 function on(t,ev,fn,o){ t.addEventListener(ev,fn,o); offs.push(()=>t.removeEventListener(ev,fn,o)); }
@@ -1713,7 +1715,6 @@ function drawZones(){
 }
 
 /* ---- paleta ---- */
-function thumbCanvas(src,sx,sy,sw,sh){ const c=mkCanvas(sw,sh); c.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh); return c; }
 function renderPalette(){
   const el=$('palette'); el.textContent='';
   let items=null;
@@ -2174,7 +2175,6 @@ const PRESETS={
 };
 try{ ART.custom=(JSON.parse(localStorage.getItem('tablero:colors')||'[]')||[]).filter(h=>/^#[0-9a-f]{6}$/i.test(h)).slice(0,40); }catch(e){ ART.custom=[]; }
 const saveCustomCols=()=>{ try{ localStorage.setItem('tablero:colors',JSON.stringify(ART.custom)); }catch(e){} };
-const toHex=c=>'#'+[c[0],c[1],c[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
 const fromHex=h=>[...hexRGB(h),255];
 let SHADE=new Map();
 function buildShade(){ SHADE=new Map(); [...PAL_RAMPS,ART.custom].forEach((rp,ri)=>rp.forEach((h,i)=>{ const k=hexRGB(h).join(','); if(!SHADE.has(k)) SHADE.set(k,[ri,i]); })); }
@@ -2299,8 +2299,6 @@ function gradient(buf,a,b){ const d=ART.doc, vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy
   for(let y=0;y<d.h;y++) for(let x=0;x<d.w;x++){ if(!inSel(x,y)) continue; const o=(y*d.w+x)*4; if(ART.gradOpaque&&!buf[o+3]) continue;
     const t=Math.max(0,Math.min(1,((x-a.x)*vx+(y-a.y)*vy)/L2)), use2=t>(BAYER[y&3][x&3]+0.5)/16, c=use2?ART.sec:ART.prim;
     if(!c[3]&&!use2) continue; setRaw(buf,x,y,c); } }
-function lineCb(x0,y0,x1,y1,cb){ const dx=Math.abs(x1-x0), dy=-Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1; let e=dx+dy;
-  for(;;){ cb(x0,y0); if(x0===x1&&y0===y1) break; const e2=2*e; if(e2>=dy){ e+=dy; x0+=sx; } if(e2<=dx){ e+=dx; y0+=sy; } } }
 function ppOn(){ return ART.pp&&ART.size===1&&!ART.cbrush&&!ART.mirX&&!ART.mirY&&(ART.tool==='pencil'||ART.tool==='eraser'); }
 // pixel perfect: al dibujar a mano alzada se quitan las esquinas en L
 function drawPt(g,x,y){
@@ -2370,9 +2368,6 @@ function transformRegion(fn){ // fn(src,w,h) -> {data,w,h}
   for(let y=0;y<r.h;y++) for(let x=0;x<r.w;x++){ const k=(y*r.w+x)*4; setRaw(buf,r.x+x,r.y+y,[o.data[k],o.data[k+1],o.data[k+2],o.data[k+3]]); }
   changed(false);
 }
-const flipH=(s,w,h)=>{ const o=new Uint8ClampedArray(s.length); for(let y=0;y<h;y++) for(let x=0;x<w;x++) for(let k=0;k<4;k++) o[(y*w+x)*4+k]=s[(y*w+w-1-x)*4+k]; return {data:o,w,h}; };
-const flipV=(s,w,h)=>{ const o=new Uint8ClampedArray(s.length); for(let y=0;y<h;y++) for(let x=0;x<w;x++) for(let k=0;k<4;k++) o[(y*w+x)*4+k]=s[((h-1-y)*w+x)*4+k]; return {data:o,w,h}; };
-const rot90=(s,w,h)=>{ const o=new Uint8ClampedArray(s.length); for(let y=0;y<h;y++) for(let x=0;x<w;x++) for(let k=0;k<4;k++) o[(x*h+(h-1-y))*4+k]=s[(y*w+x)*4+k]; return {data:o,w:h,h:w}; };
 function offsetHalf(){ // desplaza todas las capas media casilla: ayuda a que la textura se repita sin costuras
   commitFloat(); const d=ART.doc; pushDoc(); const fr=d.frames[ART.frame];
   fr.cels=fr.cels.map(c=>{ const o=new Uint8ClampedArray(c.length), hx=d.w>>1, hy=d.h>>1;
@@ -2561,9 +2556,6 @@ const ATOOLS=[['pencil','Lápiz','b'],['eraser','Borrador','e'],['fill','Cubeta'
   ['ellipse','Elipse','o'],['spray','Aerógrafo','a'],['gradient','Degradado','k'],['select','Selec.','m'],['wand','Varita','w'],['lasso','Lazo','q'],['move','Mover','v'],
   ['shade','Sombra','s'],['dither','Tramado','d'],['hand','Mano','h']];
 function setTool(t){ if(t==='pick'&&ART.tool!=='pick') ART.prevTool=ART.tool; if(t!=='move'&&ART.flt) commitFloat(); ART.tool=t; renderTools(); renderOpts(); artDraw(); }
-function mkBtn(label,fn,opt={}){ const b=document.createElement('button'); b.className='btn'; b.textContent=label; if(opt.pressed!==undefined) b.setAttribute('aria-pressed',String(!!opt.pressed)); if(opt.title) b.title=opt.title; if(opt.disabled) b.disabled=true; b.onclick=fn; return b; }
-function sepEl(){ const s=document.createElement('span'); s.className='t3d-sep'; return s; }
-function lblEl(t){ const s=document.createElement('span'); s.className='t3d-lbl'; s.textContent=t; return s; }
 const ART_IC={pencil:'pencil',eraser:'eraser',fill:'paint-bucket',pick:'pipette',line:'slash',rect:'rectangle-horizontal',ellipse:'ellipse',select:'square-dashed',move:'move',shade:'contrast',dither:'grid-2x2',hand:'hand-grab',spray:'spray-can',gradient:'blend',wand:'wand-sparkles',lasso:'lasso',lightpos:'lightbulb'};
 function renderTools(){ const el=$('artTools'); el.textContent='';
   for(const [k,n,key] of ATOOLS){ const b=document.createElement('button'); b.className='t3d-tb';
@@ -2688,12 +2680,6 @@ function renderPal(){
     mkBtn('Sacar paleta del dibujo',()=>{ const d=ART.doc; if(!d) return; const set=new Set(); d.frames.forEach((fr,f)=>{ const px=composeDoc(d,f); for(let o=0;o<px.length&&set.size<64;o+=4) if(px[o+3]) set.add(toHex([px[o],px[o+1],px[o+2]])); });
       usePalette([...set],'Del dibujo'); }));
 }
-// rampa de 7 tonos: las sombras giran hacia el azul y las luces hacia el amarillo, como en el pixel art clásico
-function hueRamp(c){ const [h,s2,l]=rgb2hsl(c[0],c[1],c[2]), out=[];
-  for(let i=-3;i<=3;i++){ const t=i/3, tgt=i<0?0.66:0.16; let dh=((tgt-h+1.5)%1)-0.5; const nh=(h+dh*Math.abs(t)*0.12+1)%1;
-    const nl=Math.max(0.04,Math.min(0.96,l+t*(i<0?l*0.8:(1-l)*0.8))), ns=Math.max(0,Math.min(1,s2*(i>0?1-t*0.25:1+Math.abs(t)*0.1)));
-    out.push(toHex(hsl2rgb(nh,ns,nl))); }
-  return [...new Set(out)]; }
 function noteRecent(c){ if(!c||!c[3]) return; const h=toHex(c); ART.recent=[h,...(ART.recent||[]).filter(x=>x!==h)].slice(0,12); }
 // paleta importada o sacada del dibujo: se añade como paleta base «Importada»
 function usePalette(cols,label){ cols=[...new Set(cols.map(h=>h.toLowerCase()).filter(h=>/^#[0-9a-f]{6}$/.test(h)))].slice(0,64);
@@ -2701,11 +2687,6 @@ function usePalette(cols,label){ cols=[...new Set(cols.map(h=>h.toLowerCase()).f
   PRESETS.imported=[byLum(cols)]; const sel=$('artPreset'); let o=[...sel.options].find(x=>x.value==='imported');
   if(!o){ o=document.createElement('option'); o.value='imported'; sel.appendChild(o); } o.textContent=label+' ('+cols.length+' colores)'; sel.value='imported';
   PAL_RAMPS=PRESETS.imported; buildShade(); renderPal(); showHint('Paleta de '+cols.length+' colores lista.',1800); }
-function parsePalette(text){ const out=[];
-  for(const line of String(text).split(/\r?\n/)){ const t=line.trim(); if(!t||t.startsWith('#')&&!/^#[0-9a-f]{6}\b/i.test(t)||/^(GIMP|Name|Columns)/i.test(t)) continue;
-    const m=t.match(/^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})/); if(m){ out.push(toHex([+m[1],+m[2],+m[3]].map(v=>Math.min(255,v)))); continue; }
-    for(const h of t.matchAll(/#?\b([0-9a-f]{6})\b/gi)) out.push('#'+h[1]); }
-  return out; }
 $('artPalFile').onchange=async()=>{ const f=$('artPalFile').files[0]; $('artPalFile').value=''; if(!f) return;
   if(f.type.startsWith('image/')){ const img=new Image(); img.src=URL.createObjectURL(f); try{ await img.decode(); }catch(e){ return showHint('No se pudo leer la imagen.',1600); }
     const c=mkCanvas(Math.min(256,img.width),Math.min(256,img.height)); c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(img.src);
@@ -2887,8 +2868,6 @@ $('artTry').onclick=()=>{ commitFloat(); const d=ART.doc; d.key=assetKey(d); reg
 
 /* ---- biblioteca: guardado como hojas PNG por capa ---- */
 const LSA='tablero:assets';
-function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(e){ return {}; } }
-function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
 async function assetList(){
   if(DB){ try{ const q=await DB.collection('assets').orderBy('updated','desc').limit(120).get(); return q.docs.map(x=>({id:x.id,...x.data()})); }catch(e){} }
   return Object.entries(lsGet(LSA)).map(([id,o])=>({id,...o})).sort((a,b)=>(b.updated||0)-(a.updated||0));
@@ -3243,8 +3222,6 @@ function openGame(on){
   rangeKey=''; renderGame(); layout();
 }
 $('mode').addEventListener('click',()=>{ openGame(state.mode!=='edit'); railSync(); });
-const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // barra de vida del panel (sin números si sólo se ve la barra)
 function hpBarEl(cur,max,temp){ const bar=el('div','t3d-hpbar'), fill=el('i'); fill.style.width=(100*cur/max)+'%'; if(cur/max<0.35) fill.style.background='var(--rust)'; bar.append(fill);
   if(temp>0){ const t=el('b','t3d-tmp'); t.style.width=Math.min(100,100*temp/max)+'%'; bar.append(t); } return bar; }
@@ -3856,29 +3833,18 @@ $('artNewDlg').addEventListener('pointerdown',e=>{ if(e.target===$('artNewDlg'))
 $('artFromImg').onclick=()=>confirmLose($('artFromImg'),()=>{ setDoc(newDoc(...formArgs())); $('artFile').click(); });
 
 /* ---- ajustes de creación ---- */
-function rgb2hsl(r,g,b){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Math.min(r,g,b); let h=0, s=0; const l=(mx+mn)/2;
-  if(mx!==mn){ const d=mx-mn; s=l>0.5?d/(2-mx-mn):d/(mx+mn); h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4; h/=6; } return [h,s,l]; }
-function hsl2rgb(h,s,l){ if(!s){ const v=Math.round(l*255); return [v,v,v]; } const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
-  const f=t=>{ t=(t+1)%1; return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p; }; return [f(h+1/3),f(h),f(h-1/3)].map(v=>Math.round(v*255)); }
 // aplica fn(r,g,b)->[r,g,b] a los píxeles de la capa (o selección) actual; all=true: a todos los cuadros
-function mapPixels(fn,all){
-  commitFloat(); const d=ART.doc; all?pushDoc():pushCel();
-  const frames=all?d.frames.map((f,i)=>i):[ART.frame];
-  for(const f of frames){ const buf=d.frames[f].cels[ART.layer];
-    for(let y=0;y<d.h;y++) for(let x=0;x<d.w;x++){ if(!inSel(x,y)) continue; const o=(y*d.w+x)*4; if(!buf[o+3]) continue;
-      const c=fn(buf[o],buf[o+1],buf[o+2]); if(c){ buf[o]=c[0]; buf[o+1]=c[1]; buf[o+2]=c[2]; } } }
-  changed(all);
-}
+function mapPixels(fn,all){ forCels(all,(buf,d)=>Pixel.mapPixels(buf,d.w,d.h,fn,inSel)); changed(all); }
+// la capa actual de cada cuadro que toca un ajuste (all=true: todos), tras soltar lo flotante y guardar el deshacer
+function forCels(all,body){ commitFloat(); const d=ART.doc; all?pushDoc():pushCel();
+  for(const f of (all?d.frames.map((x,i)=>i):[ART.frame])) body(d.frames[f].cels[ART.layer],d); }
 const adjHSL=(dh,ds,dl)=>mapPixels((r,g,b)=>{ let [h,s2,l]=rgb2hsl(r,g,b); h=(h+dh+1)%1; s2=Math.max(0,Math.min(1,s2+ds)); l=Math.max(0,Math.min(1,l+dl)); return hsl2rgb(h,s2,l); },ART.adjAll);
 function paletteList(){ return [...new Set([...PAL_RAMPS.flat(),...ART.custom])].map(h=>hexRGB(h)); }
 function reduceToPalette(){ const pal=paletteList();
-  mapPixels((r,g,b)=>{ let best=pal[0], bd=1e9; for(const p of pal){ const dr=r-p[0], dg=g-p[1], db=b-p[2], dd=dr*dr*0.3+dg*dg*0.59+db*db*0.11; if(dd<bd){ bd=dd; best=p; } } return best; },ART.adjAll);
+  forCels(ART.adjAll,(buf,d)=>Pixel.reduceToPalette(buf,d.w,d.h,pal,inSel)); changed(ART.adjAll);
   showHint('Colores ajustados a la paleta activa.',1500); }
 function replaceColor(){ const a=ART.prim, b=ART.sec; if(!a[3]){ showHint('Elige como color principal el color que quieres reemplazar.',2200); return; }
-  commitFloat(); const d=ART.doc; ART.adjAll?pushDoc():pushCel(); let n=0;
-  for(const f of (ART.adjAll?d.frames.map((x,i)=>i):[ART.frame])){ const buf=d.frames[f].cels[ART.layer];
-    for(let o=0;o<buf.length;o+=4){ const x=(o/4)%d.w, y=((o/4)/d.w)|0; if(!inSel(x,y)) continue;
-      if(buf[o+3]&&buf[o]===a[0]&&buf[o+1]===a[1]&&buf[o+2]===a[2]){ buf[o]=b[0]; buf[o+1]=b[1]; buf[o+2]=b[2]; buf[o+3]=b[3]; n++; } } }
+  let n=0; forCels(ART.adjAll,(buf,d)=>{ n+=Pixel.replaceColor(buf,d.w,d.h,a,b,inSel); });
   changed(true); showHint(n?n+' píxeles cambiados del color principal al secundario.':'No hay píxeles del color principal.',2000); }
 function innerShade(){ // oscurece un paso los píxeles del borde interior: da volumen
   commitFloat(); const d=ART.doc; pushCel(); const buf=curBuf(), src=buf.slice(), op=(x,y)=>x>=0&&y>=0&&x<d.w&&y<d.h&&src[(y*d.w+x)*4+3]>0, ramps=[...PAL_RAMPS,ART.custom];

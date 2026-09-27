@@ -12,7 +12,7 @@ const browserGlobals = {
 
 const T3D_PUB = 'modules/tablero3d/public/';
 // módulos puros del tablero 3D (UMD: node y navegador)
-const PURE_T3D = ['base.js', 'luces.js', 'catalogo.js', 'objetos3d.js', 'escena.js', 'mapas.js'].map((f) => T3D_PUB + f);
+const PURE_T3D = ['base.js', 'luces.js', 'catalogo.js', 'objetos3d.js', 'escena.js', 'mapas.js', 'pixel.js'].map((f) => T3D_PUB + f);
 // módulos de navegador anteriores al refactor que no pasan recommended (no se tocan en el refactor)
 const OLD_T3D = [].map((f) => T3D_PUB + f);
 const T3D_RULES = { 'no-empty': ['error', { allowEmptyCatch: true }], 'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }], 'max-lines': ['error', { max: 1100 }] };
@@ -45,7 +45,6 @@ export default [
   {
     // tablero 3D, módulos PUROS (sin DOM, sin THREE): recommended entero y sólo los globales del envoltorio UMD
     // (window sólo porque la cola lee `typeof window`). Un módulo puro que toque el DOM o THREE no pasa el lint.
-    // Las tareas siguientes del refactor añaden aquí pixel.js.
     files: PURE_T3D,
     languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { module: 'writable', require: 'readonly', globalThis: 'readonly', window: 'readonly', TextEncoder: 'readonly' } },
     rules: { ...js.configs.recommended.rules, ...T3D_RULES },
