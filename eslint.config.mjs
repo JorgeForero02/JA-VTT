@@ -10,6 +10,13 @@ const browserGlobals = {
   KeyboardEvent: 'readonly', MouseEvent: 'readonly', HTMLElement: 'readonly', Node: 'readonly', Event: 'readonly', atob: 'readonly', btoa: 'readonly',
 };
 
+const T3D_PUB = 'modules/tablero3d/public/';
+// módulos puros del tablero 3D (UMD: node y navegador)
+const PURE_T3D = ['base.js', 'luces.js', 'objetos3d.js', 'mapas.js'].map((f) => T3D_PUB + f);
+// módulos de navegador anteriores al refactor que no pasan recommended (no se tocan en el refactor)
+const OLD_T3D = ['catalogo.js'].map((f) => T3D_PUB + f);
+const T3D_RULES = { 'no-empty': ['error', { allowEmptyCatch: true }], 'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }], 'max-lines': ['error', { max: 1100 }] };
+
 export default [
   { ignores: ['node_modules/**', 'public/js/vendor/**', 'data/**', 'test/e2e/capturas/**'] },
   {
@@ -36,13 +43,23 @@ export default [
     rules: { 'no-undef': 'off', 'no-unused-vars': 'off', 'no-empty': ['error', { allowEmptyCatch: true }] },
   },
   {
-    // tablero 3D: módulos del cliente (scripts clásicos). Los nuevos se revisan enteros; el núcleo, sin no-undef.
+    // tablero 3D, módulos PUROS (sin DOM, sin THREE): recommended entero y sólo los globales del envoltorio UMD
+    // (window sólo porque la cola lee `typeof window`). Un módulo puro que toque el DOM o THREE no pasa el lint.
+    // Las tareas siguientes del refactor añaden aquí escena.js y pixel.js.
+    files: PURE_T3D,
+    languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { module: 'writable', require: 'readonly', globalThis: 'readonly', window: 'readonly' } },
+    rules: { ...js.configs.recommended.rules, ...T3D_RULES },
+  },
+  {
+    // tablero 3D, módulos de navegador (scripts clásicos): recommended entero; el núcleo va aparte, sin no-undef.
     files: ['modules/tablero3d/public/*.js'],
-    // personajes.js: módulo anterior al refactor (1161 líneas, por encima de max-lines; no se toca aquí)
-    ignores: ['modules/tablero3d/public/tablero3d.js', 'modules/tablero3d/public/t3d.js', 'modules/tablero3d/public/personajes.js'],
-    ...js.configs.recommended,
-    languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...browserGlobals, THREE: 'readonly', module: 'writable', globalThis: 'readonly' } },
-    rules: { 'no-empty': ['error', { allowEmptyCatch: true }], 'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }], 'max-lines': ['error', { max: 1100 }] },
+    ignores: ['modules/tablero3d/public/tablero3d.js', 'modules/tablero3d/public/t3d.js', ...PURE_T3D,
+      // personajes.js: módulo anterior al refactor (1161 líneas, por encima de max-lines; no se toca aquí)
+      'modules/tablero3d/public/personajes.js',
+      // módulo anterior al refactor (no pasa recommended)
+      ...OLD_T3D],
+    languageOptions: { ecmaVersion: 2024, sourceType: 'script', globals: { ...browserGlobals, THREE: 'readonly', module: 'writable', require: 'readonly', globalThis: 'readonly' } },
+    rules: { ...js.configs.recommended.rules, ...T3D_RULES },
   },
   {
     files: ['modules/tablero3d/public/tablero3d.js'],
