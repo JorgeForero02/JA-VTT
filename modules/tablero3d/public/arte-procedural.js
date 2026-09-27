@@ -32,7 +32,7 @@ const {G,D,S,B,W,SA,WA,SL,TH,SH,CU,Grgb,Drgb,Srgb,PROP3D}=Objetos3D;
 const DIR4=[[1,0],[-1,0],[0,1],[0,-1]];   // la misma constante que el motor (vecinos en cruz), para los pliegues de sculpt
 
 /* ============ utilidades de lienzo ============ */
-function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d',{willReadFrequently:true}); return c; }
+function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d',{willReadFrequently:true}); return c; }   // mantener igual que mkCanvas de ui3d.js
 function R(ctx,x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
 function outline(c,col){
   const ctx=c.getContext('2d'); const W=c.width,H=c.height;

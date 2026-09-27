@@ -1,4 +1,3 @@
-'use strict';
 /* Utilidades de interfaz del tablero 3D (Tablero3D.UI): crear un elemento (el), escapar HTML (esc), botón de la barra
    (mkBtn), separador y rótulo (sepEl, lblEl), miniatura de un trozo de lienzo (thumbCanvas) y el guardado local tolerante
    (lsGet, lsSet). Las usan la paleta, el editor de arte, la partida, las campañas, la mesa en vivo y la biblioteca.
@@ -13,7 +12,7 @@
 (function (root) {
 'use strict';
 function UI(deps){
-function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d',{willReadFrequently:true}); return c; }
+function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d',{willReadFrequently:true}); return c; }   // mantener igual que mkCanvas de arte-procedural.js
 function thumbCanvas(src,sx,sy,sw,sh){ const c=mkCanvas(sw,sh); c.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh); return c; }
 function mkBtn(label,fn,opt={}){ const b=document.createElement('button'); b.className='btn'; b.textContent=label; if(opt.pressed!==undefined) b.setAttribute('aria-pressed',String(!!opt.pressed)); if(opt.title) b.title=opt.title; if(opt.disabled) b.disabled=true; b.onclick=fn; return b; }
 function sepEl(){ const s=document.createElement('span'); s.className='t3d-sep'; return s; }
