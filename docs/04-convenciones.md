@@ -73,8 +73,13 @@ base.js ─ luces.js ─ objetos3d.js ─ escena.js ─ mapas.js ─ pixel.js   
 ```
 
 - **Módulos puros**: sin DOM, sin `THREE`, sin estado global; UMD exactamente como la cola de `catalogo.js`
-  (`module.exports` en node, `Tablero3D.X` en el navegador). El lint lo hace cumplir: los ficheros de `PURE_T3D`
-  (`eslint.config.mjs`) sólo tienen los globales del envoltorio UMD, así que tocar el DOM o `THREE` no pasa.
+  (`module.exports` en node, `Tablero3D.X` en el navegador). El lint cubre una parte: los ficheros de `PURE_T3D`
+  (`eslint.config.mjs`) sólo tienen los globales del envoltorio UMD (`module`, `require`, `globalThis`, `window`,
+  `TextEncoder`), así que un `document`, `THREE` u otro global del navegador suelto no pasa. `window` está porque la
+  cola UMD lo lee: usar `window.*` fuera de esa cola (p. ej. `window.document`) el lint no lo ve y queda
+  **prohibido por convención y revisión**.
+- **Los exports de los módulos puros son de sólo lectura (congelados)**: lo que cambie por tablero va en el motor o
+  en una fábrica. El módulo es uno para todas las mesas montadas (`test/t3d/congelados.test.js`).
 - **Fábricas**: `T3D.Nombre = function (deps) { … return {…}; }`. Todo lo que usan del motor llega en `deps`;
   no leen variables del motor por cierre. El estado que el motor **reasigna** (`M`, `ENV`, `TEX`, `DB`…) llega
   como **función lectora** (`getM()`), nunca copiado. La API de `editor-arte.js` es una lista cerrada escrita en

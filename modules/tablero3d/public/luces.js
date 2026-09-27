@@ -41,6 +41,9 @@ function lightOfType(id,keep){ const T=LIGHT_TYPES[id]; if(!T) return null;
   return {preset:id,r:T.r,h:T.h,color:T.color,intensity:T.intensity,anim:T.anim,angle:T.angle||360,rot:keep&&Number.isFinite(keep.rot)?keep.rot:0,darkness:!!T.darkness,on:keep?keep.on!==false:true}; }
 const lightName=p=>p.name||(LIGHT_TYPES[p.preset]?LIGHT_TYPES[p.preset].name:'Luz');
 function lightRGB(hex){ const c=hexRGB(/^#[0-9a-f]{6}$/i.test(hex||'')?hex:WARM); return [c[0]/255,c[1]/255,c[2]/255]; }
+  // de sólo lectura: el módulo es uno para todas las mesas montadas (lo que cambie por tablero va en el motor)
+  Object.values(LIGHT_TYPES).forEach(Object.freeze); LIGHT_ANIMS.forEach(Object.freeze);
+  [LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS].forEach(Object.freeze);
   const Luces = { WARM, HEX6, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, normLight, lightOfType, lightName, lightRGB };
   if (typeof module === 'object' && module.exports) module.exports = Luces;
   else (root.Tablero3D = root.Tablero3D || {}).Luces = Luces;

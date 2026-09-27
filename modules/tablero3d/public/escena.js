@@ -15,7 +15,7 @@
   const Luces = node ? require('./luces') : root.Tablero3D.Luces;
   const { normLight } = Luces;
   // materiales y formas de techo que se aceptan (los datos de pintado, ROOF_MATS/ROOF_SHAPES, están en arte-procedural.js)
-  const ROOF_MAT_IDS=['tile','slate','thatch','shingle','copper'], ROOF_SHAPE_IDS=['gable','hip','flat','cone','shed'];
+  const ROOF_MAT_IDS=Object.freeze(['tile','slate','thatch','shingle','copper']), ROOF_SHAPE_IDS=Object.freeze(['gable','hip','flat','cone','shed']);
   // cómo lee un techo guardado el cliente
 function normRoof(r,w,d){ if(!r||typeof r!=='object'||![r.x,r.z,r.w,r.d].every(Number.isInteger)||r.w<2||r.d<2||r.x<0||r.z<0||r.x+r.w>w||r.z+r.d>d) return null;
   const o={x:r.x,z:r.z,w:r.w,d:r.d,mat:ROOF_MAT_IDS.includes(r.mat)?r.mat:'tile',shape:ROOF_SHAPE_IDS.includes(r.shape)?r.shape:'gable'};

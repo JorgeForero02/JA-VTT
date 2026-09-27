@@ -5,8 +5,8 @@
 
    Es una FÁBRICA de navegador (usa document y localStorage): el motor la invoca una vez, justo tras sus alias:
      const {el,esc,mkBtn,sepEl,lblEl,thumbCanvas,lsGet,lsSet}=T3D.UI({$,icon:ctx.icon});
-   deps = { $, icon }: $(id) y icon(nombre) del anfitrión. Hoy ninguna de estas utilidades los usa (se reciben para las
-   piezas de interfaz que se extraen en la tarea 8); no hay estado: cada llamada crea lo suyo.
+   deps = { $, icon }: $(id) y icon(nombre) del anfitrión. Reservados y sin uso: ninguna de estas utilidades los lee (el
+   editor, extraído en la tarea 8, los recibe en su propia API); no hay estado: cada llamada crea lo suyo.
    thumbCanvas crea su lienzo como mkCanvas de arte-procedural.js (mismo willReadFrequently), que aún no existe cuando se
    construye esta fábrica. */
 (function (root) {

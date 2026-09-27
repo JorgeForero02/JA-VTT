@@ -229,6 +229,10 @@ const PROP3D={
     if(s>=12&&s<=19&&x>=-3&&x<=6&&az<=1){ if(x<-2.4||x>5.4||s===12||s===19) return Wr[1]; const X=Math.floor(x+3), Y=19-s;
       if((X>=3&&X<=5&&Y>=2&&Y<=5)||(X===6&&(Y===3||Y===4))) return GOLDc; return Wr[3]; } return null; }},
 };
+  // de sólo lectura: el módulo es uno para todas las mesas montadas (lo que cambie por tablero va en el motor)
+  [G, D, S, B, W, SA, WA, SL, TH, SH, CU].forEach(Object.freeze);
+  [Grgb, Drgb, Srgb].forEach((a) => { a.forEach(Object.freeze); Object.freeze(a); });
+  Object.values(PROP3D).forEach(Object.freeze); Object.freeze(PROP3D);
   const Objetos3D = { G, D, S, B, W, SA, WA, SL, TH, SH, CU, Grgb, Drgb, Srgb, PROP3D };
   if (typeof module === 'object' && module.exports) module.exports = Objetos3D;
   else (root.Tablero3D = root.Tablero3D || {}).Objetos3D = Objetos3D;

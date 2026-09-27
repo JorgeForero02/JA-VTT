@@ -1,4 +1,3 @@
-'use strict';
 /* Arte procedural del tablero 3D (Tablero3D.ArteProcedural): paleta, atlas de casillas 16×4, sprites (árboles, brasero,
    personajes de fábrica pintados a mano y esculpidos), ampliación EPX, volúmenes por capas (sprite stacking) y el arte
    propio (CUSTOM) que se superpone al procedural. Extraído literalmente de tablero3d.js (refactor, tarea 6).

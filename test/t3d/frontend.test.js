@@ -144,6 +144,8 @@ test('nada se carga de internet: scripts, estilos y fuentes son locales', () => 
   // lo que Tablero3D.mount carga al montar
   const loader = readMod('t3d.js');
   const lazy = [...loader.matchAll(/BASE\+'([^']+)'/g)].map((m) => m[1]);
+  // el motor se carga en el orden de capas de ENGINE_FILES (base → … → tablero3d), antes de ordenar la lista
+  assert.deepEqual(lazy.filter((f) => ENGINE_FILES.includes(f)), ENGINE_FILES, 'orden de carga del motor en t3d.js');
   assert.deepEqual(lazy.sort(), ['ajustes.js', 'ambiente.js', 'arte-procedural.js', 'base.js', 'catalogo.js', 'dados.js', 'editor-arte.js', 'escena.js', 'fichas.js', 'icons-t3d.js', 'luces.js', 'mapas.js', 'mesa.js', 'muros.js', 'objetos3d.js', 'personajes.js', 'pixel.js', 't3d.css', 't3d.html', 't3d.html', 'tablero3d.js', 'ui3d.js', 'vendor/three.min.js', 'vision.js'].sort());
   for (const f of lazy) assert.ok(fs.existsSync(path.join(MOD, f)), f);
   for (const m of hostCss.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)) assert.ok(fs.existsSync(path.join(PUB, m[1])), m[1]);

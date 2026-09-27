@@ -119,17 +119,17 @@ mesa → icons-t3d → ui3d → arte-procedural → editor-arte → tablero3d`. 
 | Fichero | Líneas | Tipo | Qué tiene |
 |---|---|---|---|
 | `t3d.js` | 190 | cargador | `Tablero3D.mount`: estilos, marcado, scripts en orden, iconos, conexión propia `/t3d/ws` |
-| `base.js` | 12 | puro (UMD) | `mulberry32, hash, pick, clamp, hexRGB, shadeHex, luma` |
-| `luces.js` | 47 | puro (UMD) | tipos de luz, `normLight`, `lightOfType`, `lightName`, `lightRGB` |
-| `objetos3d.js` | 235 | puro (UMD) | `PROP3D` (objetos por rebanadas) y su paleta |
-| `escena.js` | 99 | puro (UMD) | `Escena.make({Catalogo, Muros, Ambiente, Ajustes})` → `read`/`write` (núcleo de deserialize/serialize), `normRoof`, `levelSide`, extras, `blankMap`, `campValid` |
-| `mapas.js` | 214 | puro (UMD) | `Mapas.make(…)` → mapas de ejemplo: demo, mazmorra, pueblo, taller de luces |
-| `pixel.js` | 49 | puro (UMD) | voltear/girar, Bresenham, HSL, rampa de tonos, paletas, núcleos de los ajustes de color |
-| `ui3d.js` | 28 | fábrica | `T3D.UI({$, icon})` → `el, esc, mkBtn, sepEl, lblEl, thumbCanvas, lsGet, lsSet` |
-| `arte-procedural.js` | 743 | fábrica | `T3D.ArteProcedural(deps)`: atlas del terreno, sprites, arte propio (`CUSTOM`), `buildArt`; `atlasTex`/`atlasCanvas` por getter/setter |
-| `editor-arte.js` | 1017 | fábrica | `T3D.EditorArte(api)`: el editor de pixel art entero (API cerrada en su cabecera) |
+| `base.js` | 12 | puro (UMD) | `mulberry32, hash, pick, hexRGB` |
+| `luces.js` | 50 | puro (UMD) | `WARM, HEX6, LIGHT_TYPES, LIGHT_IDS, OBJ_LIGHT_IDS, LIGHT_ANIMS, TOKEN_LIGHTS, normLight, lightOfType, lightName, lightRGB` (datos congelados) |
+| `objetos3d.js` | 239 | puro (UMD) | `PROP3D` (objetos por rebanadas) y su paleta: `G, D, S, B, W, SA, WA, SL, TH, SH, CU, Grgb, Drgb, Srgb` (congelados) |
+| `escena.js` | 99 | puro (UMD) | `Escena.make({Catalogo, Muros, Ambiente, Ajustes})` → `read`, `write` (núcleo de deserialize/serialize), `levelSide`, `readExtras`, `sceneExtras`, `normRoof`, `blankMap`, `campValid`, `ROOF_MAT_IDS`, `ROOF_SHAPE_IDS` (listas congeladas) |
+| `mapas.js` | 214 | puro (UMD) | `Mapas.make({defaultSheet, normSheet, Fichas})` → `demoMap, dungeonMap, townMap, lightWorkshopMap` |
+| `pixel.js` | 49 | puro (UMD) | `flipH, flipV, rot90, lineCb, rgb2hsl, hsl2rgb, hueRamp, parsePalette, reduceToPalette, replaceColor, mapPixels, toHex` |
+| `ui3d.js` | 28 | fábrica | `T3D.UI({$, icon})` (deps reservadas, sin uso) → `el, esc, mkBtn, sepEl, lblEl, thumbCanvas, lsGet, lsSet` |
+| `arte-procedural.js` | 742 | fábrica | `T3D.ArteProcedural({THREE, Personajes, Objetos3D, Base, getTEX})`: atlas del terreno, sprites, arte propio (`CUSTOM`), `buildArt`…; `SPR/STACK/STK/CSTACK/PSTACK` por getter, `atlasTex`/`atlasCanvas`/`PLACEHOLDER` por getter/setter |
+| `editor-arte.js` | 1017 | fábrica | `T3D.EditorArte(api)` → `open, close, isOpen, key, preview, loadAllAssets, registerDoc, applyCustom, docInfo, openNewDlg, artTab` (API cerrada en su cabecera) |
 | `tablero3d.js` | 3055 | núcleo | `T3D._engine(ctx)`: modelo, luz, entidades, partida, mesa en vivo, entrada y bucle; sin reasignaciones de función |
-| `catalogo.js` | 327 | puro (UMD) | catálogo de piezas (fase 0; también lo usa el servidor) |
+| `catalogo.js` | 327 | puro (UMD) | catálogo de piezas (fase 0; también lo usa el servidor): `defOf`, `complete`, `blocks`, `blocksMove`, `validateDef`… |
 | `vision.js`, `fichas.js`, `muros.js`, `ambiente.js`, `ajustes.js`, `dados.js`, `personajes.js`, `mesa.js`, `icons-t3d.js` | — | anteriores al refactor | visión y luz, fichas, muros, ambiente, ajustes, dados, arte de personajes, adaptador de la mesa, iconos |
 
 ### Piezas con comportamiento (fase 0, 2026-09-26)
