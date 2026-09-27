@@ -7,7 +7,9 @@
    de sombra y halo, que ningún test mira). THREE sólo guarda la imagen de cada textura.
    Se ejecuta en este mismo reino (runInThisContext), así que sus objetos se comparan con deepStrictEqual.
      loadArte({ TEX } | { getTEX }) → el objeto de la fábrica (TEX por defecto 32, el del motor al arrancar; getTEX para cambiarlo)
-     fakeCanvas(w, h) → un lienzo suelto; `px` son sus píxeles */
+     fakeCanvas(w, h) → un lienzo suelto; `px` son sus píxeles. toDataURL da un «PNG» de mentira (tamaño y píxeles tal cual)
+                        que FakeImage sabe leer: basta para probar que lo que se guarda vuelve igual.
+     loadModules(files, env) → window.Tablero3D tras ejecutar esos ficheros con los globales de env (document, Image…) */
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -81,8 +83,21 @@ function fakeCanvas(w0 = 300, h0 = 150) {
     get height() { return H; }, set height(v) { H = v; resize(); },
     get px() { return px; },
     getContext: () => x,
+    toDataURL: () => FAKE_PNG + W + 'x' + H + ',' + Buffer.from(px).toString('base64'),
   };
 }
+const FAKE_PNG = 'data:image/png;fake,';
+// la Image del navegador para los «PNG» de fakeCanvas.toDataURL: src → decode() → width, height y px
+class FakeImage {
+  decode() {
+    if (!String(this.src).startsWith(FAKE_PNG)) return Promise.reject(new Error('no es un PNG de mentira'));
+    const [dims, b64] = this.src.slice(FAKE_PNG.length).split(',');
+    [this.width, this.height] = dims.split('x').map(Number);
+    this.px = new Uint8ClampedArray(Buffer.from(b64, 'base64'));
+    return Promise.resolve();
+  }
+}
+class FakeImageData { constructor(data, width, height) { this.data = data; this.width = width; this.height = height; } }
 
 const fakeDocument = { createElement: (tag) => { if (tag !== 'canvas') throw new Error(tag); return fakeCanvas(); } };
 class CanvasTexture { constructor(image) { this.image = image; } dispose() {} }
@@ -92,11 +107,12 @@ const fakeTHREE = { CanvasTexture, BufferGeometry, Float32BufferAttribute, Neare
 
 // personajes.js no es UMD y arte-procedural.js pide document: se ejecutan con window y document propios en este reino
 const FILES = ['personajes.js', 'base.js', 'objetos3d.js', 'arte-procedural.js'];
-function loadModules() {
-  const src = FILES.map((f) => fs.readFileSync(path.join(MOD, f), 'utf8')).join('\n;\n');
+function loadModules(files = FILES, env = {}) {
+  const src = files.map((f) => fs.readFileSync(path.join(MOD, f), 'utf8')).join('\n;\n');
   const win = {};
+  const g = { document: fakeDocument, ...env }, names = Object.keys(g);
   // module a undefined: las colas UMD registran en window aunque quien llame tenga `module` (node -e)
-  vm.runInThisContext(`(function(window,document,module){\n${src}\n})`, { filename: 'arte-procedural (helper)' })(win, fakeDocument, undefined);
+  vm.runInThisContext(`(function(window,module,${names.join(',')}){\n${src}\n})`, { filename: 'arte-procedural (helper)' })(win, undefined, ...names.map((k) => g[k]));
   return win.Tablero3D;
 }
 
@@ -105,4 +121,4 @@ function loadArte({ TEX = 32, getTEX = () => TEX } = {}) {
   return T.ArteProcedural({ THREE: fakeTHREE, Personajes: T.Personajes, Objetos3D: T.Objetos3D, Base: T.Base, getTEX });
 }
 
-module.exports = { loadArte, fakeCanvas };
+module.exports = { loadArte, fakeCanvas, loadModules, fakeTHREE, FakeImage, FakeImageData };
