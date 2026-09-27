@@ -5,7 +5,7 @@ const browserGlobals = {
   fetch: 'readonly', WebSocket: 'readonly', FileReader: 'readonly', Image: 'readonly', requestAnimationFrame: 'readonly',
   cancelAnimationFrame: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', setInterval: 'readonly', clearInterval: 'readonly',
   console: 'readonly', navigator: 'readonly', performance: 'readonly', URL: 'readonly', Blob: 'readonly', devicePixelRatio: 'readonly',
-  getComputedStyle: 'readonly', ResizeObserver: 'readonly', OffscreenCanvas: 'readonly', Path2D: 'readonly', DOMMatrix: 'readonly',
+  getComputedStyle: 'readonly', ResizeObserver: 'readonly', OffscreenCanvas: 'readonly', Path2D: 'readonly', ImageData: 'readonly', DOMMatrix: 'readonly',
   alert: 'readonly', confirm: 'readonly', prompt: 'readonly', crypto: 'readonly', history: 'readonly', CustomEvent: 'readonly',
   KeyboardEvent: 'readonly', MouseEvent: 'readonly', HTMLElement: 'readonly', Node: 'readonly', Event: 'readonly', atob: 'readonly', btoa: 'readonly',
 };

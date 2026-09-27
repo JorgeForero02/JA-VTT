@@ -42,6 +42,7 @@
         addIcons();
         if(!T.UI)await loadScript(BASE+'ui3d.js');
         if(!T.ArteProcedural)await loadScript(BASE+'arte-procedural.js');
+        if(!T.EditorArte)await loadScript(BASE+'editor-arte.js');
         if(!T._engine)await loadScript(BASE+'tablero3d.js');
         return html;
       });
