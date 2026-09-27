@@ -23,6 +23,8 @@
      uniforms           uniformes del terreno (applyCustom cambia uMap al rehacer el atlas)
      rebuild, buildDecor, buildRoofs, refreshEntities, syncMinis, renderPalette, applyArtMaps, layout, showHint
                         lo que el motor rehace cuando el arte propio cambia, y el aviso
+                        (layout es hoy un no-op en el motor, `function layout(){}`: se mantiene en la API por
+                        compatibilidad, para que closeArt siga llamándolo si el motor vuelve a necesitarlo)
      propOpts, setPropSel(i), setMiniKind(k), artSizeId(kind), stackThumb(slices)
                         paleta de objetos y personajes del editor de tablero («Probar» deja elegido lo nuevo)
      on, every, observe escuchas, temporizadores y observadores que el motor suelta al desmontar

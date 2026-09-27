@@ -33,15 +33,15 @@ function hsl2rgb(h,s,l){ if(!s){ const v=Math.round(l*255); return [v,v,v]; } co
   const f=t=>{ t=(t+1)%1; return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p; }; return [f(h+1/3),f(h),f(h-1/3)].map(v=>Math.round(v*255)); }
 // núcleo de mapPixels del motor: el recorrido de una capa (el motor elige cuadros y capa, y guarda el deshacer)
 function mapPixels(buf,w,h,fn,sel){
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(sel&&!sel(x,y)) continue; const o=(y*w+x)*4; if(!buf[o+3]) continue;
-      const c=fn(buf[o],buf[o+1],buf[o+2]); if(c){ buf[o]=c[0]; buf[o+1]=c[1]; buf[o+2]=c[2]; } } }
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(sel&&!sel(x,y)) continue; const o=(y*w+x)*4; if(!buf[o+3]) continue;
+    const c=fn(buf[o],buf[o+1],buf[o+2]); if(c){ buf[o]=c[0]; buf[o+1]=c[1]; buf[o+2]=c[2]; } } }
 // núcleo de reduceToPalette del motor: el color más cercano de la paleta
 function reduceToPalette(buf,w,h,pal,sel){
   mapPixels(buf,w,h,(r,g,b)=>{ let best=pal[0], bd=1e9; for(const p of pal){ const dr=r-p[0], dg=g-p[1], db=b-p[2], dd=dr*dr*0.3+dg*dg*0.59+db*db*0.11; if(dd<bd){ bd=dd; best=p; } } return best; },sel); }
 // núcleo de replaceColor del motor: una capa; devuelve cuántos píxeles cambió
 function replaceColor(buf,w,h,a,b,sel){ let n=0;
-    for(let o=0;o<buf.length;o+=4){ const x=(o/4)%w, y=((o/4)/w)|0; if(sel&&!sel(x,y)) continue;
-      if(buf[o+3]&&buf[o]===a[0]&&buf[o+1]===a[1]&&buf[o+2]===a[2]){ buf[o]=b[0]; buf[o+1]=b[1]; buf[o+2]=b[2]; buf[o+3]=b[3]; n++; } }
+  for(let o=0;o<buf.length;o+=4){ const x=(o/4)%w, y=((o/4)/w)|0; if(sel&&!sel(x,y)) continue;
+    if(buf[o+3]&&buf[o]===a[0]&&buf[o+1]===a[1]&&buf[o+2]===a[2]){ buf[o]=b[0]; buf[o+1]=b[1]; buf[o+2]=b[2]; buf[o+3]=b[3]; n++; } }
   return n; }
   const Pixel = { flipH, flipV, rot90, lineCb, rgb2hsl, hsl2rgb, hueRamp, parsePalette, reduceToPalette, replaceColor, mapPixels, toHex };
   if (typeof module === 'object' && module.exports) module.exports = Pixel;
